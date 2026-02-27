@@ -1,0 +1,35 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Go
+backend/bin/
+backend/tmp/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Frontend (temporarily excluded until ready)
+frontend/
+
+# SSL / Certificates
+*.pem
+*.key
+*.crt
+*.p12
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
