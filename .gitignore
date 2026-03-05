@@ -12,9 +12,6 @@ backend/tmp/
 frontend/node_modules/
 frontend/dist/
 
-# Frontend (temporarily excluded until ready)
-frontend/
-
 # SSL / Certificates
 *.pem
 *.key
