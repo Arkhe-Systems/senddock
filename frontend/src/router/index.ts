@@ -27,8 +27,9 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  await auth.checkAuth()
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return {name: 'login' , query: {reason: 'auth_required'}}

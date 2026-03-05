@@ -10,6 +10,15 @@ export const useAuthStore = defineStore('auth', () => {
 
     const isAuthenticated = ref(false);
 
+    async function checkAuth() {
+        try {
+            await api<any>('/me')
+            isAuthenticated.value = true
+        }catch {
+            isAuthenticated.value = false
+        }
+    }
+
     async function login(email: string, password: string) {
         const response = await api<MessageResponse>('/auth/login', {
             method: 'POST',
@@ -31,5 +40,5 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated.value = false
     }
 
-    return { isAuthenticated, login, register, logout }
+    return { isAuthenticated, login, register, logout, checkAuth }
 })
