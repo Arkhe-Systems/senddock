@@ -9,25 +9,35 @@ export default defineConfig({
   themeConfig: {
     logo: '/favicon.svg',
     nav: [
+      { text: 'Self-Hosting', link: '/self-hosting/installation' },
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API', link: '/api/authentication' },
-      { text: 'Self-Hosting', link: '/self-hosting/installation' },
       {
         text: 'GitHub',
         link: 'https://github.com/arkhe-systems/senddock',
       },
     ],
     sidebar: {
+      '/self-hosting/': [
+        {
+          text: 'Self-Hosting',
+          items: [
+            { text: 'Installation', link: '/self-hosting/installation' },
+            { text: 'Configuration', link: '/self-hosting/configuration' },
+            { text: 'Updating', link: '/self-hosting/updating' },
+          ],
+        },
+      ],
       '/guide/': [
         {
-          text: 'Introduction',
+          text: 'Using SendDock',
           items: [
             { text: 'What is SendDock', link: '/guide/what-is-senddock' },
             { text: 'Getting Started', link: '/guide/getting-started' },
           ],
         },
         {
-          text: 'Core Concepts',
+          text: 'Features',
           items: [
             { text: 'Projects', link: '/guide/projects' },
             { text: 'Subscribers', link: '/guide/subscribers' },
@@ -54,16 +64,6 @@ export default defineConfig({
             { text: 'Templates', link: '/api/templates' },
             { text: 'Email Sending', link: '/api/sending' },
             { text: 'API Keys', link: '/api/api-keys' },
-          ],
-        },
-      ],
-      '/self-hosting/': [
-        {
-          text: 'Self-Hosting',
-          items: [
-            { text: 'Installation', link: '/self-hosting/installation' },
-            { text: 'Configuration', link: '/self-hosting/configuration' },
-            { text: 'Updating', link: '/self-hosting/updating' },
           ],
         },
       ],

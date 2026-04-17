@@ -6,17 +6,17 @@ hero:
   tagline: Self-hostable, API-first email platform built with Go and Vue.
   actions:
     - theme: brand
-      text: Get Started
+      text: Install
+      link: /self-hosting/installation
+    - theme: alt
+      text: Guide
       link: /guide/getting-started
     - theme: alt
       text: API Reference
       link: /api/authentication
-    - theme: alt
-      text: GitHub
-      link: https://github.com/arkhe-systems/senddock
 features:
   - title: Self-Hostable
-    details: Run on your own infrastructure. Your data never leaves your servers.
+    details: One command to deploy. Your data never leaves your servers.
   - title: API-First
     details: Every feature available via REST API with API key authentication.
   - title: Visual Email Builder

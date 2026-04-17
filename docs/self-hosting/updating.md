@@ -1,55 +1,53 @@
 # Updating
 
-## From Git
+## With Docker
 
 ```bash
 cd senddock
 git pull origin main
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-### Backend
+The `--build` flag rebuilds the image with the latest code. Migrations run automatically on startup.
+
+## Without Docker
 
 ```bash
+cd senddock
+git pull origin main
+cd frontend && npm ci && npm run build && cd ..
 cd backend
-make migrate    # Apply new migrations
-make build      # Rebuild binary
+make migrate
+make build
 ```
 
-Restart the server.
+Restart the server with the new binary.
 
-### Frontend
+## Checking Current Version
 
-```bash
-cd frontend
-npm install     # Install new dependencies
-npm run build   # Rebuild
-```
-
-## Migrations
-
-New versions may include database migrations. Always run `make migrate` after pulling updates. Migrations are incremental and safe to run multiple times (goose tracks which ones have been applied).
-
-To check migration status:
-
-```bash
-goose -dir migrations postgres "$DATABASE_URL" status
-```
-
-## Breaking Changes
-
-Check the [GitHub releases](https://github.com/arkhe-systems/senddock/releases) page for release notes. Breaking changes will be documented with migration instructions.
+Check the [GitHub releases](https://github.com/arkhe-systems/senddock/releases) page for the latest version and release notes.
 
 ## Rollback
 
-If something goes wrong, rollback the last migration:
+### With Docker
+
+```bash
+git checkout v0.x.x
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+### Without Docker
+
+Rollback the last migration:
 
 ```bash
 goose -dir migrations postgres "$DATABASE_URL" down
 ```
 
-And checkout the previous version:
+Checkout the previous version and rebuild:
 
 ```bash
 git checkout v0.x.x
-make build
+cd frontend && npm ci && npm run build && cd ..
+cd backend && make build
 ```

@@ -1,63 +1,72 @@
 # Getting Started
 
-## Prerequisites
+After installing SendDock (see [Installation](/self-hosting/installation)), open it in your browser.
 
-- Go 1.22+
-- Node.js 20+
-- Docker and Docker Compose
-- [goose](https://github.com/pressly/goose) — `go install github.com/pressly/goose/v3/cmd/goose@latest`
-- [sqlc](https://github.com/sqlc-dev/sqlc) — `go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest`
+## Setup Screen
 
-## Installation
+On first launch, SendDock detects there are no users and shows the setup screen. Create your admin account with name, email, and password. You'll be logged in automatically.
 
-```bash
-git clone https://github.com/arkhe-systems/senddock.git
-cd senddock
-```
+## Creating Your First Project
 
-## Backend
+1. From the dashboard, click **+ New Project**
+2. Give it a name and optional description
+3. Click **Create Project**
 
-```bash
-cd backend
-cp .env.example .env
-make dev
-```
+## Configuring SMTP
 
-This starts PostgreSQL + Redis via Docker, runs migrations, and starts the API server at `http://localhost:8080`.
+Before you can send emails, configure your SMTP server:
 
-## Frontend
+1. Open your project
+2. Go to **SMTP Settings** in the sidebar
+3. Enter your SMTP host, port, username, and password
+4. Optionally set a From Name and From Email
+5. Click **Save Settings**
+6. Click **Test Connection** to verify it works
 
-In a separate terminal:
+See [SMTP Setup](/guide/smtp) for provider-specific instructions.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Adding Subscribers
 
-The dashboard runs at `http://localhost:5173`.
+Go to **Subscribers** in the sidebar:
 
-## First-time Setup
+- Click **+ Add Subscriber** to add manually
+- Or use the [API](/api/subscribers) to add them programmatically
 
-Open `http://localhost:5173` in your browser. Since no users exist yet, you'll see the setup screen. Create your admin account and you're ready to go.
+## Building a Template
+
+Go to **Templates** in the sidebar:
+
+1. Click **+ New Template**
+2. Use the **Code** tab to write HTML or the **Visual** tab for drag-and-drop
+3. Use variables like `{{name}}` and `{{email}}` for personalization
+4. The preview panel shows the rendered output in real time
+5. Click **Save**
+
+## Sending Emails
+
+You can send emails via the [API](/api/sending):
+
+- **Send to subscriber** — send a template to a specific subscriber
+- **Broadcast** — send a template to all active subscribers
+- **Direct send** — send a one-off email to any address
+
+## Generating API Keys
+
+To use the API from external applications:
+
+1. Open your project
+2. Go to **Settings** in the sidebar
+3. Under **API Keys**, click **+ Create Key**
+4. Copy the key immediately (it's only shown once)
+
+Use it with `Authorization: Bearer sk_...` in your requests.
 
 ## Next Steps
 
-1. [Create a project](/guide/projects)
-2. [Configure SMTP](/guide/smtp)
-3. [Add subscribers](/guide/subscribers)
-4. [Build a template](/guide/templates)
-5. [Send your first email](/guide/sending)
-
-## Make Commands
-
-| Command | Description |
-|---------|-------------|
-| `make dev` | Start DB + migrations + server |
-| `make run` | Start server only |
-| `make test` | Run unit tests |
-| `make sqlc` | Regenerate sqlc code |
-| `make migrate` | Run database migrations |
-| `make build` | Build production binary |
-| `make db-up` | Start PostgreSQL and Redis |
-| `make db-down` | Stop PostgreSQL and Redis |
+- [Projects](/guide/projects) — managing multiple projects
+- [Subscribers](/guide/subscribers) — subscriber statuses and management
+- [Templates](/guide/templates) — code editor, visual editor, variables
+- [Email Sending](/guide/sending) — send, broadcast, direct send
+- [API Keys](/guide/api-keys) — authentication for external apps
+- [SMTP Setup](/guide/smtp) — provider-specific configuration
+- [Environment Variables](/guide/environment) — all configuration options

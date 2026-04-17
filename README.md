@@ -6,7 +6,17 @@ Part of [Arkhe Systems](https://arkhe.systems).
 
 > Early development. Not recommended for production use yet.
 
-## Setup
+## Quick Start
+
+```bash
+git clone https://github.com/arkhe-systems/senddock.git
+cd senddock
+chmod +x setup.sh && ./setup.sh    # Windows: .\setup.ps1
+```
+
+Open `http://localhost:8080`, create your admin account, and start sending.
+
+## Development Setup
 
 ### Prerequisites
 

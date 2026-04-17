@@ -3,8 +3,11 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/arkhe-systems/senddock/internal/config"
 	"github.com/arkhe-systems/senddock/internal/db"
@@ -116,6 +119,51 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
 
+	serveFrontend(mux)
+
 	log.Println("Server running:" + cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, middleware.CORS(cfg.FrontendURL)(mux)))
+}
+
+func serveFrontend(mux *http.ServeMux) {
+	distPath := os.Getenv("FRONTEND_DIST_PATH")
+	if distPath == "" {
+		distPath = "../frontend/dist"
+	}
+
+	if _, err := os.Stat(distPath); os.IsNotExist(err) {
+		log.Println("Frontend dist/ not found, skipping static file serving")
+		return
+	}
+
+	frontendFS := os.DirFS(distPath)
+	fileServer := http.FileServerFS(frontendFS)
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/health" {
+			http.NotFound(w, r)
+			return
+		}
+
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+
+		if _, err := fs.Stat(frontendFS, path); err == nil {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		indexFile, err := fs.ReadFile(frontendFS, "index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(indexFile)
+	})
+
+	log.Println("Serving frontend from " + distPath)
 }
