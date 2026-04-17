@@ -23,4 +23,8 @@ features:
     details: Drag-and-drop editor with GrapeJS or write raw HTML with CodeMirror.
   - title: No Per-Email Pricing
     details: Connect your own SMTP and send unlimited emails.
+  - title: Campaigns
+    details: Schedule email campaigns to broadcast templates to all subscribers at a set time.
+  - title: Open Tracking
+    details: Automatic tracking pixel injection to see who opens your emails.
 ---

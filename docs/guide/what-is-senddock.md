@@ -1,6 +1,6 @@
 # What is SendDock
 
-SendDock is an open-source email marketing platform for developers and businesses that want full control over their email infrastructure.
+SendDock is an open-source, BYOSMTP (Bring Your Own SMTP) email marketing platform for developers and businesses that want full control over their email infrastructure.
 
 ## Key Principles
 
@@ -37,6 +37,8 @@ SendDock is a monorepo with three components:
 | Template builder | Code + Visual | Code + Visual |
 | API keys | Yes | Yes |
 | Email logs | Yes | Yes |
+| Open tracking | Yes | Yes |
+| Scheduled campaigns | Yes | Yes |
 | SMTP per project | 1 | Multiple + failover |
 | Team members | 1 admin | Unlimited + roles |
 | Analytics | Sent/Failed | Opens, clicks, bounces |

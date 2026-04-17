@@ -123,6 +123,14 @@ POST /api/v1/projects/{id}/smtp/test
 
 Sends a test email to verify SMTP configuration. Cookie auth only.
 
+## Open Tracking
+
+```
+GET /t/{logId}.gif
+```
+
+Public endpoint (no auth required). Returns a 1x1 transparent GIF pixel. This pixel is automatically injected into emails sent to subscribers and via broadcast. When the recipient's email client loads the image, SendDock records the `opened_at` timestamp on the corresponding email log entry. Only the first open is recorded.
+
 ## Email Logs
 
 ```
@@ -130,6 +138,20 @@ GET /api/v1/projects/{id}/logs?limit=50&offset=0
 ```
 
 Cookie auth only.
+
+### Filters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `status` | Filter by delivery status | `?status=sent` or `?status=failed` |
+| `from` | Start date (RFC 3339) | `?from=2026-01-01T00:00:00Z` |
+| `to` | End date (RFC 3339) | `?to=2026-02-01T00:00:00Z` |
+
+Example with filters:
+
+```
+GET /api/v1/projects/{id}/logs?status=sent&from=2026-01-01T00:00:00Z&to=2026-02-01T00:00:00Z&limit=50&offset=0
+```
 
 ```json
 {
@@ -143,7 +165,8 @@ Cookie auth only.
       "subject": "Welcome!",
       "status": "sent",
       "error": null,
-      "sent_at": "2026-01-01T00:00:00Z"
+      "sent_at": "2026-01-01T00:00:00Z",
+      "opened_at": "2026-01-01T01:23:45Z"
     }
   ],
   "total": 1520
@@ -157,5 +180,5 @@ GET /api/v1/projects/{id}/stats
 ```
 
 ```json
-{"total": 1520, "sent": 1500, "failed": 20}
+{"total": 1520, "sent": 1500, "failed": 20, "opened": 980}
 ```
