@@ -228,6 +228,7 @@ onMounted(fetchTemplates)
                         <p class="text-sm text-zinc-500 mt-1">
                             {{ tmpl.subject || 'No subject set' }}
                         </p>
+                        <p class="text-xs text-zinc-600 mt-1 font-mono select-all">{{ tmpl.id }}</p>
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="text-xs text-zinc-500">{{ new Date(tmpl.updated_at).toLocaleDateString() }}</span>
