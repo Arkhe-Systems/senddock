@@ -274,6 +274,7 @@ func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID 
 		ID:        sid,
 		ProjectID: pid,
 		Status:    "unsubscribed",
+		Column4:   "unsubscribed",
 	})
 	return err
 }

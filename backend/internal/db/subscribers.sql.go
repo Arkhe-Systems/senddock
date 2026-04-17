@@ -266,7 +266,7 @@ func (q *Queries) UpdateSubscriber(ctx context.Context, arg UpdateSubscriberPara
 const updateSubscriberStatus = `-- name: UpdateSubscriberStatus :one
 UPDATE subscribers SET
     status = $3,
-    unsubscribed_at = CASE WHEN $3::text = 'unsubscribed' THEN NOW() ELSE unsubscribed_at END,
+    unsubscribed_at = CASE WHEN $4 = 'unsubscribed' THEN NOW() ELSE unsubscribed_at END,
     updated_at = NOW()
 WHERE id = $1 AND project_id = $2
 RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at
@@ -276,10 +276,16 @@ type UpdateSubscriberStatusParams struct {
 	ID        uuid.UUID
 	ProjectID uuid.UUID
 	Status    string
+	Column4   interface{}
 }
 
 func (q *Queries) UpdateSubscriberStatus(ctx context.Context, arg UpdateSubscriberStatusParams) (Subscriber, error) {
-	row := q.db.QueryRowContext(ctx, updateSubscriberStatus, arg.ID, arg.ProjectID, arg.Status)
+	row := q.db.QueryRowContext(ctx, updateSubscriberStatus,
+		arg.ID,
+		arg.ProjectID,
+		arg.Status,
+		arg.Column4,
+	)
 	var i Subscriber
 	err := row.Scan(
 		&i.ID,
