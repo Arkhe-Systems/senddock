@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/arkhe-systems/senddock/internal/config"
 	"github.com/arkhe-systems/senddock/internal/db"
@@ -37,7 +38,7 @@ func main() {
 	authService := service.NewAuthService(queries, cfg.JWTSecret)
 	authHandler := handler.NewAuthHandler(authService)
 
-	projectService := service.NewProjectService(queries)
+	projectService := service.NewProjectService(queries, cfg.JWTSecret)
 	projectHandler := handler.NewProjectHandler(projectService)
 
 	subscriberService := service.NewSubscriberService(queries)
@@ -49,7 +50,7 @@ func main() {
 	apiKeyService := service.NewAPIKeyService(queries)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, projectService)
 
-	emailService := service.NewEmailService(queries, cfg.FrontendURL)
+	emailService := service.NewEmailService(queries, cfg.FrontendURL, cfg.JWTSecret)
 	emailHandler := handler.NewEmailHandler(emailService, projectService)
 
 	setupHandler := handler.NewSetupHandler(queries, authService, cfg)
@@ -124,8 +125,26 @@ func main() {
 
 	serveFrontend(mux)
 
+	rateLimiter := middleware.NewRateLimiter(100, time.Minute)
+
+	handler := middleware.Security(
+		middleware.LimitBody(
+			rateLimiter.Middleware(
+				middleware.CORS(cfg.FrontendURL)(mux),
+			),
+		),
+	)
+
+	server := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
 	log.Println("Server running:" + cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, middleware.CORS(cfg.FrontendURL)(mux)))
+	log.Fatal(server.ListenAndServe())
 }
 
 func serveFrontend(mux *http.ServeMux) {

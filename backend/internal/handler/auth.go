@@ -71,11 +71,25 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !isValidEmail(req.Email) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid email format"})
+		return
+	}
+
+	if !isValidPassword(req.Password) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "password must be at least 8 characters"})
+		return
+	}
+
 	tokens, err := h.authService.Register(r.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		json.NewEncoder(w).Encode(errorResponse{Error: "email already registered"})
 		return
 	}
 
