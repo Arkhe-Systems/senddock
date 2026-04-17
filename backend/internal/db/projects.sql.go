@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -23,22 +24,24 @@ func (q *Queries) CountProjectsByUserID(ctx context.Context, userID uuid.UUID) (
 }
 
 const createProject = `-- name: CreateProject :one
-INSERT INTO projects (user_id, name, from_name, from_email)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at
+INSERT INTO projects (user_id, name, description, from_name, from_email)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description
 `
 
 type CreateProjectParams struct {
-	UserID    uuid.UUID
-	Name      string
-	FromName  string
-	FromEmail string
+	UserID      uuid.UUID
+	Name        string
+	Description sql.NullString
+	FromName    sql.NullString
+	FromEmail   sql.NullString
 }
 
 func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error) {
 	row := q.db.QueryRowContext(ctx, createProject,
 		arg.UserID,
 		arg.Name,
+		arg.Description,
 		arg.FromName,
 		arg.FromEmail,
 	)
@@ -58,6 +61,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.TrackingEnabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 	)
 	return i, err
 }
@@ -77,7 +81,7 @@ func (q *Queries) DeleteProject(ctx context.Context, arg DeleteProjectParams) er
 }
 
 const getProjectByID = `-- name: GetProjectByID :one
-SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at FROM projects WHERE id = $1 AND user_id = $2
+SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description FROM projects WHERE id = $1 AND user_id = $2
 `
 
 type GetProjectByIDParams struct {
@@ -103,12 +107,40 @@ func (q *Queries) GetProjectByID(ctx context.Context, arg GetProjectByIDParams) 
 		&i.TrackingEnabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
+	)
+	return i, err
+}
+
+const getProjectByIDOnly = `-- name: GetProjectByIDOnly :one
+SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description FROM projects WHERE id = $1
+`
+
+func (q *Queries) GetProjectByIDOnly(ctx context.Context, id uuid.UUID) (Project, error) {
+	row := q.db.QueryRowContext(ctx, getProjectByIDOnly, id)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.FromName,
+		&i.FromEmail,
+		&i.SmtpHost,
+		&i.SmtpPort,
+		&i.SmtpUser,
+		&i.SmtpPasswordEncrypted,
+		&i.WebhookUrl,
+		&i.WebhookSecret,
+		&i.TrackingEnabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Description,
 	)
 	return i, err
 }
 
 const getProjectsByUserID = `-- name: GetProjectsByUserID :many
-SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at FROM projects WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description FROM projects WHERE user_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) GetProjectsByUserID(ctx context.Context, userID uuid.UUID) ([]Project, error) {
@@ -135,6 +167,7 @@ func (q *Queries) GetProjectsByUserID(ctx context.Context, userID uuid.UUID) ([]
 			&i.TrackingEnabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -152,19 +185,17 @@ func (q *Queries) GetProjectsByUserID(ctx context.Context, userID uuid.UUID) ([]
 const updateProject = `-- name: UpdateProject :one
 UPDATE projects SET
     name = $3,
-    from_name = $4,
-    from_email = $5,
+    description = $4,
     updated_at = NOW()
 WHERE id = $1 AND user_id = $2
-RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description
 `
 
 type UpdateProjectParams struct {
-	ID        uuid.UUID
-	UserID    uuid.UUID
-	Name      string
-	FromName  string
-	FromEmail string
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	Name        string
+	Description sql.NullString
 }
 
 func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {
@@ -172,6 +203,61 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		arg.ID,
 		arg.UserID,
 		arg.Name,
+		arg.Description,
+	)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.FromName,
+		&i.FromEmail,
+		&i.SmtpHost,
+		&i.SmtpPort,
+		&i.SmtpUser,
+		&i.SmtpPasswordEncrypted,
+		&i.WebhookUrl,
+		&i.WebhookSecret,
+		&i.TrackingEnabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Description,
+	)
+	return i, err
+}
+
+const updateProjectSMTP = `-- name: UpdateProjectSMTP :one
+UPDATE projects SET
+    smtp_host = $3,
+    smtp_port = $4,
+    smtp_user = $5,
+    smtp_password_encrypted = $6,
+    from_name = $7,
+    from_email = $8,
+    updated_at = NOW()
+WHERE id = $1 AND user_id = $2
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description
+`
+
+type UpdateProjectSMTPParams struct {
+	ID                    uuid.UUID
+	UserID                uuid.UUID
+	SmtpHost              sql.NullString
+	SmtpPort              sql.NullInt32
+	SmtpUser              sql.NullString
+	SmtpPasswordEncrypted sql.NullString
+	FromName              sql.NullString
+	FromEmail             sql.NullString
+}
+
+func (q *Queries) UpdateProjectSMTP(ctx context.Context, arg UpdateProjectSMTPParams) (Project, error) {
+	row := q.db.QueryRowContext(ctx, updateProjectSMTP,
+		arg.ID,
+		arg.UserID,
+		arg.SmtpHost,
+		arg.SmtpPort,
+		arg.SmtpUser,
+		arg.SmtpPasswordEncrypted,
 		arg.FromName,
 		arg.FromEmail,
 	)
@@ -191,6 +277,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.TrackingEnabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 	)
 	return i, err
 }
