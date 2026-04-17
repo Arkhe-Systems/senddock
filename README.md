@@ -1,5 +1,7 @@
 # SendDock
 
+**Official launch: May 1st, 2026. Star this repo to get notified.**
+
 Open-source email marketing platform. Self-hostable, API-first, BYOSMTP. Built with Go and Vue.
 
 Bring your own SMTP. Zero cost per email. Full control over your data.
