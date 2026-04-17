@@ -20,7 +20,6 @@ export async function api<T>(endpoint: string, options: ApiOptions = {}): Promis
         credentials: 'include',
     })
 
-    // If 401 and not already a retry, try refreshing the token
     if (response.status === 401 && !_retry && !endpoint.includes('/auth/')) {
         const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
             method: 'POST',
@@ -28,11 +27,9 @@ export async function api<T>(endpoint: string, options: ApiOptions = {}): Promis
         })
 
         if (refreshRes.ok) {
-            // Retry the original request with new token
             return api<T>(endpoint, { ...options, _retry: true })
         }
 
-        // Refresh failed — session is dead
         throw new Error('session_expired')
     }
 
