@@ -230,14 +230,18 @@ func (h *EmailHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	limit := int32(50)
 	offset := int32(0)
 
-	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil {
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 100 {
 		limit = int32(v)
 	}
-	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil {
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
 		offset = int32(v)
 	}
 
-	logs, total, err := h.emailService.GetLogs(r.Context(), projectID, limit, offset)
+	status := r.URL.Query().Get("status")
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+
+	logs, total, err := h.emailService.GetLogs(r.Context(), projectID, limit, offset, status, from, to)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
