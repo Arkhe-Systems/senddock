@@ -152,7 +152,7 @@ async function handleDelete() {
                         <p class="text-xs text-zinc-500">Project ID:</p>
                         <code class="text-xs text-zinc-400 font-mono">{{ project.id }}</code>
                         <button type="button" @click="copyProjectId"
-                            class="text-xs text-zinc-600 hover:text-zinc-400 transition cursor-pointer">
+                            class="text-xs text-zinc-400 hover:text-white transition cursor-pointer">
                             Copy
                         </button>
                     </div>
