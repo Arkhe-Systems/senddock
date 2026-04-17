@@ -71,24 +71,7 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    tokens.AccessToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   900,
-	})
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    tokens.RefreshToken,
-		Path:     "/api/v1/auth",
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   604800,
-	})
+	setAuthCookies(w, tokens)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
