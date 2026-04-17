@@ -1,42 +1,44 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 import { api } from '@/api/client'
+import { useAuthStore } from '@/stores/auth'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
 
-const route = useRoute()
-
-const reasonMessages: Record<string, string> = {
-    auth_required: "You need to sign in to access that page.",
-    session_expired: "Your session has expired. Please sign in again."
-}
-const reason = route.query.reason as string | undefined
-
 const router = useRouter()
 const auth = useAuthStore()
 
+const name = ref('')
 const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
-const isCloud = ref(false)
 
-api<{ deployment_mode: string }>('/setup/status').then(res => {
-    isCloud.value = res.deployment_mode === 'cloud'
-}).catch(() => {})
-
-async function handleLogin() {
+async function handleSetup() {
     error.value = ''
-    loading.value = true
 
+    if (!name.value || !email.value || !password.value) {
+        error.value = 'All fields are required'
+        return
+    }
+
+    if (password.value.length < 8) {
+        error.value = 'Password must be at least 8 characters'
+        return
+    }
+
+    loading.value = true
     try {
-        await auth.login(email.value, password.value)
+        await api('/setup', {
+            method: 'POST',
+            body: { name: name.value, email: email.value, password: password.value },
+        })
+        auth.isAuthenticated = true
         router.push('/dashboard')
     } catch (e: any) {
-        error.value = e.message
+        error.value = e.message || 'Setup failed'
     } finally {
         loading.value = false
     }
@@ -47,7 +49,7 @@ async function handleLogin() {
     <div class="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
         <div class="w-full max-w-sm">
             <div class="text-center mb-8">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="w-12 h-12 mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="w-16 h-16 mx-auto mb-4">
                     <rect width="512" height="512" rx="112" fill="#000000"/>
                     <g stroke="#ffffff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round" fill="#000000">
                         <polyline points="106,236 206,176 306,236" fill="none"/>
@@ -63,25 +65,19 @@ async function handleLogin() {
                         <polygon points="371,146 381,176 446,96"/>
                     </g>
                 </svg>
-                <h1 class="text-2xl font-bold text-white">SendDock</h1>
-                <p class="text-zinc-400 mt-2">Sign in to your account</p>
+                <h1 class="text-2xl font-bold text-white">Welcome to SendDock</h1>
+                <p class="text-zinc-400 mt-2">Create your admin account to get started.</p>
             </div>
 
-            <AppAlert v-if="reason" :message="reasonMessages[reason] ?? ''" type="info" class="mb-4" />
-
-            <form @submit.prevent="handleLogin" class="space-y-4">
+            <form @submit.prevent="handleSetup" class="space-y-4">
                 <AppAlert :message="error" />
-                <AppInput v-model="email" label="Email" type="email" placeholder="your@example.com" required />
-                <AppInput v-model="password" label="Password" type="password" placeholder="••••••••" required />
+                <AppInput v-model="name" label="Full Name" placeholder="John Doe" required />
+                <AppInput v-model="email" label="Email" type="email" placeholder="admin@example.com" required />
+                <AppInput v-model="password" label="Password" type="password" placeholder="Minimum 8 characters" required />
                 <AppButton :loading="loading">
-                    {{ loading ? 'Signing in...' : 'Sign in' }}
+                    {{ loading ? 'Setting up...' : 'Complete Setup' }}
                 </AppButton>
             </form>
-
-            <p v-if="isCloud" class="text-center text-sm text-zinc-400 mt-6">
-                Don't have an account?
-                <RouterLink to="/register" class="text-white hover:text-zinc-300 underline">Create one</RouterLink>
-            </p>
         </div>
     </div>
 </template>
