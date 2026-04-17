@@ -79,11 +79,12 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sid.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
+	logID := s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, nil)
+	body = s.injectTrackingPixel(body, logID)
+
 	sendErr := s.sendSMTP(project, sub.Email, subject, body)
-
-	s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
-
 	if sendErr != nil {
+		s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
 		return SendResult{Failed: 1}, sendErr
 	}
 	return SendResult{Sent: 1}, nil
@@ -276,18 +277,20 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 	total, _ := s.queries.CountEmailLogsByProject(ctx, pid)
 	sent, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "sent"})
 	failed, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "failed"})
+	opened, _ := s.queries.CountEmailLogsOpened(ctx, pid)
 
 	stats := map[string]int64{
 		"total":  total,
 		"sent":   sent,
 		"failed": failed,
+		"opened": opened,
 	}
 
 	s.cache.Set(ctx, cacheKey, stats, 30*time.Second)
 	return stats, nil
 }
 
-func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, sendErr error) {
+func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, sendErr error) uuid.UUID {
 	status := "sent"
 	var errMsg sql.NullString
 	if sendErr != nil {
@@ -295,7 +298,7 @@ func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscr
 		errMsg = sql.NullString{String: sendErr.Error(), Valid: true}
 	}
 
-	s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
+	logEntry, _ := s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
 		TemplateID:   templateID,
@@ -306,6 +309,15 @@ func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscr
 	})
 
 	s.cache.Delete(ctx, "stats:"+projectID.String())
+	return logEntry.ID
+}
+
+func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string {
+	pixel := fmt.Sprintf(`<img src="%s/t/%s.gif" width="1" height="1" style="display:none" />`, s.baseURL, logID.String())
+	if strings.Contains(body, "</body>") {
+		return strings.Replace(body, "</body>", pixel+"</body>", 1)
+	}
+	return body + pixel
 }
 
 func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID string) error {
