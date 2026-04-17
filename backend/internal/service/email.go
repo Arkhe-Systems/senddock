@@ -399,7 +399,7 @@ func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody string
 }
 
 func sendSMTPImplicitTLS(host, addr, user, pass, from, to string, msg []byte) error {
-	tlsConfig := &tls.Config{ServerName: host}
+	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
 
 	conn, err := tls.Dial("tcp", addr, tlsConfig)
 	if err != nil {
