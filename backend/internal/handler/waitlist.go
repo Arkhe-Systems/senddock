@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/arkhe-systems/senddock/internal/service"
@@ -60,14 +62,19 @@ func (h *WaitlistHandler) Join(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.TemplateID != "" {
-		go h.emailService.SendWithTemplate(
-			r.Context(),
-			projectID,
-			req.TemplateID,
-			req.Email,
-			"",
-			map[string]string{"email": req.Email},
-		)
+		go func() {
+			err := h.emailService.SendWithTemplate(
+				context.Background(),
+				projectID,
+				req.TemplateID,
+				req.Email,
+				"",
+				map[string]string{"email": req.Email},
+			)
+			if err != nil {
+				log.Printf("Waitlist confirmation email failed for %s: %v", req.Email, err)
+			}
+		}()
 	}
 
 	w.Header().Set("Content-Type", "application/json")
