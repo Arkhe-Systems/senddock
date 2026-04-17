@@ -1,0 +1,51 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://senddock:${POSTGRES_PASSWORD:-senddock}@postgres:5432/senddock?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
+      PORT: "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: senddock
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-senddock}
+      POSTGRES_DB: senddock
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U senddock"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  migrate:
+    build: .
+    command: >
+      sh -c "apk add --no-cache curl &&
+        curl -fsSL https://github.com/pressly/goose/releases/download/v3.24.1/goose_linux_x86_64 -o /usr/local/bin/goose &&
+        chmod +x /usr/local/bin/goose &&
+        goose -dir /app/migrations postgres 'postgres://senddock:${POSTGRES_PASSWORD:-senddock}@postgres:5432/senddock?sslmode=disable' up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

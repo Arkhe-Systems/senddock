@@ -46,7 +46,7 @@ async function handleRegister(){
 
             <p class="text-center text-sm text-zinc-400 mt-6">
                 Already have an account?
-                <RouterLink to="/login" class="text-indigo-400 hover:text-indigo-300">Sign in</RouterLink>
+                <RouterLink to="/login" class="text-white hover:text-zinc-300 underline">Sign in</RouterLink>
             </p>
         </AppCard>
     </div>

@@ -11,6 +11,11 @@ backend/tmp/
 # Node
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
+
+docs/node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
 
 # SSL / Certificates
 *.pem

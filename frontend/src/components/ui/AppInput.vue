@@ -5,8 +5,9 @@ defineProps<{
     label?: string,
     type?: string,
     placeholder?: string,
-    required?: boolean
-    id?: string
+    required?: boolean,
+    id?: string,
+    large?: boolean
 }>()
 </script>
 
@@ -16,13 +17,23 @@ defineProps<{
             {{ label }}
         </label>
 
+        <textarea 
+            v-if="large"
+            :id="id"
+            v-model="model"
+            :placeholder="placeholder"
+            :required="required"
+            rows="3"
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent transition resize-none"/>
+
         <input
+            v-else
             :id="id"
             v-model="model"
             :type="type ?? 'text'"
             :placeholder="placeholder"
             :required="required"
-            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent transition"
         />
     </div>
 </template>
