@@ -11,6 +11,7 @@ import (
 
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/google/uuid"
+	premailer "github.com/vanng822/go-premailer/premailer"
 )
 
 type EmailService struct {
@@ -153,7 +154,7 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 	return sendErr
 }
 
-func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to string, variables map[string]string) error {
+func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string) error {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return errors.New("invalid project id")
@@ -180,6 +181,9 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 
 	body := template.HtmlBody
 	subject := template.Subject
+	if subjectOverride != "" {
+		subject = subjectOverride
+	}
 	for key, val := range variables {
 		body = strings.ReplaceAll(body, "{{"+key+"}}", val)
 		subject = strings.ReplaceAll(subject, "{{"+key+"}}", val)
@@ -287,8 +291,10 @@ func sendSMTP(project db.Project, to, subject, htmlBody string) error {
 		from = fmt.Sprintf("%s <%s>", project.FromName.String, fromEmail)
 	}
 
+	inlinedBody := inlineCSS(htmlBody)
+
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n%s",
-		from, to, subject, htmlBody)
+		from, to, subject, inlinedBody)
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 
@@ -361,4 +367,16 @@ func replaceVariablesSimple(text string, sub db.Subscriber) string {
 		"{{email}}", sub.Email,
 	)
 	return r.Replace(text)
+}
+
+func inlineCSS(html string) string {
+	prem, err := premailer.NewPremailerFromString(html, premailer.NewOptions())
+	if err != nil {
+		return html
+	}
+	result, err := prem.Transform()
+	if err != nil {
+		return html
+	}
+	return result
 }

@@ -40,6 +40,7 @@ type sendDirectRequest struct {
 type sendTemplateRequest struct {
 	TemplateID string            `json:"template_id"`
 	To         string            `json:"to"`
+	Subject    string            `json:"subject"`
 	Data       map[string]string `json:"data"`
 }
 
@@ -186,7 +187,7 @@ func (h *EmailHandler) SendTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, req.To, req.Data)
+	err = h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, req.To, req.Subject, req.Data)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
