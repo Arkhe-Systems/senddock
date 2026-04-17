@@ -9,10 +9,10 @@ const toast = useToastStore()
         <TransitionGroup name="toast">
             <div v-for="item in toast.toasts" :key="item.id"
                 :class="[
-                    'px-4 py-3 rounded-lg text-sm shadow-lg border cursor-pointer min-w-72',
-                    item.type === 'success' && 'bg-green-500/10 border-green-500/20 text-green-400',
-                    item.type === 'error' && 'bg-red-500/10 border-red-500/20 text-red-400',
-                    item.type === 'info' && 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400',
+                    'px-4 py-3 rounded-lg text-sm shadow-lg border cursor-pointer min-w-72 backdrop-blur-none',
+                    item.type === 'success' && 'bg-zinc-950 border-green-500/30 text-green-400',
+                    item.type === 'error' && 'bg-zinc-950 border-red-500/30 text-red-400',
+                    item.type === 'info' && 'bg-zinc-950 border-yellow-500/30 text-yellow-400',
                 ]"
                 @click="toast.remove(item.id)">
                 {{ item.message }}
