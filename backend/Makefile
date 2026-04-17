@@ -3,7 +3,7 @@ export
 
 export PATH := $(PATH):$(shell go env GOPATH)/bin
 
-.PHONY: dev db-up db-down db-restart migrate run build
+.PHONY: dev db-up db-down db-restart migrate run build test sqlc
 
 # Start PostgreSQL and Redis
 db-up:
@@ -30,4 +30,10 @@ build:
 	go build -o bin/senddock cmd/server/main.go
 
 # Start everything: DB + migrations + server
+test:
+	go test ./internal/... -v
+
+sqlc:
+	sqlc generate
+
 dev: db-up migrate run
