@@ -186,7 +186,7 @@ func (h *SubscriberHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		json.NewEncoder(w).Encode(errorResponse{Error: "subscriber not found"})
 		return
 	}
 

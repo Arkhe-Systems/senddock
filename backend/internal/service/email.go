@@ -15,12 +15,13 @@ import (
 )
 
 type EmailService struct {
-	queries  *db.Queries
-	baseURL  string
+	queries   *db.Queries
+	baseURL   string
+	encSecret string
 }
 
-func NewEmailService(queries *db.Queries, baseURL string) *EmailService {
-	return &EmailService{queries: queries, baseURL: baseURL}
+func NewEmailService(queries *db.Queries, baseURL, encSecret string) *EmailService {
+	return &EmailService{queries: queries, baseURL: baseURL, encSecret: encSecret}
 }
 
 type SendResult struct {
@@ -73,7 +74,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sid.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	sendErr := sendSMTP(project, sub.Email, subject, body)
+	sendErr := s.sendSMTP(project, sub.Email, subject, body)
 
 	s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
 
@@ -125,7 +126,7 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 		unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sub.ID.String())
 		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-		sendErr := sendSMTP(project, sub.Email, subject, body)
+		sendErr := s.sendSMTP(project, sub.Email, subject, body)
 
 		s.logEmail(ctx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
 
@@ -154,7 +155,7 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 		return errors.New("smtp not configured")
 	}
 
-	sendErr := sendSMTP(project, to, subject, htmlBody)
+	sendErr := s.sendSMTP(project, to, subject, htmlBody)
 
 	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, sendErr)
 
@@ -196,7 +197,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		subject = strings.ReplaceAll(subject, "{{"+key+"}}", val)
 	}
 
-	sendErr := sendSMTP(project, to, subject, body)
+	sendErr := s.sendSMTP(project, to, subject, body)
 
 	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, sendErr)
 
@@ -299,14 +300,18 @@ func (s *EmailService) TestSMTP(ctx context.Context, projectID string) error {
 		fromEmail = project.FromEmail.String
 	}
 
-	return sendSMTP(project, fromEmail, "SendDock SMTP Test", "<h2>SMTP is working!</h2><p>Your SendDock SMTP configuration is correct.</p>")
+	return s.sendSMTP(project, fromEmail, "SendDock SMTP Test", "<h2>SMTP is working!</h2><p>Your SendDock SMTP configuration is correct.</p>")
 }
 
-func sendSMTP(project db.Project, to, subject, htmlBody string) error {
+func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody string) error {
 	host := project.SmtpHost.String
 	port := project.SmtpPort.Int32
 	user := project.SmtpUser.String
+
 	pass := project.SmtpPasswordEncrypted.String
+	if decrypted, err := Decrypt(pass, s.encSecret); err == nil {
+		pass = decrypted
+	}
 
 	fromEmail := user
 	if project.FromEmail.Valid && project.FromEmail.String != "" {

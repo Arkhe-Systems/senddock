@@ -10,11 +10,12 @@ import (
 )
 
 type ProjectService struct {
-	queries *db.Queries
+	queries   *db.Queries
+	encSecret string
 }
 
-func NewProjectService(queries *db.Queries) *ProjectService {
-	return &ProjectService{queries: queries}
+func NewProjectService(queries *db.Queries, encSecret string) *ProjectService {
+	return &ProjectService{queries: queries, encSecret: encSecret}
 }
 
 func (s *ProjectService) Create(ctx context.Context, userID, name, description string) (db.Project, error) {
@@ -92,13 +93,22 @@ func (s *ProjectService) UpdateSMTP(ctx context.Context, projectID, userID, smtp
 		return db.Project{}, errors.New("invalid user id")
 	}
 
+	encryptedPass := smtpPassword
+	if smtpPassword != "" {
+		enc, err := Encrypt(smtpPassword, s.encSecret)
+		if err != nil {
+			return db.Project{}, errors.New("failed to encrypt smtp password")
+		}
+		encryptedPass = enc
+	}
+
 	return s.queries.UpdateProjectSMTP(ctx, db.UpdateProjectSMTPParams{
 		ID:                    pid,
 		UserID:                uid,
 		SmtpHost:              sql.NullString{String: smtpHost, Valid: smtpHost != ""},
 		SmtpPort:              sql.NullInt32{Int32: smtpPort, Valid: smtpPort != 0},
 		SmtpUser:              sql.NullString{String: smtpUser, Valid: smtpUser != ""},
-		SmtpPasswordEncrypted: sql.NullString{String: smtpPassword, Valid: smtpPassword != ""},
+		SmtpPasswordEncrypted: sql.NullString{String: encryptedPass, Valid: encryptedPass != ""},
 		FromName:              sql.NullString{String: fromName, Valid: fromName != ""},
 		FromEmail:             sql.NullString{String: fromEmail, Valid: fromEmail != ""},
 	})
