@@ -3,6 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/arkhe-systems/senddock/internal/service"
 )
@@ -30,13 +32,15 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
+var secureCookies = os.Getenv("FRONTEND_URL") != "" && strings.HasPrefix(os.Getenv("FRONTEND_URL"), "https")
+
 func setAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    tokens.AccessToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   secureCookies,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   900,
 	})
@@ -45,7 +49,7 @@ func setAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
 		Value:    tokens.RefreshToken,
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   secureCookies,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   604800,
 	})
