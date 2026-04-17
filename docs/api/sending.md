@@ -60,6 +60,32 @@ Sends a one-off email without a template or subscriber. All three fields are req
 {"message": "sent"}
 ```
 
+## Send with Template
+
+```
+POST /api/v1/projects/{id}/send/template
+```
+
+```json
+{
+  "template_id": "uuid",
+  "to": "user@example.com",
+  "data": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "message": "Hello!"
+  }
+}
+```
+
+Sends a template to any email address without requiring a subscriber. Template variables like `{{name}}` are replaced with values from `data`. Only `template_id` and `to` are required. `data` is optional.
+
+**Response**
+
+```json
+{"message": "sent"}
+```
+
 ## Test SMTP
 
 ```
