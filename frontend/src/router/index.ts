@@ -1,17 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { useAppStore } from '@/stores/app'
 import { api } from '@/api/client'
 
 interface SetupStatus {
   setup_required: boolean
   deployment_mode: string
 }
-
-let setupChecked = false
-let setupRequired = false
-export const deploymentMode = ref('self-hosted')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -77,26 +73,28 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  if (!setupChecked) {
+  const app = useAppStore()
+
+  if (!app.checked) {
     try {
       const status = await api<SetupStatus>('/setup/status')
-      setupRequired = status.setup_required
-      deploymentMode.value = status.deployment_mode
+      app.setupRequired = status.setup_required
+      app.deploymentMode = status.deployment_mode
     } catch {
-      setupRequired = false
+      app.setupRequired = false
     }
-    setupChecked = true
+    app.checked = true
   }
 
-  if (setupRequired && deploymentMode.value === 'self-hosted' && to.name !== 'setup') {
+  if (app.setupRequired && app.deploymentMode === 'self-hosted' && to.name !== 'setup') {
     return { name: 'setup' }
   }
 
-  if (to.name === 'setup' && (!setupRequired || deploymentMode.value === 'cloud')) {
+  if (to.name === 'setup' && (!app.setupRequired || app.deploymentMode === 'cloud')) {
     return { name: 'login' }
   }
 
-  if (to.name === 'register' && deploymentMode.value === 'self-hosted') {
+  if (to.name === 'register' && app.deploymentMode === 'self-hosted') {
     return { name: 'login' }
   }
 
