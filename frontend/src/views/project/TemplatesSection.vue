@@ -250,10 +250,10 @@ onMounted(fetchTemplates)
                     </div>
                     <div class="flex items-center gap-3">
                         <button @click.stop="copyId(tmpl.id)"
-                            class="text-xs text-zinc-600 hover:text-zinc-400 transition cursor-pointer font-mono">
+                            class="text-xs text-zinc-400 hover:text-white transition cursor-pointer font-mono">
                             Copy ID
                         </button>
-                        <span class="text-xs text-zinc-600">{{ new Date(tmpl.updated_at).toLocaleDateString() }}</span>
+                        <span class="text-xs text-zinc-500">{{ new Date(tmpl.updated_at).toLocaleDateString() }}</span>
                         <button @click.stop="openDeleteModal(tmpl)"
                             class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer">
                             Delete
