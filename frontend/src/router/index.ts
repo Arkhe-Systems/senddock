@@ -10,7 +10,7 @@ interface SetupStatus {
 
 let setupChecked = false
 let setupRequired = false
-let deploymentMode = 'self-hosted'
+export let deploymentMode = 'self-hosted'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
