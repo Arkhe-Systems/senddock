@@ -168,3 +168,4 @@ func serveFrontend(mux *http.ServeMux) {
 
 	log.Println("Serving frontend from " + distPath)
 }
+
