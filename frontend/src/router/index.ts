@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { api } from '@/api/client'
@@ -10,7 +11,7 @@ interface SetupStatus {
 
 let setupChecked = false
 let setupRequired = false
-export let deploymentMode = 'self-hosted'
+export const deploymentMode = ref('self-hosted')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -80,22 +81,22 @@ router.beforeEach(async (to) => {
     try {
       const status = await api<SetupStatus>('/setup/status')
       setupRequired = status.setup_required
-      deploymentMode = status.deployment_mode
+      deploymentMode.value = status.deployment_mode
     } catch {
       setupRequired = false
     }
     setupChecked = true
   }
 
-  if (setupRequired && deploymentMode === 'self-hosted' && to.name !== 'setup') {
+  if (setupRequired && deploymentMode.value === 'self-hosted' && to.name !== 'setup') {
     return { name: 'setup' }
   }
 
-  if (to.name === 'setup' && (!setupRequired || deploymentMode === 'cloud')) {
+  if (to.name === 'setup' && (!setupRequired || deploymentMode.value === 'cloud')) {
     return { name: 'login' }
   }
 
-  if (to.name === 'register' && deploymentMode === 'self-hosted') {
+  if (to.name === 'register' && deploymentMode.value === 'self-hosted') {
     return { name: 'login' }
   }
 

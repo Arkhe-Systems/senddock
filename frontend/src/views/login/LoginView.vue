@@ -22,7 +22,7 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
-const isCloud = computed(() => deploymentMode === 'cloud')
+const isCloud = computed(() => deploymentMode.value === 'cloud')
 
 async function handleLogin() {
     error.value = ''
