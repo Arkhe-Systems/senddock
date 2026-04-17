@@ -40,6 +40,42 @@ func (h *SubscriberHandler) verifyProjectOwner(r *http.Request) (string, string,
 	return projectID, userID, err
 }
 
+func (h *SubscriberHandler) Import(w http.ResponseWriter, r *http.Request) {
+	projectID, _, err := h.verifyProjectOwner(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	var subscribers []service.ImportSubscriber
+	if err := json.NewDecoder(r.Body).Decode(&subscribers); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body, expected array of subscribers"})
+		return
+	}
+
+	if len(subscribers) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "empty array"})
+		return
+	}
+
+	result, err := h.subscriberService.BulkImport(r.Context(), projectID, subscribers)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
 func (h *SubscriberHandler) Create(w http.ResponseWriter, r *http.Request) {
 	projectID, _, err := h.verifyProjectOwner(r)
 	if err != nil {

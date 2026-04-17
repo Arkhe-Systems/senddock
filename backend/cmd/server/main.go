@@ -98,6 +98,7 @@ func main() {
 	mux.Handle("GET /api/v1/projects/{id}/subscribers", authMiddleware(http.HandlerFunc(subscriberHandler.List)))
 	mux.Handle("PATCH /api/v1/projects/{id}/subscribers/{subscriberId}", authMiddleware(http.HandlerFunc(subscriberHandler.UpdateStatus)))
 	mux.Handle("DELETE /api/v1/projects/{id}/subscribers/{subscriberId}", authMiddleware(http.HandlerFunc(subscriberHandler.Delete)))
+	mux.Handle("POST /api/v1/projects/{id}/subscribers/import", eitherAuth(http.HandlerFunc(subscriberHandler.Import)))
 
 	mux.Handle("POST /api/v1/projects/{id}/keys", authMiddleware(http.HandlerFunc(apiKeyHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/keys", authMiddleware(http.HandlerFunc(apiKeyHandler.List)))
@@ -112,6 +113,7 @@ func main() {
 	mux.Handle("POST /api/v1/projects/{id}/smtp/test", authMiddleware(http.HandlerFunc(emailHandler.TestSMTP)))
 	mux.Handle("POST /api/v1/projects/{id}/send", eitherAuth(http.HandlerFunc(emailHandler.Send)))
 	mux.Handle("POST /api/v1/projects/{id}/broadcast", eitherAuth(http.HandlerFunc(emailHandler.Broadcast)))
+	mux.Handle("POST /api/v1/projects/{id}/send/batch", eitherAuth(http.HandlerFunc(emailHandler.BatchSend)))
 	mux.Handle("GET /api/v1/projects/{id}/logs", authMiddleware(http.HandlerFunc(emailHandler.Logs)))
 	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
 
