@@ -87,11 +87,11 @@ router.beforeEach(async (to) => {
     setupChecked = true
   }
 
-  if (setupRequired && to.name !== 'setup') {
+  if (setupRequired && deploymentMode === 'self-hosted' && to.name !== 'setup') {
     return { name: 'setup' }
   }
 
-  if (!setupRequired && to.name === 'setup') {
+  if (to.name === 'setup' && (!setupRequired || deploymentMode === 'cloud')) {
     return { name: 'login' }
   }
 
