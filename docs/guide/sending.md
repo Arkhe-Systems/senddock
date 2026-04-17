@@ -1,10 +1,29 @@
 # Email Sending
 
-SendDock supports three ways to send emails. All require SMTP to be configured for the project.
+SendDock has two endpoints for sending emails. All require SMTP to be configured.
 
-## Send to Subscriber
+## Send (`/send`)
 
-Send an email to a specific subscriber using a template. Template variables are replaced with the subscriber's data.
+One endpoint for all individual sends. What it does depends on the fields you provide.
+
+### Template to any email (forms, transactional)
+
+No subscriber needed. Ideal for contact forms, password resets, welcome emails.
+
+```bash
+curl -X POST https://your-instance.com/api/v1/projects/{id}/send \
+  -H "Authorization: Bearer sk_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "user@example.com",
+    "template_id": "uuid",
+    "data": {"name": "John", "email": "john@example.com"}
+  }'
+```
+
+The `data` object replaces template variables: `{{name}}` becomes "John". You can use any key/value pairs. `subject` is optional — if provided, it overrides the template's subject.
+
+### Template to a subscriber
 
 ```bash
 curl -X POST https://your-instance.com/api/v1/projects/{id}/send \
@@ -13,31 +32,12 @@ curl -X POST https://your-instance.com/api/v1/projects/{id}/send \
   -d '{"subscriber_id": "uuid", "template_id": "uuid"}'
 ```
 
-The subscriber must have `active` status.
+Variables `{{name}}`, `{{email}}`, and `{{unsubscribe_url}}` are replaced automatically.
 
-## Broadcast
-
-Send an email to all active subscribers in the project using a template. Variables are replaced per subscriber.
+### Raw HTML (no template)
 
 ```bash
-curl -X POST https://your-instance.com/api/v1/projects/{id}/broadcast \
-  -H "Authorization: Bearer sk_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{"template_id": "uuid"}'
-```
-
-Response includes the count of sent and failed emails:
-
-```json
-{"sent": 150, "failed": 2}
-```
-
-## Direct Send
-
-Send a one-off email to any address without a template or subscriber. Useful for transactional emails (password resets, confirmations, etc).
-
-```bash
-curl -X POST https://your-instance.com/api/v1/projects/{id}/send/direct \
+curl -X POST https://your-instance.com/api/v1/projects/{id}/send \
   -H "Authorization: Bearer sk_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -47,40 +47,55 @@ curl -X POST https://your-instance.com/api/v1/projects/{id}/send/direct \
   }'
 ```
 
-## Send with Template (no subscriber needed)
+## Broadcast (`/broadcast`)
 
-Send a template to any email address with custom variables. No subscriber required — ideal for contact forms, transactional emails, and one-off sends.
+Send a template to **all active subscribers**. Separated from `/send` for safety — you can't accidentally broadcast by setting a wrong field.
 
 ```bash
-curl -X POST https://your-instance.com/api/v1/projects/{id}/send/template \
+curl -X POST https://your-instance.com/api/v1/projects/{id}/broadcast \
   -H "Authorization: Bearer sk_your_api_key" \
   -H "Content-Type: application/json" \
-  -d '{
-    "template_id": "uuid",
-    "to": "user@example.com",
-    "data": {
-      "name": "John Doe",
-      "email": "john@example.com"
-    }
-  }'
+  -d '{"template_id": "uuid"}'
 ```
 
-The `data` object replaces template variables: `{{name}}` becomes "John Doe", `{{email}}` becomes "john@example.com". You can use any key/value pairs — they match against `{{key}}` in both subject and body.
+Response includes the count of sent and failed:
+
+```json
+{"sent": 150, "failed": 2}
+```
+
+### Unsubscribe link
+
+Broadcast emails automatically inject `{{unsubscribe_url}}` — a public link where subscribers can opt out. Use it in your templates:
+
+```html
+<a href="{{unsubscribe_url}}">Unsubscribe</a>
+```
+
+The link takes the subscriber to a confirmation page and changes their status to `unsubscribed`.
+
+## Sending from the UI
+
+From the project **Overview**, click **Send Email** to:
+
+- Select a template
+- Choose "All subscribers" (broadcast) or "Specific email" (direct send)
+- Send immediately
+
+## CSS Inlining
+
+SendDock automatically inlines CSS styles before sending. If your template uses `<style>` tags, they are converted to inline `style=""` attributes for compatibility with email clients like Gmail.
 
 ## Email Logs
 
-Every email sent is logged with status (`sent` or `failed`), error details, recipient, and timestamp.
-
-View logs from the project overview or via API:
+Every email sent is logged. View logs from the project Overview or via API:
 
 ```bash
-curl https://your-instance.com/api/v1/projects/{id}/logs?limit=50&offset=0 \
+curl https://your-instance.com/api/v1/projects/{id}/logs?limit=50 \
   -H "Authorization: Bearer sk_your_api_key"
 ```
 
 ## Stats
-
-Get aggregate stats for a project:
 
 ```bash
 curl https://your-instance.com/api/v1/projects/{id}/stats \
@@ -93,8 +108,4 @@ curl https://your-instance.com/api/v1/projects/{id}/stats \
 
 ## Authentication
 
-Email endpoints accept both cookie auth (from the UI) and API key auth (`Authorization: Bearer sk_...`).
-
-## API
-
-See [Email Sending API](/api/sending) for the full reference.
+All sending endpoints accept both cookie auth (from the UI) and API key auth (`Authorization: Bearer sk_...`).

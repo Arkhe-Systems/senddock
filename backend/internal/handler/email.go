@@ -22,26 +22,17 @@ func NewEmailHandler(emailService *service.EmailService, projectService *service
 	}
 }
 
-type sendToSubscriberRequest struct {
-	SubscriberID string `json:"subscriber_id"`
-	TemplateID   string `json:"template_id"`
+type sendRequest struct {
+	To           string            `json:"to"`
+	SubscriberID string            `json:"subscriber_id"`
+	TemplateID   string            `json:"template_id"`
+	Subject      string            `json:"subject"`
+	HtmlBody     string            `json:"html_body"`
+	Data         map[string]string `json:"data"`
 }
 
 type broadcastRequest struct {
 	TemplateID string `json:"template_id"`
-}
-
-type sendDirectRequest struct {
-	To       string `json:"to"`
-	Subject  string `json:"subject"`
-	HtmlBody string `json:"html_body"`
-}
-
-type sendTemplateRequest struct {
-	TemplateID string            `json:"template_id"`
-	To         string            `json:"to"`
-	Subject    string            `json:"subject"`
-	Data       map[string]string `json:"data"`
 }
 
 func (h *EmailHandler) verifyAccess(r *http.Request) (string, error) {
@@ -55,7 +46,7 @@ func (h *EmailHandler) verifyAccess(r *http.Request) (string, error) {
 	return projectID, err
 }
 
-func (h *EmailHandler) SendToSubscriber(w http.ResponseWriter, r *http.Request) {
+func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	projectID, err := h.verifyAccess(r)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -64,7 +55,7 @@ func (h *EmailHandler) SendToSubscriber(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var req sendToSubscriberRequest
+	var req sendRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -72,23 +63,48 @@ func (h *EmailHandler) SendToSubscriber(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if req.SubscriberID == "" || req.TemplateID == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: "subscriber_id and template_id are required"})
-		return
-	}
-
-	result, err := h.emailService.SendToSubscriber(r.Context(), projectID, req.SubscriberID, req.TemplateID)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+
+	if req.SubscriberID != "" && req.TemplateID != "" {
+		result, err := h.emailService.SendToSubscriber(r.Context(), projectID, req.SubscriberID, req.TemplateID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+
+	if req.To != "" && req.TemplateID != "" {
+		err := h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, req.To, req.Subject, req.Data)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"message": "sent"})
+		return
+	}
+
+	if req.To != "" && req.HtmlBody != "" {
+		if req.Subject == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: "subject is required for direct send"})
+			return
+		}
+		err := h.emailService.SendDirect(r.Context(), projectID, req.To, req.Subject, req.HtmlBody)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"message": "sent"})
+		return
+	}
+
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(errorResponse{Error: "provide (to + template_id), (subscriber_id + template_id), or (to + subject + html_body)"})
 }
 
 func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
@@ -125,78 +141,6 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
-}
-
-func (h *EmailHandler) SendDirect(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyAccess(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
-		return
-	}
-
-	var req sendDirectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
-		return
-	}
-
-	if req.To == "" || req.Subject == "" || req.HtmlBody == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: "to, subject, and html_body are required"})
-		return
-	}
-
-	err = h.emailService.SendDirect(r.Context(), projectID, req.To, req.Subject, req.HtmlBody)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "sent"})
-}
-
-func (h *EmailHandler) SendTemplate(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyAccess(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
-		return
-	}
-
-	var req sendTemplateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
-		return
-	}
-
-	if req.TemplateID == "" || req.To == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: "template_id and to are required"})
-		return
-	}
-
-	err = h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, req.To, req.Subject, req.Data)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "sent"})
 }
 
 func (h *EmailHandler) TestSMTP(w http.ResponseWriter, r *http.Request) {
@@ -273,4 +217,20 @@ func (h *EmailHandler) Stats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+func (h *EmailHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("id")
+	subscriberID := r.PathValue("subscriberId")
+
+	err := h.emailService.Unsubscribe(r.Context(), projectID, subscriberID)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>Link expired or invalid</h2></body></html>"))
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>You have been unsubscribed</h2><p>You will no longer receive emails from this project.</p></body></html>"))
 }

@@ -49,6 +49,11 @@ onMounted(() => {
     fetchAPIKeys()
 })
 
+async function copyProjectId() {
+    await navigator.clipboard.writeText(props.project.id)
+    toast.success('Project ID copied')
+}
+
 async function handleSaveGeneral() {
     if (!projectName.value) {
         toast.error('Name is required')
@@ -148,9 +153,14 @@ async function handleDelete() {
                 <AppInput v-model="projectName" label="Project Name" required />
                 <AppInput v-model="projectDescription" large label="Description" placeholder="What is this project about?" />
                 <div class="pt-2">
-                    <p class="text-xs text-zinc-500 mb-3">
-                        Project ID: <code class="text-zinc-400 select-all">{{ project.id }}</code>
-                    </p>
+                    <div class="flex items-center gap-2 mb-3">
+                        <p class="text-xs text-zinc-500">Project ID:</p>
+                        <code class="text-xs text-zinc-400 font-mono">{{ project.id }}</code>
+                        <button type="button" @click="copyProjectId"
+                            class="text-xs text-zinc-600 hover:text-zinc-400 transition cursor-pointer">
+                            Copy
+                        </button>
+                    </div>
                     <AppButton :loading="generalLoading" class="w-auto! px-4">
                         {{ generalLoading ? 'Saving...' : 'Save Changes' }}
                     </AppButton>

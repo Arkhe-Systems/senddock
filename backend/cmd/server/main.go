@@ -49,7 +49,7 @@ func main() {
 	apiKeyService := service.NewAPIKeyService(queries)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, projectService)
 
-	emailService := service.NewEmailService(queries)
+	emailService := service.NewEmailService(queries, cfg.FrontendURL)
 	emailHandler := handler.NewEmailHandler(emailService, projectService)
 
 	setupHandler := handler.NewSetupHandler(queries, authService, cfg)
@@ -110,12 +110,12 @@ func main() {
 	mux.Handle("DELETE /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Delete)))
 
 	mux.Handle("POST /api/v1/projects/{id}/smtp/test", authMiddleware(http.HandlerFunc(emailHandler.TestSMTP)))
-	mux.Handle("POST /api/v1/projects/{id}/send", eitherAuth(http.HandlerFunc(emailHandler.SendToSubscriber)))
+	mux.Handle("POST /api/v1/projects/{id}/send", eitherAuth(http.HandlerFunc(emailHandler.Send)))
 	mux.Handle("POST /api/v1/projects/{id}/broadcast", eitherAuth(http.HandlerFunc(emailHandler.Broadcast)))
-	mux.Handle("POST /api/v1/projects/{id}/send/direct", eitherAuth(http.HandlerFunc(emailHandler.SendDirect)))
-	mux.Handle("POST /api/v1/projects/{id}/send/template", eitherAuth(http.HandlerFunc(emailHandler.SendTemplate)))
 	mux.Handle("GET /api/v1/projects/{id}/logs", authMiddleware(http.HandlerFunc(emailHandler.Logs)))
 	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
+
+	mux.HandleFunc("GET /unsubscribe/{id}/{subscriberId}", emailHandler.Unsubscribe)
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
@@ -141,7 +141,7 @@ func serveFrontend(mux *http.ServeMux) {
 	fileServer := http.FileServerFS(frontendFS)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/health" {
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || r.URL.Path == "/health" {
 			http.NotFound(w, r)
 			return
 		}
