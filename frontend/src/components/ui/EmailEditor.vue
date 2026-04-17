@@ -40,7 +40,6 @@ onMounted(() => {
         blockManager: {
             blocks: []
         },
-        // Style manager sectors - email-safe properties
         styleManager: {
             sectors: [
                 {
@@ -128,11 +127,9 @@ onMounted(() => {
         },
     })
 
-    // Setup blocks
     const bm = editor.BlockManager
     bm.getAll().reset()
 
-    // Layout blocks
     bm.add('container', {
         label: 'Container',
         category: 'Layout',
@@ -180,7 +177,6 @@ onMounted(() => {
         content: '<div style="height: 30px;"></div>',
     })
 
-    // Content blocks
     bm.add('heading', {
         label: 'Heading',
         category: 'Content',
@@ -227,7 +223,6 @@ onMounted(() => {
         </ul>`,
     })
 
-    // Pre-built sections
     bm.add('header-block', {
         label: 'Header',
         category: 'Sections',
@@ -261,12 +256,10 @@ onMounted(() => {
         </div>`,
     })
 
-    // Load initial content
     if (props.modelValue) {
         editor.setComponents(props.modelValue)
     }
 
-    // Emit changes
     editor.on('component:update', emitHtml)
     editor.on('component:add', emitHtml)
     editor.on('component:remove', emitHtml)
@@ -288,7 +281,6 @@ async function emitHtml() {
             tabWidth: 2,
         })
     } catch {
-        // If formatting fails, use raw
     }
 
     skipWatch = true
@@ -296,7 +288,6 @@ async function emitHtml() {
     setTimeout(() => { skipWatch = false }, 200)
 }
 
-// Watch for external changes (e.g., switching from code tab)
 watch(() => props.modelValue, (newVal) => {
     if (!editor || skipWatch) return
     editor.setComponents(newVal || '')

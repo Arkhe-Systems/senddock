@@ -32,7 +32,6 @@ type updateStatusRequest struct {
 	Status string `json:"status"`
 }
 
-// verifyProjectOwner checks that the authenticated user owns the project
 func (h *SubscriberHandler) verifyProjectOwner(r *http.Request) (string, string, error) {
 	userID := r.Context().Value(middleware.UserIDKey).(string)
 	projectID := r.PathValue("id")

@@ -22,13 +22,11 @@ const subscribers = ref<Subscriber[]>([])
 const total = ref(0)
 const loading = ref(true)
 
-// Add subscriber
 const showAddModal = ref(false)
 const newEmail = ref('')
 const newName = ref('')
 const addLoading = ref(false)
 
-// Pagination
 const page = ref(0)
 const limit = 50
 

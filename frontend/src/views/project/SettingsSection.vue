@@ -27,19 +27,16 @@ const emit = defineEmits<{ updated: [] }>()
 const router = useRouter()
 const toast = useToastStore()
 
-// General
 const projectName = ref('')
 const projectDescription = ref('')
 const generalLoading = ref(false)
 
-// API Keys
 const apiKeys = ref<APIKey[]>([])
 const showKeyModal = ref(false)
 const newKeyName = ref('')
 const keyLoading = ref(false)
-const createdKey = ref('')  // shown once after creation
+const createdKey = ref('')
 
-// Delete project
 const deleteConfirmName = ref('')
 const deleteLoading = ref(false)
 
@@ -74,7 +71,6 @@ async function handleSaveGeneral() {
     }
 }
 
-// API Keys
 async function fetchAPIKeys() {
     try {
         const res = await api<APIKey[] | null>(`/projects/${props.project.id}/keys`)
@@ -127,7 +123,6 @@ async function handleRevokeKey(key: APIKey) {
     }
 }
 
-// Delete project
 async function handleDelete() {
     if (deleteConfirmName.value !== props.project.name) return
     deleteLoading.value = true

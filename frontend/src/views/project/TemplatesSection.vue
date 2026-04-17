@@ -28,15 +28,12 @@ const toast = useToastStore()
 const templates = ref<Template[]>([])
 const loading = ref(true)
 
-// CodeMirror
 const extensions = [html(), oneDark, EditorView.lineWrapping]
 
-// Create
 const showCreateModal = ref(false)
 const newName = ref('')
 const createLoading = ref(false)
 
-// Edit
 const editing = ref<Template | null>(null)
 const editName = ref('')
 const editSubject = ref('')
