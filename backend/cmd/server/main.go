@@ -37,6 +37,20 @@ func main() {
 	projectService := service.NewProjectService(queries)
 	projectHandler := handler.NewProjectHandler(projectService)
 
+	subscriberService := service.NewSubscriberService(queries)
+	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
+
+	templateService := service.NewTemplateService(queries)
+	templateHandler := handler.NewTemplateHandler(templateService, projectService)
+
+	apiKeyService := service.NewAPIKeyService(queries)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, projectService)
+
+	emailService := service.NewEmailService(queries)
+	emailHandler := handler.NewEmailHandler(emailService, projectService)
+
+	setupHandler := handler.NewSetupHandler(queries, authService, cfg)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +61,11 @@ func main() {
 	})
 
 	authMiddleware := middleware.Auth([]byte(cfg.JWTSecret))
+	apiKeyMiddleware := middleware.APIKey(queries)
+	eitherAuth := middleware.EitherAuth(authMiddleware, apiKeyMiddleware)
+
+	mux.HandleFunc("GET /api/v1/setup/status", setupHandler.Status)
+	mux.HandleFunc("POST /api/v1/setup", setupHandler.Setup)
 
 	mux.Handle("GET /api/v1/me", authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID := r.Context().Value(middleware.UserIDKey).(string)
@@ -56,18 +75,47 @@ func main() {
 		})
 	})))
 
-	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
+
+	if cfg.IsSelfHosted() {
+		log.Println("Mode: self-hosted (registration disabled)")
+	} else {
+		log.Println("Mode: cloud (registration enabled)")
+		mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+	}
 
 	mux.Handle("POST /api/v1/projects", authMiddleware(http.HandlerFunc(projectHandler.Create)))
 	mux.Handle("GET /api/v1/projects", authMiddleware(http.HandlerFunc(projectHandler.List)))
 	mux.Handle("GET /api/v1/projects/{id}", authMiddleware(http.HandlerFunc(projectHandler.Get)))
+	mux.Handle("PUT /api/v1/projects/{id}", authMiddleware(http.HandlerFunc(projectHandler.Update)))
 	mux.Handle("DELETE /api/v1/projects/{id}", authMiddleware(http.HandlerFunc(projectHandler.Delete)))
+	mux.Handle("PUT /api/v1/projects/{id}/smtp", authMiddleware(http.HandlerFunc(projectHandler.UpdateSMTP)))
+
+	mux.Handle("POST /api/v1/projects/{id}/subscribers", authMiddleware(http.HandlerFunc(subscriberHandler.Create)))
+	mux.Handle("GET /api/v1/projects/{id}/subscribers", authMiddleware(http.HandlerFunc(subscriberHandler.List)))
+	mux.Handle("PATCH /api/v1/projects/{id}/subscribers/{subscriberId}", authMiddleware(http.HandlerFunc(subscriberHandler.UpdateStatus)))
+	mux.Handle("DELETE /api/v1/projects/{id}/subscribers/{subscriberId}", authMiddleware(http.HandlerFunc(subscriberHandler.Delete)))
+
+	mux.Handle("POST /api/v1/projects/{id}/keys", authMiddleware(http.HandlerFunc(apiKeyHandler.Create)))
+	mux.Handle("GET /api/v1/projects/{id}/keys", authMiddleware(http.HandlerFunc(apiKeyHandler.List)))
+	mux.Handle("DELETE /api/v1/projects/{id}/keys/{keyId}", authMiddleware(http.HandlerFunc(apiKeyHandler.Delete)))
+
+	mux.Handle("POST /api/v1/projects/{id}/templates", authMiddleware(http.HandlerFunc(templateHandler.Create)))
+	mux.Handle("GET /api/v1/projects/{id}/templates", authMiddleware(http.HandlerFunc(templateHandler.List)))
+	mux.Handle("GET /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Get)))
+	mux.Handle("PUT /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Update)))
+	mux.Handle("DELETE /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Delete)))
+
+	mux.Handle("POST /api/v1/projects/{id}/smtp/test", authMiddleware(http.HandlerFunc(emailHandler.TestSMTP)))
+	mux.Handle("POST /api/v1/projects/{id}/send", eitherAuth(http.HandlerFunc(emailHandler.SendToSubscriber)))
+	mux.Handle("POST /api/v1/projects/{id}/broadcast", eitherAuth(http.HandlerFunc(emailHandler.Broadcast)))
+	mux.Handle("POST /api/v1/projects/{id}/send/direct", eitherAuth(http.HandlerFunc(emailHandler.SendDirect)))
+	mux.Handle("GET /api/v1/projects/{id}/logs", authMiddleware(http.HandlerFunc(emailHandler.Logs)))
+	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
 
 	log.Println("Server running:" + cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, middleware.CORS(cfg.FrontendURL)(mux)))
-
 }
