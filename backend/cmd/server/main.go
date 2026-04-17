@@ -150,6 +150,7 @@ func main() {
 
 	mux.HandleFunc("GET /t/{logId}", trackingHandler.Open)
 	mux.HandleFunc("POST /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
+	mux.HandleFunc("OPTIONS /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
