@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -290,9 +291,59 @@ func sendSMTP(project db.Project, to, subject, htmlBody string) error {
 		from, to, subject, htmlBody)
 
 	addr := fmt.Sprintf("%s:%d", host, port)
-	auth := smtp.PlainAuth("", user, pass, host)
 
+	if port == 465 {
+		return sendSMTPImplicitTLS(host, addr, user, pass, fromEmail, to, []byte(msg))
+	}
+
+	auth := smtp.PlainAuth("", user, pass, host)
 	return smtp.SendMail(addr, auth, fromEmail, []string{to}, []byte(msg))
+}
+
+func sendSMTPImplicitTLS(host, addr, user, pass, from, to string, msg []byte) error {
+	tlsConfig := &tls.Config{ServerName: host}
+
+	conn, err := tls.Dial("tcp", addr, tlsConfig)
+	if err != nil {
+		return fmt.Errorf("tls connection failed: %w", err)
+	}
+	defer conn.Close()
+
+	client, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return fmt.Errorf("smtp client failed: %w", err)
+	}
+	defer client.Close()
+
+	auth := smtp.PlainAuth("", user, pass, host)
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("smtp auth failed: %w", err)
+	}
+
+	if err = client.Mail(from); err != nil {
+		return fmt.Errorf("smtp mail from failed: %w", err)
+	}
+
+	if err = client.Rcpt(to); err != nil {
+		return fmt.Errorf("smtp rcpt to failed: %w", err)
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("smtp data failed: %w", err)
+	}
+
+	_, err = w.Write(msg)
+	if err != nil {
+		return fmt.Errorf("smtp write failed: %w", err)
+	}
+
+	err = w.Close()
+	if err != nil {
+		return fmt.Errorf("smtp close failed: %w", err)
+	}
+
+	return client.Quit()
 }
 
 func replaceVariables(body string, sub db.Subscriber) string {
