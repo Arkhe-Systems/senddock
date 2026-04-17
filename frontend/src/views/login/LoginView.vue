@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { deploymentMode } from '@/router'
+import { useAppStore } from '@/stores/app'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
@@ -22,7 +22,8 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
-const isCloud = computed(() => deploymentMode.value === 'cloud')
+const appStore = useAppStore()
+const isCloud = computed(() => appStore.deploymentMode === 'cloud')
 
 async function handleLogin() {
     error.value = ''
