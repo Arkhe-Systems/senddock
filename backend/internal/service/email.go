@@ -152,6 +152,45 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 	return sendErr
 }
 
+func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to string, variables map[string]string) error {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return errors.New("invalid project id")
+	}
+
+	project, err := s.queries.GetProjectByIDOnly(ctx, pid)
+	if err != nil {
+		return errors.New("project not found")
+	}
+
+	if !project.SmtpHost.Valid || !project.SmtpUser.Valid || !project.SmtpPasswordEncrypted.Valid {
+		return errors.New("smtp not configured")
+	}
+
+	tid, err := uuid.Parse(templateID)
+	if err != nil {
+		return errors.New("invalid template id")
+	}
+
+	template, err := s.queries.GetTemplateByID(ctx, db.GetTemplateByIDParams{ID: tid, ProjectID: pid})
+	if err != nil {
+		return errors.New("template not found")
+	}
+
+	body := template.HtmlBody
+	subject := template.Subject
+	for key, val := range variables {
+		body = strings.ReplaceAll(body, "{{"+key+"}}", val)
+		subject = strings.ReplaceAll(subject, "{{"+key+"}}", val)
+	}
+
+	sendErr := sendSMTP(project, to, subject, body)
+
+	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, sendErr)
+
+	return sendErr
+}
+
 func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32) ([]db.EmailLog, int64, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {

@@ -47,6 +47,26 @@ curl -X POST https://your-instance.com/api/v1/projects/{id}/send/direct \
   }'
 ```
 
+## Send with Template (no subscriber needed)
+
+Send a template to any email address with custom variables. No subscriber required — ideal for contact forms, transactional emails, and one-off sends.
+
+```bash
+curl -X POST https://your-instance.com/api/v1/projects/{id}/send/template \
+  -H "Authorization: Bearer sk_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template_id": "uuid",
+    "to": "user@example.com",
+    "data": {
+      "name": "John Doe",
+      "email": "john@example.com"
+    }
+  }'
+```
+
+The `data` object replaces template variables: `{{name}}` becomes "John Doe", `{{email}}` becomes "john@example.com". You can use any key/value pairs — they match against `{{key}}` in both subject and body.
+
 ## Email Logs
 
 Every email sent is logged with status (`sent` or `failed`), error details, recipient, and timestamp.

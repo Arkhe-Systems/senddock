@@ -118,6 +118,7 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | POST | `/api/v1/projects/{id}/send` | Cookie or API key | Send to a subscriber using a template |
 | POST | `/api/v1/projects/{id}/broadcast` | Cookie or API key | Send to all active subscribers |
 | POST | `/api/v1/projects/{id}/send/direct` | Cookie or API key | Send a one-off email to any address |
+| POST | `/api/v1/projects/{id}/send/template` | Cookie or API key | Send a template to any email with variables |
 | POST | `/api/v1/projects/{id}/smtp/test` | Cookie | Test SMTP connection |
 | GET | `/api/v1/projects/{id}/logs` | Cookie | List email logs |
 | GET | `/api/v1/projects/{id}/stats` | Cookie or API key | Get email stats |

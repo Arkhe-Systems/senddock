@@ -37,6 +37,12 @@ type sendDirectRequest struct {
 	HtmlBody string `json:"html_body"`
 }
 
+type sendTemplateRequest struct {
+	TemplateID string            `json:"template_id"`
+	To         string            `json:"to"`
+	Data       map[string]string `json:"data"`
+}
+
 func (h *EmailHandler) verifyAccess(r *http.Request) (string, error) {
 	if pid, ok := r.Context().Value(middleware.ProjectIDKey).(string); ok {
 		return pid, nil
@@ -145,6 +151,42 @@ func (h *EmailHandler) SendDirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.emailService.SendDirect(r.Context(), projectID, req.To, req.Subject, req.HtmlBody)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "sent"})
+}
+
+func (h *EmailHandler) SendTemplate(w http.ResponseWriter, r *http.Request) {
+	projectID, err := h.verifyAccess(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	var req sendTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.TemplateID == "" || req.To == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "template_id and to are required"})
+		return
+	}
+
+	err = h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, req.To, req.Data)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)

@@ -113,6 +113,7 @@ func main() {
 	mux.Handle("POST /api/v1/projects/{id}/send", eitherAuth(http.HandlerFunc(emailHandler.SendToSubscriber)))
 	mux.Handle("POST /api/v1/projects/{id}/broadcast", eitherAuth(http.HandlerFunc(emailHandler.Broadcast)))
 	mux.Handle("POST /api/v1/projects/{id}/send/direct", eitherAuth(http.HandlerFunc(emailHandler.SendDirect)))
+	mux.Handle("POST /api/v1/projects/{id}/send/template", eitherAuth(http.HandlerFunc(emailHandler.SendTemplate)))
 	mux.Handle("GET /api/v1/projects/{id}/logs", authMiddleware(http.HandlerFunc(emailHandler.Logs)))
 	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
 
