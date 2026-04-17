@@ -20,7 +20,6 @@ export const useAuthStore = defineStore('auth', () => {
         } catch {
             isAuthenticated.value = false
             if (wasAuthenticated) {
-                // Was logged in, now the session is gone
                 sessionExpired.value = true
             }
         }
@@ -61,7 +60,6 @@ export const useAuthStore = defineStore('auth', () => {
         try {
             await api<MessageResponse>('/auth/logout', { method: 'POST' })
         } catch {
-            // Ignore errors on logout
         }
         isAuthenticated.value = false
         sessionExpired.value = false

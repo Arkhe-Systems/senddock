@@ -17,7 +17,6 @@ const router = useRouter()
 const projectStore = useProjectStore()
 const pageLoading = ref(true)
 
-// Create project
 const showCreateModal = ref(false)
 const createError = ref('')
 const createLoading = ref(false)
@@ -47,7 +46,6 @@ async function handleCreateProject() {
     }
 }
 
-// Delete project
 const showDeleteModal = ref(false)
 const projectToDelete = ref<Project | null>(null)
 const deleteConfirmName = ref('')
@@ -77,7 +75,6 @@ async function handleDeleteProject() {
     }
 }
 
-// Logout
 async function handleLogout() {
     await auth.logout()
     router.push('/login')

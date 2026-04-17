@@ -35,7 +35,7 @@ func (s *APIKeyService) Create(ctx context.Context, projectID, name string) (API
 		return APIKeyCreateResult{}, err
 	}
 	rawKey := "sk_" + hex.EncodeToString(rawBytes)
-	prefix := rawKey[:10] // "sk_" + first 7 hex chars
+	prefix := rawKey[:10]
 
 	hash := sha256.Sum256([]byte(rawKey))
 	keyHash := hex.EncodeToString(hash[:])
