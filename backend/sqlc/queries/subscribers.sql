@@ -29,7 +29,7 @@ SELECT COUNT(*) FROM subscribers WHERE project_id = $1 AND status = 'active';
 -- name: UpdateSubscriberStatus :one
 UPDATE subscribers SET
     status = $3,
-    unsubscribed_at = CASE WHEN $3::text = 'unsubscribed' THEN NOW() ELSE unsubscribed_at END,
+    unsubscribed_at = CASE WHEN $4 = 'unsubscribed' THEN NOW() ELSE unsubscribed_at END,
     updated_at = NOW()
 WHERE id = $1 AND project_id = $2
 RETURNING *;

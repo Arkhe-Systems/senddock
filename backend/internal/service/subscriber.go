@@ -76,6 +76,7 @@ func (s *SubscriberService) UpdateStatus(ctx context.Context, subscriberID, proj
 		ID:        sid,
 		ProjectID: pid,
 		Status:    status,
+		Column4:   status,
 	})
 	if err != nil {
 		return db.Subscriber{}, fmt.Errorf("update failed for %s in project %s: %w", subscriberID, projectID, err)
