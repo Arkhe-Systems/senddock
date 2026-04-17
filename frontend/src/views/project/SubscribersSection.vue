@@ -84,15 +84,30 @@ async function toggleStatus(sub: Subscriber) {
     }
 }
 
-async function handleDelete(sub: Subscriber) {
+const showDeleteModal = ref(false)
+const subscriberToDelete = ref<Subscriber | null>(null)
+const deleteLoading = ref(false)
+
+function openDeleteModal(sub: Subscriber) {
+    subscriberToDelete.value = sub
+    showDeleteModal.value = true
+}
+
+async function handleDelete() {
+    if (!subscriberToDelete.value) return
+    deleteLoading.value = true
     try {
-        await api(`/projects/${props.project.id}/subscribers/${sub.id}`, {
+        await api(`/projects/${props.project.id}/subscribers/${subscriberToDelete.value.id}`, {
             method: 'DELETE',
         })
         toast.success('Subscriber removed')
+        showDeleteModal.value = false
+        subscriberToDelete.value = null
         fetchSubscribers()
     } catch (e: any) {
         toast.error(e.message || 'Failed to delete subscriber')
+    } finally {
+        deleteLoading.value = false
     }
 }
 
@@ -142,7 +157,7 @@ onMounted(fetchSubscribers)
                                 class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
                                 {{ sub.status === 'active' ? 'Unsubscribe' : 'Activate' }}
                             </button>
-                            <button @click="handleDelete(sub)"
+                            <button @click="openDeleteModal(sub)"
                                 class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer">
                                 Delete
                             </button>
@@ -177,6 +192,21 @@ onMounted(fetchSubscribers)
                     {{ addLoading ? 'Adding...' : 'Add Subscriber' }}
                 </AppButton>
             </form>
+        </AppModal>
+
+        <AppModal :show="showDeleteModal" title="Remove Subscriber" @close="showDeleteModal = false">
+            <div class="space-y-4">
+                <p class="text-zinc-400 text-sm">
+                    Are you sure you want to remove
+                    <span class="font-semibold text-white">{{ subscriberToDelete?.email }}</span>?
+                </p>
+                <div class="flex gap-3">
+                    <AppButton variant="secondary" @click="showDeleteModal = false">Cancel</AppButton>
+                    <AppButton variant="danger" :loading="deleteLoading" @click="handleDelete">
+                        {{ deleteLoading ? 'Removing...' : 'Remove' }}
+                    </AppButton>
+                </div>
+            </div>
         </AppModal>
     </div>
 </template>

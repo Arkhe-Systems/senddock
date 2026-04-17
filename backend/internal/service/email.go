@@ -15,11 +15,12 @@ import (
 )
 
 type EmailService struct {
-	queries *db.Queries
+	queries  *db.Queries
+	baseURL  string
 }
 
-func NewEmailService(queries *db.Queries) *EmailService {
-	return &EmailService{queries: queries}
+func NewEmailService(queries *db.Queries, baseURL string) *EmailService {
+	return &EmailService{queries: queries, baseURL: baseURL}
 }
 
 type SendResult struct {
@@ -69,6 +70,9 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	body := replaceVariables(template.HtmlBody, sub)
 	subject := replaceVariablesSimple(template.Subject, sub)
 
+	unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sid.String())
+	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
+
 	sendErr := sendSMTP(project, sub.Email, subject, body)
 
 	s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
@@ -117,6 +121,9 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 	for _, sub := range subscribers {
 		body := replaceVariables(template.HtmlBody, sub)
 		subject := replaceVariablesSimple(template.Subject, sub)
+
+		unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sub.ID.String())
+		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
 		sendErr := sendSMTP(project, sub.Email, subject, body)
 
@@ -250,6 +257,25 @@ func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscr
 		Status:       status,
 		Error:        errMsg,
 	})
+}
+
+func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID string) error {
+	sid, err := uuid.Parse(subscriberID)
+	if err != nil {
+		return errors.New("invalid subscriber id")
+	}
+
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return errors.New("invalid project id")
+	}
+
+	_, err = s.queries.UpdateSubscriberStatus(ctx, db.UpdateSubscriberStatusParams{
+		ID:        sid,
+		ProjectID: pid,
+		Status:    "unsubscribed",
+	})
+	return err
 }
 
 func (s *EmailService) TestSMTP(ctx context.Context, projectID string) error {

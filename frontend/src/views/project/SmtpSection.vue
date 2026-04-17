@@ -102,11 +102,12 @@ async function handleTest() {
             </div>
 
             <div class="flex gap-3">
-                <AppButton :loading="loading">
+                <button type="submit" :disabled="loading"
+                    class="px-5 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                     {{ loading ? 'Saving...' : 'Save Settings' }}
-                </AppButton>
+                </button>
                 <button v-if="hasSmtpConfig" type="button" @click="handleTest" :disabled="testLoading"
-                    class="flex-1 py-2 text-sm font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="px-5 py-2 text-sm font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                     {{ testLoading ? 'Testing...' : 'Test Connection' }}
                 </button>
             </div>

@@ -2,19 +2,60 @@
 
 Email endpoints accept both cookie auth and API key auth (`Authorization: Bearer sk_...`).
 
-## Send to Subscriber
+## Send
 
 ```
 POST /api/v1/projects/{id}/send
 ```
 
+One endpoint for all individual sends. The behavior depends on the fields you provide.
+
+### Send template to any email
+
 ```json
-{"subscriber_id": "uuid", "template_id": "uuid"}
+{
+  "to": "user@example.com",
+  "template_id": "uuid",
+  "subject": "Optional override",
+  "data": {
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+}
 ```
 
-Sends the template to a specific subscriber. Variables like `{{name}}` and `{{email}}` are replaced with the subscriber's data. The subscriber must be `active`.
+Sends a template to any email address. No subscriber needed. Variables like `{{name}}` in the template are replaced with values from `data`. If `subject` is provided, it overrides the template's subject.
 
-**Response**
+### Send template to a subscriber
+
+```json
+{
+  "subscriber_id": "uuid",
+  "template_id": "uuid"
+}
+```
+
+Sends a template to a specific subscriber. Variables `{{name}}`, `{{email}}`, and `{{unsubscribe_url}}` are replaced automatically with the subscriber's data.
+
+### Send raw HTML (no template)
+
+```json
+{
+  "to": "user@example.com",
+  "subject": "Password Reset",
+  "html_body": "<p>Click <a href='...'>here</a> to reset.</p>"
+}
+```
+
+Sends a one-off email without a template. All three fields are required.
+
+### Response
+
+```json
+{"message": "sent"}
+```
+
+Or for subscriber sends:
 
 ```json
 {"sent": 1, "failed": 0}
@@ -26,11 +67,13 @@ Sends the template to a specific subscriber. Variables like `{{name}}` and `{{em
 POST /api/v1/projects/{id}/broadcast
 ```
 
+Sends a template to **all active subscribers** in the project. Separated from `/send` for safety.
+
 ```json
 {"template_id": "uuid"}
 ```
 
-Sends the template to all active subscribers in the project. Variables are replaced per subscriber.
+Variables are replaced per subscriber. The `{{unsubscribe_url}}` is injected automatically with a link to the public unsubscribe page.
 
 **Response**
 
@@ -38,53 +81,13 @@ Sends the template to all active subscribers in the project. Variables are repla
 {"sent": 150, "failed": 2}
 ```
 
-## Direct Send
+## Unsubscribe
 
 ```
-POST /api/v1/projects/{id}/send/direct
+GET /unsubscribe/{projectId}/{subscriberId}
 ```
 
-```json
-{
-  "to": "user@example.com",
-  "subject": "Password Reset",
-  "html_body": "<p>Click <a href='...'>here</a> to reset your password.</p>"
-}
-```
-
-Sends a one-off email without a template or subscriber. All three fields are required.
-
-**Response**
-
-```json
-{"message": "sent"}
-```
-
-## Send with Template
-
-```
-POST /api/v1/projects/{id}/send/template
-```
-
-```json
-{
-  "template_id": "uuid",
-  "to": "user@example.com",
-  "data": {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "message": "Hello!"
-  }
-}
-```
-
-Sends a template to any email address without requiring a subscriber. Template variables like `{{name}}` are replaced with values from `data`. Only `template_id` and `to` are required. `data` is optional.
-
-**Response**
-
-```json
-{"message": "sent"}
-```
+Public endpoint (no auth required). Shows a confirmation page and sets the subscriber's status to `unsubscribed`. The URL is auto-generated and injected via `{{unsubscribe_url}}` in broadcast and subscriber sends.
 
 ## Test SMTP
 

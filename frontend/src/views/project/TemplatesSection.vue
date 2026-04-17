@@ -119,17 +119,39 @@ async function handleSave() {
     }
 }
 
-async function handleDelete(tmpl: Template) {
+const showDeleteModal = ref(false)
+const templateToDelete = ref<Template | null>(null)
+const deleteConfirmName = ref('')
+const deleteLoading = ref(false)
+
+function openDeleteModal(tmpl: Template) {
+    templateToDelete.value = tmpl
+    deleteConfirmName.value = ''
+    showDeleteModal.value = true
+}
+
+async function handleDelete() {
+    if (!templateToDelete.value || deleteConfirmName.value !== templateToDelete.value.name) return
+    deleteLoading.value = true
     try {
-        await api(`/projects/${props.project.id}/templates/${tmpl.id}`, { method: 'DELETE' })
+        await api(`/projects/${props.project.id}/templates/${templateToDelete.value.id}`, { method: 'DELETE' })
         toast.success('Template deleted')
-        if (editing.value?.id === tmpl.id) {
+        if (editing.value?.id === templateToDelete.value.id) {
             editing.value = null
         }
+        showDeleteModal.value = false
+        templateToDelete.value = null
         fetchTemplates()
     } catch (e: any) {
         toast.error(e.message || 'Failed to delete template')
+    } finally {
+        deleteLoading.value = false
     }
+}
+
+async function copyId(id: string) {
+    await navigator.clipboard.writeText(id)
+    toast.success('ID copied')
 }
 
 onMounted(fetchTemplates)
@@ -228,11 +250,14 @@ onMounted(fetchTemplates)
                         <p class="text-sm text-zinc-500 mt-1">
                             {{ tmpl.subject || 'No subject set' }}
                         </p>
-                        <p class="text-xs text-zinc-600 mt-1 font-mono select-all">{{ tmpl.id }}</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-xs text-zinc-500">{{ new Date(tmpl.updated_at).toLocaleDateString() }}</span>
-                        <button @click.stop="handleDelete(tmpl)"
+                        <button @click.stop="copyId(tmpl.id)"
+                            class="text-xs text-zinc-600 hover:text-zinc-400 transition cursor-pointer font-mono">
+                            Copy ID
+                        </button>
+                        <span class="text-xs text-zinc-600">{{ new Date(tmpl.updated_at).toLocaleDateString() }}</span>
+                        <button @click.stop="openDeleteModal(tmpl)"
                             class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer">
                             Delete
                         </button>
@@ -253,6 +278,21 @@ onMounted(fetchTemplates)
                     {{ createLoading ? 'Creating...' : 'Create Template' }}
                 </AppButton>
             </form>
+        </AppModal>
+
+        <AppModal :show="showDeleteModal" title="Delete Template" @close="showDeleteModal = false">
+            <div class="space-y-4">
+                <p class="text-zinc-400 text-sm">
+                    This action cannot be undone. Type
+                    <span class="font-semibold text-white">{{ templateToDelete?.name }}</span>
+                    to confirm.
+                </p>
+                <AppInput v-model="deleteConfirmName" placeholder="Type template name to confirm" />
+                <AppButton variant="danger" :disabled="deleteConfirmName !== templateToDelete?.name" :loading="deleteLoading"
+                    @click="handleDelete">
+                    {{ deleteLoading ? 'Deleting...' : 'Delete Template' }}
+                </AppButton>
+            </div>
         </AppModal>
     </div>
 </template>
