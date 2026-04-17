@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { api } from '@/api/client'
+import { deploymentMode } from '@/router'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
@@ -22,11 +22,7 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
-const isCloud = ref(false)
-
-api<{ deployment_mode: string }>('/setup/status').then(res => {
-    isCloud.value = res.deployment_mode === 'cloud'
-}).catch(() => {})
+const isCloud = computed(() => deploymentMode === 'cloud')
 
 async function handleLogin() {
     error.value = ''
