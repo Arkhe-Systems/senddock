@@ -42,4 +42,22 @@ From the subscribers table you can:
 
 ## API
 
+## Waitlist
+
+SendDock includes a public waitlist endpoint for collecting emails from landing pages without exposing API keys.
+
+```
+POST /api/v1/projects/{id}/waitlist
+```
+
+```json
+{"email": "user@example.com", "template_id": "uuid"}
+```
+
+This creates a subscriber with `pending` status and optionally sends a confirmation email. No authentication needed — safe to call from frontend JavaScript.
+
+Use it to build pre-launch waitlists, beta signups, or email collection forms.
+
+## API
+
 See [Subscribers API](/api/subscribers) for the full REST API reference.
