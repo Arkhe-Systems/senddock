@@ -10,32 +10,24 @@ import (
 type WaitlistHandler struct {
 	subscriberService *service.SubscriberService
 	emailService      *service.EmailService
-	projectID         string
-	templateID        string
 }
 
-func NewWaitlistHandler(subscriberService *service.SubscriberService, emailService *service.EmailService, projectID, templateID string) *WaitlistHandler {
+func NewWaitlistHandler(subscriberService *service.SubscriberService, emailService *service.EmailService) *WaitlistHandler {
 	return &WaitlistHandler{
 		subscriberService: subscriberService,
 		emailService:      emailService,
-		projectID:         projectID,
-		templateID:        templateID,
 	}
 }
 
-type waitlistRequest struct {
-	Email string `json:"email"`
+type waitlistJoinRequest struct {
+	Email      string `json:"email"`
+	TemplateID string `json:"template_id"`
 }
 
 func (h *WaitlistHandler) Join(w http.ResponseWriter, r *http.Request) {
-	if h.projectID == "" || h.templateID == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(errorResponse{Error: "waitlist not configured"})
-		return
-	}
+	projectID := r.PathValue("id")
 
-	var req waitlistRequest
+	var req waitlistJoinRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -50,7 +42,7 @@ func (h *WaitlistHandler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.subscriberService.Create(r.Context(), h.projectID, req.Email, "", "pending")
+	_, err := h.subscriberService.Create(r.Context(), projectID, req.Email, "", "pending")
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
@@ -58,14 +50,16 @@ func (h *WaitlistHandler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.emailService.SendWithTemplate(
-		r.Context(),
-		h.projectID,
-		h.templateID,
-		req.Email,
-		"",
-		map[string]string{"email": req.Email},
-	)
+	if req.TemplateID != "" {
+		go h.emailService.SendWithTemplate(
+			r.Context(),
+			projectID,
+			req.TemplateID,
+			req.Email,
+			"",
+			map[string]string{"email": req.Email},
+		)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "joined"})

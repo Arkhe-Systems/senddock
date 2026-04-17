@@ -75,7 +75,7 @@ func main() {
 	worker := service.NewCampaignWorker(queries, emailService)
 	worker.Start()
 
-	waitlistHandler := handler.NewWaitlistHandler(subscriberService, emailService, cfg.WaitlistProjectID, cfg.WaitlistTemplateID)
+	waitlistHandler := handler.NewWaitlistHandler(subscriberService, emailService)
 
 	setupHandler := handler.NewSetupHandler(queries, authService, cfg)
 
@@ -149,7 +149,7 @@ func main() {
 	mux.HandleFunc("GET /unsubscribe/{id}/{subscriberId}", emailHandler.Unsubscribe)
 
 	mux.HandleFunc("GET /t/{logId}", trackingHandler.Open)
-	mux.HandleFunc("POST /api/v1/waitlist", waitlistHandler.Join)
+	mux.HandleFunc("POST /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
