@@ -139,7 +139,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(errorResponse{Error: "No cookie available"})
+		json.NewEncoder(w).Encode(errorResponse{Error: "no refresh token"})
 		return
 	}
 
@@ -154,5 +154,5 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Path: "/api/v1/auth", MaxAge: -1})
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Success Logout"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "logged out"})
 }
