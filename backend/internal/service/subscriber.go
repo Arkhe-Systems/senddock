@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/google/uuid"
@@ -57,21 +58,29 @@ func (s *SubscriberService) CountByProject(ctx context.Context, projectID string
 }
 
 func (s *SubscriberService) UpdateStatus(ctx context.Context, subscriberID, projectID, status string) (db.Subscriber, error) {
+	if subscriberID == "" {
+		return db.Subscriber{}, errors.New("subscriber id is empty")
+	}
+
 	sid, err := uuid.Parse(subscriberID)
 	if err != nil {
-		return db.Subscriber{}, errors.New("invalid subscriber id")
+		return db.Subscriber{}, fmt.Errorf("invalid subscriber id: %s", subscriberID)
 	}
 
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
-		return db.Subscriber{}, errors.New("invalid project id")
+		return db.Subscriber{}, fmt.Errorf("invalid project id: %s", projectID)
 	}
 
-	return s.queries.UpdateSubscriberStatus(ctx, db.UpdateSubscriberStatusParams{
+	sub, err := s.queries.UpdateSubscriberStatus(ctx, db.UpdateSubscriberStatusParams{
 		ID:        sid,
 		ProjectID: pid,
 		Status:    status,
 	})
+	if err != nil {
+		return db.Subscriber{}, fmt.Errorf("update failed for %s in project %s: %w", subscriberID, projectID, err)
+	}
+	return sub, nil
 }
 
 func (s *SubscriberService) Delete(ctx context.Context, subscriberID, projectID string) error {
