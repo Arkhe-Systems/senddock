@@ -63,7 +63,7 @@ async function openSendModal() {
             toast.error('Create a template first')
             return
         }
-        selectedTemplate.value = templates.value[0].id
+        selectedTemplate.value = templates.value[0]?.id ?? ''
         sendMode.value = 'broadcast'
         directEmail.value = ''
         showSendModal.value = true
