@@ -6,17 +6,40 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+type ApiKey struct {
+	ID         uuid.UUID
+	ProjectID  uuid.UUID
+	Name       string
+	KeyHash    string
+	KeyPrefix  string
+	LastUsedAt sql.NullTime
+	CreatedAt  time.Time
+}
+
+type EmailLog struct {
+	ID           uuid.UUID
+	ProjectID    uuid.UUID
+	SubscriberID uuid.NullUUID
+	TemplateID   uuid.NullUUID
+	ToEmail      string
+	Subject      string
+	Status       string
+	Error        sql.NullString
+	SentAt       time.Time
+}
+
 type Project struct {
 	ID                    uuid.UUID
 	UserID                uuid.UUID
 	Name                  string
-	FromName              string
-	FromEmail             string
+	FromName              sql.NullString
+	FromEmail             sql.NullString
 	SmtpHost              sql.NullString
 	SmtpPort              sql.NullInt32
 	SmtpUser              sql.NullString
@@ -26,6 +49,7 @@ type Project struct {
 	TrackingEnabled       bool
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
+	Description           sql.NullString
 }
 
 type RefreshToken struct {
@@ -34,6 +58,31 @@ type RefreshToken struct {
 	TokenHash string
 	ExpiresAt time.Time
 	CreatedAt time.Time
+}
+
+type Subscriber struct {
+	ID             uuid.UUID
+	ProjectID      uuid.UUID
+	Email          string
+	Name           string
+	Status         string
+	Metadata       json.RawMessage
+	SubscribedAt   time.Time
+	UnsubscribedAt sql.NullTime
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type Template struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Name      string
+	Subject   string
+	HtmlBody  string
+	TextBody  string
+	Variables json.RawMessage
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type User struct {
