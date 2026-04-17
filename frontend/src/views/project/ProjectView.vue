@@ -26,6 +26,7 @@ const navItems = [
     { name: 'Overview', route: 'project-overview' },
     { name: 'Subscribers', route: 'project-subscribers' },
     { name: 'Templates', route: 'project-templates' },
+    { name: 'Logs', route: 'project-logs' },
     { name: 'SMTP Settings', route: 'project-smtp' },
     { name: 'Settings', route: 'project-settings' },
 ]

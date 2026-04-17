@@ -54,6 +54,11 @@ const router = createRouter({
           component: () => import('@/views/project/TemplatesSection.vue'),
         },
         {
+          path: 'logs',
+          name: 'project-logs',
+          component: () => import('@/views/project/LogsSection.vue'),
+        },
+        {
           path: 'smtp',
           name: 'project-smtp',
           component: () => import('@/views/project/SmtpSection.vue'),

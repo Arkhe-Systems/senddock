@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/config"
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/internal/handler"
@@ -21,6 +22,14 @@ import (
 
 func main() {
 	cfg := config.Load()
+
+	if len(cfg.JWTSecret) < 32 {
+		log.Fatal("JWT_SECRET must be at least 32 characters")
+	}
+
+	if cfg.DatabaseUrl == "" {
+		log.Fatal("DATABASE_URL is required")
+	}
 
 	conn, err := sql.Open("postgres", cfg.DatabaseUrl)
 	if err != nil {
@@ -34,6 +43,11 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL")
 	queries := db.New(conn)
+
+	redisCache := cache.NewRedis(cfg.RedisUrl)
+	if redisCache != nil {
+		defer redisCache.Close()
+	}
 
 	authService := service.NewAuthService(queries, cfg.JWTSecret)
 	authHandler := handler.NewAuthHandler(authService)
@@ -50,7 +64,7 @@ func main() {
 	apiKeyService := service.NewAPIKeyService(queries)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, projectService)
 
-	emailService := service.NewEmailService(queries, cfg.FrontendURL, cfg.JWTSecret)
+	emailService := service.NewEmailService(queries, cfg.FrontendURL, cfg.JWTSecret, redisCache)
 	emailHandler := handler.NewEmailHandler(emailService, projectService)
 
 	setupHandler := handler.NewSetupHandler(queries, authService, cfg)
@@ -125,7 +139,7 @@ func main() {
 
 	serveFrontend(mux)
 
-	rateLimiter := middleware.NewRateLimiter(100, time.Minute)
+	rateLimiter := middleware.NewRateLimiter(redisCache, 100, time.Minute)
 
 	handler := middleware.Security(
 		middleware.LimitBody(

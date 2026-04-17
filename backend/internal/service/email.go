@@ -6,9 +6,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"html"
+	"log"
 	"net/smtp"
 	"strings"
+	"time"
 
+	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/google/uuid"
 	premailer "github.com/vanng822/go-premailer/premailer"
@@ -18,10 +22,11 @@ type EmailService struct {
 	queries   *db.Queries
 	baseURL   string
 	encSecret string
+	cache     *cache.Redis
 }
 
-func NewEmailService(queries *db.Queries, baseURL, encSecret string) *EmailService {
-	return &EmailService{queries: queries, baseURL: baseURL, encSecret: encSecret}
+func NewEmailService(queries *db.Queries, baseURL, encSecret string, redis *cache.Redis) *EmailService {
+	return &EmailService{queries: queries, baseURL: baseURL, encSecret: encSecret, cache: redis}
 }
 
 type SendResult struct {
@@ -118,26 +123,24 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 		return SendResult{}, errors.New("no active subscribers")
 	}
 
-	result := SendResult{}
-	for _, sub := range subscribers {
-		body := replaceVariables(template.HtmlBody, sub)
-		subject := replaceVariablesSimple(template.Subject, sub)
+	total := len(subscribers)
 
-		unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sub.ID.String())
-		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
+	go func() {
+		bgCtx := context.Background()
+		for _, sub := range subscribers {
+			body := replaceVariables(template.HtmlBody, sub)
+			subject := replaceVariablesSimple(template.Subject, sub)
 
-		sendErr := s.sendSMTP(project, sub.Email, subject, body)
+			unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sub.ID.String())
+			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-		s.logEmail(ctx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
-
-		if sendErr != nil {
-			result.Failed++
-		} else {
-			result.Sent++
+			sendErr := s.sendSMTP(project, sub.Email, subject, body)
+			s.logEmail(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
 		}
-	}
+		log.Printf("Broadcast to %d subscribers completed for project %s", total, pid.String())
+	}()
 
-	return result, nil
+	return SendResult{Sent: total}, nil
 }
 
 func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, htmlBody string) error {
@@ -193,7 +196,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		subject = subjectOverride
 	}
 	for key, val := range variables {
-		body = strings.ReplaceAll(body, "{{"+key+"}}", val)
+		body = strings.ReplaceAll(body, "{{"+key+"}}", html.EscapeString(val))
 		subject = strings.ReplaceAll(subject, "{{"+key+"}}", val)
 	}
 
@@ -204,10 +207,45 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	return sendErr
 }
 
-func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32) ([]db.EmailLog, int64, error) {
+func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, status, from, to string) ([]db.EmailLog, int64, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, 0, errors.New("invalid project id")
+	}
+
+	var fromTime, toTime time.Time
+	if from != "" {
+		if t, err := time.Parse(time.RFC3339, from); err == nil {
+			fromTime = t
+		}
+	}
+	if to != "" {
+		if t, err := time.Parse(time.RFC3339, to); err == nil {
+			toTime = t
+		}
+	}
+
+	if status != "" || !fromTime.IsZero() || !toTime.IsZero() {
+		logs, err := s.queries.ListEmailLogsByProjectFiltered(ctx, db.ListEmailLogsByProjectFilteredParams{
+			ProjectID: pid,
+			Limit:     limit,
+			Offset:    offset,
+			Column4:   status,
+			Column5:   fromTime,
+			Column6:   toTime,
+		})
+		if err != nil {
+			return nil, 0, err
+		}
+
+		count, _ := s.queries.CountEmailLogsByProjectFiltered(ctx, db.CountEmailLogsByProjectFilteredParams{
+			ProjectID: pid,
+			Column2:   status,
+			Column3:   fromTime,
+			Column4:   toTime,
+		})
+
+		return logs, count, nil
 	}
 
 	logs, err := s.queries.ListEmailLogsByProject(ctx, db.ListEmailLogsByProjectParams{
@@ -220,7 +258,6 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 	}
 
 	count, _ := s.queries.CountEmailLogsByProject(ctx, pid)
-
 	return logs, count, nil
 }
 
@@ -230,15 +267,24 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 		return nil, errors.New("invalid project id")
 	}
 
+	cacheKey := "stats:" + projectID
+	var cached map[string]int64
+	if s.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	total, _ := s.queries.CountEmailLogsByProject(ctx, pid)
 	sent, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "sent"})
 	failed, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "failed"})
 
-	return map[string]int64{
+	stats := map[string]int64{
 		"total":  total,
 		"sent":   sent,
 		"failed": failed,
-	}, nil
+	}
+
+	s.cache.Set(ctx, cacheKey, stats, 30*time.Second)
+	return stats, nil
 }
 
 func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, sendErr error) {
@@ -258,6 +304,8 @@ func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscr
 		Status:       status,
 		Error:        errMsg,
 	})
+
+	s.cache.Delete(ctx, "stats:"+projectID.String())
 }
 
 func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID string) error {
@@ -386,8 +434,8 @@ func sendSMTPImplicitTLS(host, addr, user, pass, from, to string, msg []byte) er
 
 func replaceVariables(body string, sub db.Subscriber) string {
 	r := strings.NewReplacer(
-		"{{name}}", sub.Name,
-		"{{email}}", sub.Email,
+		"{{name}}", html.EscapeString(sub.Name),
+		"{{email}}", html.EscapeString(sub.Email),
 		"{{subscriber_id}}", sub.ID.String(),
 	)
 	return r.Replace(body)

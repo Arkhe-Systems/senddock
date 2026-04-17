@@ -129,12 +129,12 @@ func (h *SubscriberHandler) List(w http.ResponseWriter, r *http.Request) {
 	offset := int32(0)
 
 	if limitStr != "" {
-		if v, err := strconv.Atoi(limitStr); err == nil {
+		if v, err := strconv.Atoi(limitStr); err == nil && v > 0 && v <= 100 {
 			limit = int32(v)
 		}
 	}
 	if offsetStr != "" {
-		if v, err := strconv.Atoi(offsetStr); err == nil {
+		if v, err := strconv.Atoi(offsetStr); err == nil && v >= 0 {
 			offset = int32(v)
 		}
 	}

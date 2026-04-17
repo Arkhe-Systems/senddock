@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -18,6 +19,33 @@ SELECT COUNT(*) FROM email_logs WHERE project_id = $1
 
 func (q *Queries) CountEmailLogsByProject(ctx context.Context, projectID uuid.UUID) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countEmailLogsByProject, projectID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countEmailLogsByProjectFiltered = `-- name: CountEmailLogsByProjectFiltered :one
+SELECT COUNT(*) FROM email_logs
+WHERE project_id = $1
+AND ($2::text = '' OR status = $2::text)
+AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
+AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
+`
+
+type CountEmailLogsByProjectFilteredParams struct {
+	ProjectID uuid.UUID
+	Column2   string
+	Column3   time.Time
+	Column4   time.Time
+}
+
+func (q *Queries) CountEmailLogsByProjectFiltered(ctx context.Context, arg CountEmailLogsByProjectFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countEmailLogsByProjectFiltered,
+		arg.ProjectID,
+		arg.Column2,
+		arg.Column3,
+		arg.Column4,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -95,6 +123,65 @@ type ListEmailLogsByProjectParams struct {
 
 func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsByProjectParams) ([]EmailLog, error) {
 	rows, err := q.db.QueryContext(ctx, listEmailLogsByProject, arg.ProjectID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EmailLog
+	for rows.Next() {
+		var i EmailLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.SubscriberID,
+			&i.TemplateID,
+			&i.ToEmail,
+			&i.Subject,
+			&i.Status,
+			&i.Error,
+			&i.SentAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEmailLogsByProjectFiltered = `-- name: ListEmailLogsByProjectFiltered :many
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at FROM email_logs
+WHERE project_id = $1
+AND ($4::text = '' OR status = $4::text)
+AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
+AND ($6::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $6)
+ORDER BY sent_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListEmailLogsByProjectFilteredParams struct {
+	ProjectID uuid.UUID
+	Limit     int32
+	Offset    int32
+	Column4   string
+	Column5   time.Time
+	Column6   time.Time
+}
+
+func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEmailLogsByProjectFilteredParams) ([]EmailLog, error) {
+	rows, err := q.db.QueryContext(ctx, listEmailLogsByProjectFiltered,
+		arg.ProjectID,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+		arg.Column5,
+		arg.Column6,
+	)
 	if err != nil {
 		return nil, err
 	}
