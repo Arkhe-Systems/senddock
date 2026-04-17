@@ -67,10 +67,21 @@ func (q *Queries) CountEmailLogsByStatus(ctx context.Context, arg CountEmailLogs
 	return count, err
 }
 
+const countEmailLogsOpened = `-- name: CountEmailLogsOpened :one
+SELECT COUNT(*) FROM email_logs WHERE project_id = $1 AND opened_at IS NOT NULL
+`
+
+func (q *Queries) CountEmailLogsOpened(ctx context.Context, projectID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countEmailLogsOpened, projectID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createEmailLog = `-- name: CreateEmailLog :one
 INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at
+RETURNING id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at
 `
 
 type CreateEmailLogParams struct {
@@ -104,12 +115,13 @@ func (q *Queries) CreateEmailLog(ctx context.Context, arg CreateEmailLogParams) 
 		&i.Status,
 		&i.Error,
 		&i.SentAt,
+		&i.OpenedAt,
 	)
 	return i, err
 }
 
 const listEmailLogsByProject = `-- name: ListEmailLogsByProject :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at FROM email_logs
 WHERE project_id = $1
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3
@@ -140,6 +152,7 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 			&i.Status,
 			&i.Error,
 			&i.SentAt,
+			&i.OpenedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -155,7 +168,7 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 }
 
 const listEmailLogsByProjectFiltered = `-- name: ListEmailLogsByProjectFiltered :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at FROM email_logs
 WHERE project_id = $1
 AND ($4::text = '' OR status = $4::text)
 AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
@@ -199,6 +212,7 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 			&i.Status,
 			&i.Error,
 			&i.SentAt,
+			&i.OpenedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -211,4 +225,13 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 		return nil, err
 	}
 	return items, nil
+}
+
+const markEmailOpened = `-- name: MarkEmailOpened :exec
+UPDATE email_logs SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL
+`
+
+func (q *Queries) MarkEmailOpened(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, markEmailOpened, id)
+	return err
 }

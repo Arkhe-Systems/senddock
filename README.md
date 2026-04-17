@@ -1,10 +1,10 @@
 # SendDock
 
-Open-source email marketing platform. Self-hostable, API-first, built with Go and Vue.
+Open-source email marketing platform. Self-hostable, API-first, BYOSMTP. Built with Go and Vue.
+
+Bring your own SMTP. Zero cost per email. Full control over your data.
 
 Part of [Arkhe Systems](https://arkhe.systems).
-
-> Early development. Not recommended for production use yet.
 
 ## Quick Start
 

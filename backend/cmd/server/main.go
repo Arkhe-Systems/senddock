@@ -67,6 +67,14 @@ func main() {
 	emailService := service.NewEmailService(queries, cfg.FrontendURL, cfg.JWTSecret, redisCache)
 	emailHandler := handler.NewEmailHandler(emailService, projectService)
 
+	campaignService := service.NewCampaignService(queries)
+	campaignHandler := handler.NewCampaignHandler(campaignService, projectService)
+
+	trackingHandler := handler.NewTrackingHandler(queries)
+
+	worker := service.NewCampaignWorker(queries, emailService)
+	worker.Start()
+
 	setupHandler := handler.NewSetupHandler(queries, authService, cfg)
 
 	mux := http.NewServeMux()
@@ -125,6 +133,10 @@ func main() {
 	mux.Handle("PUT /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Update)))
 	mux.Handle("DELETE /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Delete)))
 
+	mux.Handle("POST /api/v1/projects/{id}/campaigns", authMiddleware(http.HandlerFunc(campaignHandler.Create)))
+	mux.Handle("GET /api/v1/projects/{id}/campaigns", authMiddleware(http.HandlerFunc(campaignHandler.List)))
+	mux.Handle("DELETE /api/v1/projects/{id}/campaigns/{campaignId}", authMiddleware(http.HandlerFunc(campaignHandler.Delete)))
+
 	mux.Handle("POST /api/v1/projects/{id}/smtp/test", authMiddleware(http.HandlerFunc(emailHandler.TestSMTP)))
 	mux.Handle("POST /api/v1/projects/{id}/send", eitherAuth(http.HandlerFunc(emailHandler.Send)))
 	mux.Handle("POST /api/v1/projects/{id}/broadcast", eitherAuth(http.HandlerFunc(emailHandler.Broadcast)))
@@ -133,6 +145,8 @@ func main() {
 	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
 
 	mux.HandleFunc("GET /unsubscribe/{id}/{subscriberId}", emailHandler.Unsubscribe)
+
+	mux.HandleFunc("GET /t/{logId}.gif", trackingHandler.Open)
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
@@ -176,7 +190,7 @@ func serveFrontend(mux *http.ServeMux) {
 	fileServer := http.FileServerFS(frontendFS)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || r.URL.Path == "/health" {
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || strings.HasPrefix(r.URL.Path, "/t/") || r.URL.Path == "/health" {
 			http.NotFound(w, r)
 			return
 		}

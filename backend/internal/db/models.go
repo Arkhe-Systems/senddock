@@ -22,6 +22,19 @@ type ApiKey struct {
 	CreatedAt  time.Time
 }
 
+type Campaign struct {
+	ID          uuid.UUID
+	ProjectID   uuid.UUID
+	TemplateID  uuid.UUID
+	Name        string
+	Status      string
+	ScheduledAt time.Time
+	SentAt      sql.NullTime
+	SentCount   int32
+	FailedCount int32
+	CreatedAt   time.Time
+}
+
 type EmailLog struct {
 	ID           uuid.UUID
 	ProjectID    uuid.UUID
@@ -32,6 +45,7 @@ type EmailLog struct {
 	Status       string
 	Error        sql.NullString
 	SentAt       time.Time
+	OpenedAt     sql.NullTime
 }
 
 type Project struct {
