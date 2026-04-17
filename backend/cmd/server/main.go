@@ -146,7 +146,7 @@ func main() {
 
 	mux.HandleFunc("GET /unsubscribe/{id}/{subscriberId}", emailHandler.Unsubscribe)
 
-	mux.HandleFunc("GET /t/{logId}.gif", trackingHandler.Open)
+	mux.HandleFunc("GET /t/{logId}", trackingHandler.Open)
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)

@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/base64"
 	"net/http"
+	"strings"
 
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/google/uuid"
@@ -19,7 +20,7 @@ func NewTrackingHandler(queries *db.Queries) *TrackingHandler {
 }
 
 func (h *TrackingHandler) Open(w http.ResponseWriter, r *http.Request) {
-	logID := r.PathValue("logId")
+	logID := strings.TrimSuffix(r.PathValue("logId"), ".gif")
 
 	if lid, err := uuid.Parse(logID); err == nil {
 		h.queries.MarkEmailOpened(r.Context(), lid)
