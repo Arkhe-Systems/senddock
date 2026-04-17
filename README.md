@@ -135,6 +135,14 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | GET | `/api/v1/projects/{id}/campaigns` | List campaigns |
 | DELETE | `/api/v1/projects/{id}/campaigns/{campaignId}` | Delete/cancel campaign (scheduled only) |
 
+### Waitlist
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/v1/waitlist` | Public | Join waitlist (creates subscriber + sends confirmation email) |
+
+Configured via `WAITLIST_PROJECT_ID` and `WAITLIST_TEMPLATE_ID` env vars.
+
 ### Setup
 
 | Method | Endpoint | Description |
@@ -154,6 +162,8 @@ API key auth uses `Authorization: Bearer sk_...` header.
 | `JWT_SECRET` | Secret key for JWT signing | — |
 | `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:5173` |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
+| `WAITLIST_PROJECT_ID` | Project ID for public waitlist endpoint | — |
+| `WAITLIST_TEMPLATE_ID` | Template ID for waitlist confirmation email | — |
 
 ## License
 

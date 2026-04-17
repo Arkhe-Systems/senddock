@@ -32,6 +32,15 @@ All configuration is done via environment variables. Copy `.env.example` to `.en
 - Multiple users, each with their own account
 - Plan-based limits (for senddock.dev managed hosting)
 
+## Waitlist (optional)
+
+| Variable | Description |
+|----------|-------------|
+| `WAITLIST_PROJECT_ID` | Project ID for the public waitlist endpoint |
+| `WAITLIST_TEMPLATE_ID` | Template ID for the waitlist confirmation email |
+
+When both are set, `POST /api/v1/waitlist` becomes available as a public endpoint. It creates a subscriber with `pending` status and sends the confirmation template. Used for landing page waitlist forms without exposing API keys.
+
 ## Example .env
 
 ```bash
@@ -41,4 +50,6 @@ PORT=8080
 REDIS_URL=redis://localhost:6380
 FRONTEND_URL=http://localhost:5173
 DEPLOYMENT_MODE=self-hosted
+WAITLIST_PROJECT_ID=
+WAITLIST_TEMPLATE_ID=
 ```
