@@ -123,6 +123,15 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | GET | `/api/v1/projects/{id}/logs` | Cookie | List email logs |
 | GET | `/api/v1/projects/{id}/stats` | Cookie or API key | Get email stats |
 | GET | `/unsubscribe/{id}/{subscriberId}` | Public | Unsubscribe page |
+| GET | `/t/{logId}.gif` | Public | Open tracking pixel |
+
+### Campaigns
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/projects/{id}/campaigns` | Create campaign |
+| GET | `/api/v1/projects/{id}/campaigns` | List campaigns |
+| DELETE | `/api/v1/projects/{id}/campaigns/{campaignId}` | Delete/cancel campaign (scheduled only) |
 
 ### Setup
 
