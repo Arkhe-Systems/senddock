@@ -35,6 +35,17 @@ type broadcastRequest struct {
 	TemplateID string `json:"template_id"`
 }
 
+type batchRecipient struct {
+	To   string            `json:"to"`
+	Data map[string]string `json:"data"`
+}
+
+type batchSendRequest struct {
+	TemplateID string           `json:"template_id"`
+	Subject    string           `json:"subject"`
+	Recipients []batchRecipient `json:"recipients"`
+}
+
 func (h *EmailHandler) verifyAccess(r *http.Request) (string, error) {
 	if pid, ok := r.Context().Value(middleware.ProjectIDKey).(string); ok {
 		return pid, nil
@@ -141,6 +152,49 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+func (h *EmailHandler) BatchSend(w http.ResponseWriter, r *http.Request) {
+	projectID, err := h.verifyAccess(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	var req batchSendRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.TemplateID == "" || len(req.Recipients) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "template_id and recipients are required"})
+		return
+	}
+
+	sent := 0
+	failed := 0
+	for _, rcpt := range req.Recipients {
+		if rcpt.To == "" {
+			failed++
+			continue
+		}
+		err := h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, rcpt.To, req.Subject, rcpt.Data)
+		if err != nil {
+			failed++
+		} else {
+			sent++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"sent": sent, "failed": failed})
 }
 
 func (h *EmailHandler) TestSMTP(w http.ResponseWriter, r *http.Request) {

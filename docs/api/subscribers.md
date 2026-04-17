@@ -47,6 +47,30 @@ GET /api/v1/projects/{id}/subscribers?limit=50&offset=0
 }
 ```
 
+## Bulk Import
+
+```
+POST /api/v1/projects/{id}/subscribers/import
+```
+
+```json
+[
+  {"email": "user1@example.com", "name": "John", "status": "active"},
+  {"email": "user2@example.com", "name": "Jane", "status": "active"},
+  {"email": "user3@example.com", "name": "Bob"}
+]
+```
+
+Imports multiple subscribers at once. Duplicates are skipped. `status` defaults to `active` if not provided.
+
+Accepts both cookie auth and API key auth.
+
+**Response**
+
+```json
+{"imported": 2, "skipped": 1}
+```
+
 ## Update Status
 
 ```

@@ -61,6 +61,32 @@ Or for subscriber sends:
 {"sent": 1, "failed": 0}
 ```
 
+## Batch Send
+
+```
+POST /api/v1/projects/{id}/send/batch
+```
+
+```json
+{
+  "template_id": "uuid",
+  "subject": "Optional override",
+  "recipients": [
+    {"to": "user1@example.com", "data": {"name": "John"}},
+    {"to": "user2@example.com", "data": {"name": "Jane"}},
+    {"to": "user3@example.com", "data": {"name": "Bob"}}
+  ]
+}
+```
+
+Sends a template to multiple recipients in one request. Each recipient can have its own `data` for variable replacement. Ideal for campaigns, notifications, or migrating from external systems that provide a list of emails.
+
+**Response**
+
+```json
+{"sent": 3, "failed": 0}
+```
+
 ## Broadcast
 
 ```

@@ -35,6 +35,48 @@ func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, 
 	})
 }
 
+type ImportResult struct {
+	Imported int `json:"imported"`
+	Skipped  int `json:"skipped"`
+}
+
+type ImportSubscriber struct {
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+func (s *SubscriberService) BulkImport(ctx context.Context, projectID string, subscribers []ImportSubscriber) (ImportResult, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return ImportResult{}, errors.New("invalid project id")
+	}
+
+	result := ImportResult{}
+	for _, sub := range subscribers {
+		if sub.Email == "" {
+			result.Skipped++
+			continue
+		}
+		status := sub.Status
+		if status == "" {
+			status = "active"
+		}
+		_, err := s.queries.CreateSubscriber(ctx, db.CreateSubscriberParams{
+			ProjectID: pid,
+			Email:     sub.Email,
+			Name:      sub.Name,
+			Status:    status,
+		})
+		if err != nil {
+			result.Skipped++
+		} else {
+			result.Imported++
+		}
+	}
+	return result, nil
+}
+
 func (s *SubscriberService) ListByProject(ctx context.Context, projectID string, limit, offset int32) ([]db.Subscriber, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
