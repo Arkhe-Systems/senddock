@@ -158,6 +158,10 @@ async function copyId(id: string) {
     toast.success('ID copied')
 }
 
+function varLabel(v: string | undefined) {
+    return '{{' + (v ?? '') + '}}'
+}
+
 onMounted(fetchTemplates)
 </script>
 
@@ -234,7 +238,7 @@ onMounted(fetchTemplates)
                 <p class="text-xs text-zinc-400 font-medium mb-2">Variables in this template:</p>
                 <div class="flex flex-wrap gap-2">
                     <span v-for="v in detectedVariables" :key="v" class="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded border border-zinc-700 font-mono">
-                        {{ `{{${v}}}` }}
+                        {{ varLabel(v) }}
                     </span>
                     <span v-if="detectedVariables.length === 0" class="text-xs text-zinc-500">None detected</span>
                 </div>
