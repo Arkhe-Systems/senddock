@@ -50,7 +50,7 @@ func (w *CampaignWorker) executeCampaign(ctx context.Context, campaign db.Campai
 		Status: "sending",
 	})
 
-	result, err := w.emailService.Broadcast(ctx, campaign.ProjectID.String(), campaign.TemplateID.String())
+	result, err := w.emailService.Broadcast(ctx, campaign.ProjectID.String(), campaign.TemplateID.String(), campaign.Variables)
 
 	status := "sent"
 	if err != nil {
