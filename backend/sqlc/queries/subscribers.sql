@@ -44,3 +44,15 @@ RETURNING *;
 
 -- name: DeleteSubscriber :exec
 DELETE FROM subscribers WHERE id = $1 AND project_id = $2;
+
+-- name: BulkDeleteSubscribers :exec
+DELETE FROM subscribers 
+WHERE project_id = $1 AND id = ANY($2::uuid[]);
+
+-- name: BulkUpdateSubscriberStatus :exec
+UPDATE subscribers 
+SET 
+    status = $3,
+    unsubscribed_at = CASE WHEN $3 = 'unsubscribed' THEN NOW() ELSE unsubscribed_at END,
+    updated_at = NOW()
+WHERE project_id = $1 AND id = ANY($2::uuid[]);
