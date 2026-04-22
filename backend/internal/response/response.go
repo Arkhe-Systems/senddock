@@ -201,3 +201,39 @@ func FromAPIKeys(keys []db.ApiKey) []APIKey {
 	}
 	return result
 }
+
+type Campaign struct {
+	ID          string  `json:"id"`
+	ProjectID   string  `json:"project_id"`
+	TemplateID  string  `json:"template_id"`
+	Name        string  `json:"name"`
+	Status      string  `json:"status"`
+	ScheduledAt string  `json:"scheduled_at"`
+	SentAt      *string `json:"sent_at"`
+	SentCount   int32   `json:"sent_count"`
+	FailedCount int32   `json:"failed_count"`
+	CreatedAt   string  `json:"created_at"`
+}
+
+func FromCampaign(c db.Campaign) Campaign {
+	return Campaign{
+		ID:          c.ID.String(),
+		ProjectID:   c.ProjectID.String(),
+		TemplateID:  c.TemplateID.String(),
+		Name:        c.Name,
+		Status:      c.Status,
+		ScheduledAt: c.ScheduledAt.Format(time.RFC3339),
+		SentAt:      nullTime(c.SentAt),
+		SentCount:   c.SentCount,
+		FailedCount: c.FailedCount,
+		CreatedAt:   c.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+func FromCampaigns(campaigns []db.Campaign) []Campaign {
+	result := make([]Campaign, len(campaigns))
+	for i, c := range campaigns {
+		result[i] = FromCampaign(c)
+	}
+	return result
+}
