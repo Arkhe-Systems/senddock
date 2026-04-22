@@ -185,7 +185,7 @@ onMounted(fetchSubscribers)
                 <thead>
                     <tr class="border-b border-zinc-800">
                         <th class="px-4 py-3 w-10">
-                            <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" class="rounded bg-zinc-800 border-zinc-700 text-zinc-300 focus:ring-zinc-500 cursor-pointer" />
+                            <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" class="appearance-none w-[18px] h-[18px] border-2 border-zinc-600 rounded bg-transparent checked:border-white relative cursor-pointer focus:outline-none transition-colors checked:after:content-[''] checked:after:absolute checked:after:inset-[3px] checked:after:bg-white checked:after:rounded-sm hover:border-zinc-400" />
                         </th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Email</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Name</th>
@@ -197,7 +197,7 @@ onMounted(fetchSubscribers)
                 <tbody>
                     <tr v-for="sub in subscribers" :key="sub.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/50 transition" :class="{'bg-zinc-800/30': selectedIds.includes(sub.id)}">
                         <td class="px-4 py-3">
-                            <input type="checkbox" :value="sub.id" v-model="selectedIds" class="rounded bg-zinc-800 border-zinc-700 text-zinc-300 focus:ring-zinc-500 cursor-pointer" />
+                            <input type="checkbox" :value="sub.id" v-model="selectedIds" class="appearance-none w-[18px] h-[18px] border-2 border-zinc-600 rounded bg-transparent checked:border-white relative cursor-pointer focus:outline-none transition-colors checked:after:content-[''] checked:after:absolute checked:after:inset-[3px] checked:after:bg-white checked:after:rounded-sm hover:border-zinc-400" />
                         </td>
                         <td class="px-4 py-3 text-sm text-white">{{ sub.email }}</td>
                         <td class="px-4 py-3 text-sm text-zinc-400">{{ sub.name || '-' }}</td>
