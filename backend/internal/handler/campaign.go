@@ -23,9 +23,10 @@ func NewCampaignHandler(campaignService *service.CampaignService, projectService
 }
 
 type createCampaignRequest struct {
-	TemplateID  string `json:"template_id"`
-	Name        string `json:"name"`
-	ScheduledAt string `json:"scheduled_at"`
+	TemplateID  string            `json:"template_id"`
+	Name        string            `json:"name"`
+	ScheduledAt string            `json:"scheduled_at"`
+	Variables   map[string]string `json:"variables"`
 }
 
 func (h *CampaignHandler) verifyProjectOwner(r *http.Request) (string, error) {
@@ -67,7 +68,14 @@ func (h *CampaignHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	campaign, err := h.campaignService.Create(r.Context(), projectID, req.TemplateID, req.Name, scheduledAt)
+	var variablesJson []byte
+	if req.Variables != nil {
+		variablesJson, _ = json.Marshal(req.Variables)
+	} else {
+		variablesJson = []byte("{}")
+	}
+
+	campaign, err := h.campaignService.Create(r.Context(), projectID, req.TemplateID, req.Name, scheduledAt, variablesJson)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -121,4 +129,58 @@ func (h *CampaignHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *CampaignHandler) Update(w http.ResponseWriter, r *http.Request) {
+	projectID, err := h.verifyProjectOwner(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	campaignID := r.PathValue("campaignId")
+
+	var req createCampaignRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.Name == "" || req.TemplateID == "" || req.ScheduledAt == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "name, template_id, and scheduled_at are required"})
+		return
+	}
+
+	scheduledAt, err := time.Parse(time.RFC3339, req.ScheduledAt)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "scheduled_at must be RFC3339 format"})
+		return
+	}
+
+	var variablesJson []byte
+	if req.Variables != nil {
+		variablesJson, _ = json.Marshal(req.Variables)
+	} else {
+		variablesJson = []byte("{}")
+	}
+
+	campaign, err := h.campaignService.Update(r.Context(), campaignID, projectID, req.TemplateID, req.Name, scheduledAt, variablesJson)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response.FromCampaign(campaign))
 }

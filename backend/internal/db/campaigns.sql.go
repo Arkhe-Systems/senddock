@@ -7,15 +7,16 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 const createCampaign = `-- name: CreateCampaign :one
-INSERT INTO campaigns (project_id, template_id, name, scheduled_at)
-VALUES ($1, $2, $3, $4)
-RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at
+INSERT INTO campaigns (project_id, template_id, name, scheduled_at, variables)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables
 `
 
 type CreateCampaignParams struct {
@@ -23,6 +24,7 @@ type CreateCampaignParams struct {
 	TemplateID  uuid.UUID
 	Name        string
 	ScheduledAt time.Time
+	Variables   json.RawMessage
 }
 
 func (q *Queries) CreateCampaign(ctx context.Context, arg CreateCampaignParams) (Campaign, error) {
@@ -31,6 +33,7 @@ func (q *Queries) CreateCampaign(ctx context.Context, arg CreateCampaignParams) 
 		arg.TemplateID,
 		arg.Name,
 		arg.ScheduledAt,
+		arg.Variables,
 	)
 	var i Campaign
 	err := row.Scan(
@@ -44,6 +47,7 @@ func (q *Queries) CreateCampaign(ctx context.Context, arg CreateCampaignParams) 
 		&i.SentCount,
 		&i.FailedCount,
 		&i.CreatedAt,
+		&i.Variables,
 	)
 	return i, err
 }
@@ -63,7 +67,7 @@ func (q *Queries) DeleteCampaign(ctx context.Context, arg DeleteCampaignParams) 
 }
 
 const getCampaignByID = `-- name: GetCampaignByID :one
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at FROM campaigns WHERE id = $1 AND project_id = $2
+SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables FROM campaigns WHERE id = $1 AND project_id = $2
 `
 
 type GetCampaignByIDParams struct {
@@ -85,12 +89,13 @@ func (q *Queries) GetCampaignByID(ctx context.Context, arg GetCampaignByIDParams
 		&i.SentCount,
 		&i.FailedCount,
 		&i.CreatedAt,
+		&i.Variables,
 	)
 	return i, err
 }
 
 const getPendingCampaigns = `-- name: GetPendingCampaigns :many
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at FROM campaigns
+SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables FROM campaigns
 WHERE status = 'scheduled' AND scheduled_at <= NOW()
 ORDER BY scheduled_at ASC
 `
@@ -115,6 +120,7 @@ func (q *Queries) GetPendingCampaigns(ctx context.Context) ([]Campaign, error) {
 			&i.SentCount,
 			&i.FailedCount,
 			&i.CreatedAt,
+			&i.Variables,
 		); err != nil {
 			return nil, err
 		}
@@ -130,7 +136,7 @@ func (q *Queries) GetPendingCampaigns(ctx context.Context) ([]Campaign, error) {
 }
 
 const listCampaignsByProject = `-- name: ListCampaignsByProject :many
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at FROM campaigns
+SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables FROM campaigns
 WHERE project_id = $1
 ORDER BY created_at DESC
 `
@@ -155,6 +161,7 @@ func (q *Queries) ListCampaignsByProject(ctx context.Context, projectID uuid.UUI
 			&i.SentCount,
 			&i.FailedCount,
 			&i.CreatedAt,
+			&i.Variables,
 		); err != nil {
 			return nil, err
 		}
@@ -167,6 +174,51 @@ func (q *Queries) ListCampaignsByProject(ctx context.Context, projectID uuid.UUI
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCampaign = `-- name: UpdateCampaign :one
+UPDATE campaigns SET
+    name = $3,
+    template_id = $4,
+    scheduled_at = $5,
+    variables = $6
+WHERE id = $1 AND project_id = $2 AND status = 'scheduled'
+RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables
+`
+
+type UpdateCampaignParams struct {
+	ID          uuid.UUID
+	ProjectID   uuid.UUID
+	Name        string
+	TemplateID  uuid.UUID
+	ScheduledAt time.Time
+	Variables   json.RawMessage
+}
+
+func (q *Queries) UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) (Campaign, error) {
+	row := q.db.QueryRowContext(ctx, updateCampaign,
+		arg.ID,
+		arg.ProjectID,
+		arg.Name,
+		arg.TemplateID,
+		arg.ScheduledAt,
+		arg.Variables,
+	)
+	var i Campaign
+	err := row.Scan(
+		&i.ID,
+		&i.ProjectID,
+		&i.TemplateID,
+		&i.Name,
+		&i.Status,
+		&i.ScheduledAt,
+		&i.SentAt,
+		&i.SentCount,
+		&i.FailedCount,
+		&i.CreatedAt,
+		&i.Variables,
+	)
+	return i, err
 }
 
 const updateCampaignStatus = `-- name: UpdateCampaignStatus :exec

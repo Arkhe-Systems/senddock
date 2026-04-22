@@ -2,6 +2,7 @@ package response
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
@@ -203,16 +204,17 @@ func FromAPIKeys(keys []db.ApiKey) []APIKey {
 }
 
 type Campaign struct {
-	ID          string  `json:"id"`
-	ProjectID   string  `json:"project_id"`
-	TemplateID  string  `json:"template_id"`
-	Name        string  `json:"name"`
-	Status      string  `json:"status"`
-	ScheduledAt string  `json:"scheduled_at"`
-	SentAt      *string `json:"sent_at"`
-	SentCount   int32   `json:"sent_count"`
-	FailedCount int32   `json:"failed_count"`
-	CreatedAt   string  `json:"created_at"`
+	ID          string          `json:"id"`
+	ProjectID   string          `json:"project_id"`
+	TemplateID  string          `json:"template_id"`
+	Name        string          `json:"name"`
+	Status      string          `json:"status"`
+	ScheduledAt string          `json:"scheduled_at"`
+	SentAt      *string         `json:"sent_at"`
+	SentCount   int32           `json:"sent_count"`
+	FailedCount int32           `json:"failed_count"`
+	CreatedAt   string          `json:"created_at"`
+	Variables   json.RawMessage `json:"variables"`
 }
 
 func FromCampaign(c db.Campaign) Campaign {
@@ -227,6 +229,7 @@ func FromCampaign(c db.Campaign) Campaign {
 		SentCount:   c.SentCount,
 		FailedCount: c.FailedCount,
 		CreatedAt:   c.CreatedAt.Format(time.RFC3339),
+		Variables:   c.Variables,
 	}
 }
 
