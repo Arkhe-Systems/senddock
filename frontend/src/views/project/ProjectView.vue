@@ -28,6 +28,7 @@ const navItems = [
     { name: 'Templates', route: 'project-templates' },
     { name: 'Logs', route: 'project-logs' },
     { name: 'SMTP Settings', route: 'project-smtp' },
+    { name: 'Newsletters', route: 'project-campaigns' },
     { name: 'Settings', route: 'project-settings' },
 ]
 
