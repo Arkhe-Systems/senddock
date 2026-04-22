@@ -139,6 +139,7 @@ func main() {
 	mux.Handle("POST /api/v1/projects/{id}/campaigns", authMiddleware(http.HandlerFunc(campaignHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/campaigns", authMiddleware(http.HandlerFunc(campaignHandler.List)))
 	mux.Handle("DELETE /api/v1/projects/{id}/campaigns/{campaignId}", authMiddleware(http.HandlerFunc(campaignHandler.Delete)))
+	mux.Handle("PATCH /api/v1/projects/{id}/campaigns/{campaignId}", authMiddleware(http.HandlerFunc(campaignHandler.Update)))
 
 	mux.Handle("POST /api/v1/projects/{id}/smtp/test", authMiddleware(http.HandlerFunc(emailHandler.TestSMTP)))
 	mux.Handle("POST /api/v1/projects/{id}/send", eitherAuth(http.HandlerFunc(emailHandler.Send)))

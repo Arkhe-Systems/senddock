@@ -47,6 +47,13 @@ const previewHtml = computed(() => {
         .replace(/\{\{email\}\}/g, 'john@example.com')
 })
 
+const detectedVariables = computed(() => {
+    const text = editHtml.value + ' ' + editSubject.value
+    const regex = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g
+    const matches = Array.from(text.matchAll(regex)).map(m => m[1])
+    return [...new Set(matches)]
+})
+
 async function fetchTemplates() {
     loading.value = true
     try {
@@ -223,11 +230,21 @@ onMounted(fetchTemplates)
                 </div>
             </div>
 
-            <p class="text-xs text-zinc-500 mt-3" v-pre>
-                Variables: <code class="text-zinc-400">{{name}}</code>,
-                <code class="text-zinc-400">{{email}}</code>,
-                <code class="text-zinc-400">{{unsubscribe_url}}</code>
-            </p>
+            <div class="mt-3 p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
+                <p class="text-xs text-zinc-400 font-medium mb-2">Variables in this template:</p>
+                <div class="flex flex-wrap gap-2">
+                    <span v-for="v in detectedVariables" :key="v" class="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded border border-zinc-700 font-mono">
+                        {{ `{{${v}}}` }}
+                    </span>
+                    <span v-if="detectedVariables.length === 0" class="text-xs text-zinc-500">None detected</span>
+                </div>
+                <p class="text-xs text-zinc-500 mt-2">
+                    System variables: <code class="text-zinc-400">name</code>,
+                    <code class="text-zinc-400">email</code>,
+                    <code class="text-zinc-400">subscriber_id</code>,
+                    <code class="text-zinc-400">unsubscribe_url</code>
+                </p>
+            </div>
         </div>
 
         <div v-else>

@@ -142,7 +142,7 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID)
+	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID, nil)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)

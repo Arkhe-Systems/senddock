@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -90,7 +91,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	return SendResult{Sent: 1}, nil
 }
 
-func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID string) (SendResult, error) {
+func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID string, campaignVars json.RawMessage) (SendResult, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return SendResult{}, errors.New("invalid project id")
@@ -126,11 +127,24 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 
 	total := len(subscribers)
 
+	var customVars map[string]string
+	if len(campaignVars) > 0 {
+		_ = json.Unmarshal(campaignVars, &customVars)
+	}
+
 	go func() {
 		bgCtx := context.Background()
 		for _, sub := range subscribers {
-			body := replaceVariables(template.HtmlBody, sub)
-			subject := replaceVariablesSimple(template.Subject, sub)
+			body := template.HtmlBody
+			subject := template.Subject
+
+			for k, v := range customVars {
+				body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
+				subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
+			}
+
+			body = replaceVariables(body, sub)
+			subject = replaceVariablesSimple(subject, sub)
 
 			unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sub.ID.String())
 			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
