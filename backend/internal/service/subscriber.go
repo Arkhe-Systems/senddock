@@ -142,3 +142,54 @@ func (s *SubscriberService) Delete(ctx context.Context, subscriberID, projectID 
 		ProjectID: pid,
 	})
 }
+
+func (s *SubscriberService) BulkDelete(ctx context.Context, projectID string, ids []string) error {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return errors.New("invalid project id")
+	}
+
+	uuids := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if uid, err := uuid.Parse(id); err == nil {
+			uuids = append(uuids, uid)
+		}
+	}
+
+	if len(uuids) == 0 {
+		return nil
+	}
+
+	return s.queries.BulkDeleteSubscribers(ctx, db.BulkDeleteSubscribersParams{
+		ProjectID: pid,
+		Column2:   uuids,
+	})
+}
+
+func (s *SubscriberService) BulkUpdateStatus(ctx context.Context, projectID string, ids []string, status string) error {
+	if status == "" {
+		return errors.New("status is required")
+	}
+
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return errors.New("invalid project id")
+	}
+
+	uuids := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if uid, err := uuid.Parse(id); err == nil {
+			uuids = append(uuids, uid)
+		}
+	}
+
+	if len(uuids) == 0 {
+		return nil
+	}
+
+	return s.queries.BulkUpdateSubscriberStatus(ctx, db.BulkUpdateSubscriberStatusParams{
+		ProjectID: pid,
+		Column2:   uuids,
+		Status:    status,
+	})
+}

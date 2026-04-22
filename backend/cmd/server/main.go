@@ -121,6 +121,7 @@ func main() {
 
 	mux.Handle("POST /api/v1/projects/{id}/subscribers", authMiddleware(http.HandlerFunc(subscriberHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/subscribers", authMiddleware(http.HandlerFunc(subscriberHandler.List)))
+	mux.Handle("POST /api/v1/projects/{id}/subscribers/bulk", authMiddleware(http.HandlerFunc(subscriberHandler.BulkAction)))
 	mux.Handle("PATCH /api/v1/projects/{id}/subscribers/{subscriberId}", authMiddleware(http.HandlerFunc(subscriberHandler.UpdateStatus)))
 	mux.Handle("DELETE /api/v1/projects/{id}/subscribers/{subscriberId}", authMiddleware(http.HandlerFunc(subscriberHandler.Delete)))
 	mux.Handle("POST /api/v1/projects/{id}/subscribers/import", eitherAuth(http.HandlerFunc(subscriberHandler.Import)))

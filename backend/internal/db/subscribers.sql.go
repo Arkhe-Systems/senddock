@@ -9,7 +9,43 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
+
+const bulkDeleteSubscribers = `-- name: BulkDeleteSubscribers :exec
+DELETE FROM subscribers 
+WHERE project_id = $1 AND id = ANY($2::uuid[])
+`
+
+type BulkDeleteSubscribersParams struct {
+	ProjectID uuid.UUID
+	Column2   []uuid.UUID
+}
+
+func (q *Queries) BulkDeleteSubscribers(ctx context.Context, arg BulkDeleteSubscribersParams) error {
+	_, err := q.db.ExecContext(ctx, bulkDeleteSubscribers, arg.ProjectID, pq.Array(arg.Column2))
+	return err
+}
+
+const bulkUpdateSubscriberStatus = `-- name: BulkUpdateSubscriberStatus :exec
+UPDATE subscribers 
+SET 
+    status = $3,
+    unsubscribed_at = CASE WHEN $3 = 'unsubscribed' THEN NOW() ELSE unsubscribed_at END,
+    updated_at = NOW()
+WHERE project_id = $1 AND id = ANY($2::uuid[])
+`
+
+type BulkUpdateSubscriberStatusParams struct {
+	ProjectID uuid.UUID
+	Column2   []uuid.UUID
+	Status    string
+}
+
+func (q *Queries) BulkUpdateSubscriberStatus(ctx context.Context, arg BulkUpdateSubscriberStatusParams) error {
+	_, err := q.db.ExecContext(ctx, bulkUpdateSubscriberStatus, arg.ProjectID, pq.Array(arg.Column2), arg.Status)
+	return err
+}
 
 const countActiveSubscribersByProject = `-- name: CountActiveSubscribersByProject :one
 SELECT COUNT(*) FROM subscribers WHERE project_id = $1 AND status = 'active'
