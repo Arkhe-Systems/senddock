@@ -215,3 +215,63 @@ func (h *SubscriberHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+type bulkActionRequest struct {
+	Action        string   `json:"action"`
+	Status        string   `json:"status,omitempty"`
+	SubscriberIDs []string `json:"subscriber_ids"`
+}
+
+func (h *SubscriberHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
+	projectID, _, err := h.verifyProjectOwner(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	var req bulkActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if len(req.SubscriberIDs) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "subscriber_ids cannot be empty"})
+		return
+	}
+
+	switch req.Action {
+	case "delete":
+		err = h.subscriberService.BulkDelete(r.Context(), projectID, req.SubscriberIDs)
+	case "update_status":
+		if req.Status != "active" && req.Status != "pending" && req.Status != "unsubscribed" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: "invalid status"})
+			return
+		}
+		err = h.subscriberService.BulkUpdateStatus(r.Context(), projectID, req.SubscriberIDs, req.Status)
+	default:
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid action"})
+		return
+	}
+
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "success"})
+}

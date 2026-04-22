@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import type { Project } from '@/stores/projects'
@@ -30,6 +30,46 @@ const addLoading = ref(false)
 const page = ref(0)
 const limit = 50
 
+const selectedIds = ref<string[]>([])
+
+const allSelected = computed(() => {
+    return subscribers.value.length > 0 && selectedIds.value.length === subscribers.value.length
+})
+
+function toggleSelectAll(event: Event) {
+    const checked = (event.target as HTMLInputElement).checked
+    if (checked) {
+        selectedIds.value = subscribers.value.map(s => s.id)
+    } else {
+        selectedIds.value = []
+    }
+}
+
+const bulkLoading = ref(false)
+
+async function handleBulkAction(action: 'delete' | 'update_status', status?: string) {
+    if (action === 'delete' && !confirm(`Are you sure you want to delete ${selectedIds.value.length} subscribers?`)) return
+    
+    bulkLoading.value = true
+    try {
+        await api(`/projects/${props.project.id}/subscribers/bulk`, {
+            method: 'POST',
+            body: {
+                action,
+                status,
+                subscriber_ids: selectedIds.value
+            }
+        })
+        toast.success(`Bulk action completed`)
+        selectedIds.value = []
+        fetchSubscribers()
+    } catch (e: any) {
+        toast.error(e.message || 'Failed to perform bulk action')
+    } finally {
+        bulkLoading.value = false
+    }
+}
+
 async function fetchSubscribers() {
     loading.value = true
     try {
@@ -38,6 +78,7 @@ async function fetchSubscribers() {
         )
         subscribers.value = res.subscribers || []
         total.value = res.total
+        selectedIds.value = [] // clear selection on page change
     } catch {
         subscribers.value = []
     } finally {
@@ -122,12 +163,30 @@ onMounted(fetchSubscribers)
             <AppButton @click="showAddModal = true" class="w-auto! px-4">+ Add Subscriber</AppButton>
         </div>
 
+        <div v-if="selectedIds.length > 0" class="bg-zinc-800 border border-zinc-700 rounded-lg p-3 mb-6 flex items-center justify-between shadow-lg">
+            <span class="text-sm font-medium text-white px-2">{{ selectedIds.length }} selected</span>
+            <div class="flex items-center gap-2">
+                <select @change="(e) => handleBulkAction('update_status', (e.target as HTMLSelectElement).value)" class="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-3 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-zinc-500">
+                    <option value="" disabled selected>Change Status...</option>
+                    <option value="active">Mark Active</option>
+                    <option value="pending">Mark Pending</option>
+                    <option value="unsubscribed">Mark Unsubscribed</option>
+                </select>
+                <button @click="handleBulkAction('delete')" :disabled="bulkLoading" class="text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-md px-3 py-1.5 transition cursor-pointer disabled:opacity-50">
+                    Delete
+                </button>
+            </div>
+        </div>
+
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
         <div v-else-if="subscribers.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-zinc-800">
+                        <th class="px-4 py-3 w-10">
+                            <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" class="rounded bg-zinc-800 border-zinc-700 text-zinc-300 focus:ring-zinc-500 cursor-pointer" />
+                        </th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Email</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Name</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Status</th>
@@ -136,7 +195,10 @@ onMounted(fetchSubscribers)
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="sub in subscribers" :key="sub.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/50 transition">
+                    <tr v-for="sub in subscribers" :key="sub.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/50 transition" :class="{'bg-zinc-800/30': selectedIds.includes(sub.id)}">
+                        <td class="px-4 py-3">
+                            <input type="checkbox" :value="sub.id" v-model="selectedIds" class="rounded bg-zinc-800 border-zinc-700 text-zinc-300 focus:ring-zinc-500 cursor-pointer" />
+                        </td>
                         <td class="px-4 py-3 text-sm text-white">{{ sub.email }}</td>
                         <td class="px-4 py-3 text-sm text-zinc-400">{{ sub.name || '-' }}</td>
                         <td class="px-4 py-3">

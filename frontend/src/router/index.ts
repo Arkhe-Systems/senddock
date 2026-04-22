@@ -64,6 +64,11 @@ const router = createRouter({
           component: () => import('@/views/project/SmtpSection.vue'),
         },
         {
+          path: 'campaigns',
+          name: 'project-campaigns',
+          component: () => import('@/views/project/CampaignsSection.vue'),
+        },
+        {
           path: 'settings',
           name: 'project-settings',
           component: () => import('@/views/project/SettingsSection.vue'),
