@@ -282,7 +282,7 @@ onMounted(loadData)
                 <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
                     <p class="text-xs font-medium text-zinc-400 mb-2">Template Variables</p>
                     <div v-for="v in selectedTemplateVars" :key="v">
-                        <AppInput v-model="campaignVars[v]" :label="v" :placeholder="`Value for {{${v}}}`" />
+                        <AppInput v-model="campaignVars[v]" :label="v" :placeholder="'Value for {{' + v + '}}'" />
                     </div>
                 </div>
 
