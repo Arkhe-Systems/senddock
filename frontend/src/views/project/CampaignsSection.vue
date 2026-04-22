@@ -44,23 +44,27 @@ const scheduledDate = ref('')
 const scheduledTime = ref('')
 const campaignVars = ref<Record<string, string>>({})
 
+const SYSTEM_VARS = new Set(['name', 'email', 'subscriber_id', 'unsubscribe_url'])
+
 const selectedTemplateVars = computed(() => {
     const tmpl = templates.value.find(t => t.id === selectedTemplate.value)
     if (!tmpl) return []
     const text = tmpl.html_body + ' ' + tmpl.subject
     const regex = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g
     const matches = Array.from(text.matchAll(regex)).map(m => m[1] as string).filter(Boolean)
-    const unique = [...new Set(matches)]
-    const standard = ['name', 'email', 'subscriber_id', 'unsubscribe_url']
-    return unique.filter(v => !standard.includes(v))
+    return [...new Set(matches)]
 })
+
+const customTemplateVars = computed(() =>
+    selectedTemplateVars.value.filter(v => !SYSTEM_VARS.has(v))
+)
 
 watch(selectedTemplateVars, (newVars) => {
     if (!editingCampaign.value) {
         campaignVars.value = {}
-        newVars.forEach(v => { campaignVars.value[v] = '' })
+        newVars.filter(v => !SYSTEM_VARS.has(v)).forEach(v => { campaignVars.value[v] = '' })
     }
-}, { deep: true })
+}, { deep: true, immediate: true })
 
 async function loadData() {
     loading.value = true
@@ -194,6 +198,10 @@ async function handleDelete() {
     }
 }
 
+function varLabel(v: string | undefined) {
+    return '{{' + (v ?? '') + '}}'
+}
+
 onMounted(loadData)
 </script>
 
@@ -280,10 +288,28 @@ onMounted(loadData)
                 </div>
 
                 <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
-                    <p class="text-xs font-medium text-zinc-400 mb-2">Template Variables</p>
-                    <div v-for="v in selectedTemplateVars" :key="v">
-                        <AppInput v-model="campaignVars[v]" :label="v" :placeholder="'Value for {{' + v + '}}'" />
+                    <p class="text-xs font-medium text-zinc-400">Template Variables</p>
+
+                    <div v-if="customTemplateVars.length > 0" class="space-y-2">
+                        <p class="text-xs text-zinc-500">Fill in the custom values for this send:</p>
+                        <div v-for="v in customTemplateVars" :key="v">
+                            <AppInput v-model="campaignVars[v]" :label="v" :placeholder="'Value for {{' + v + '}}'" />
+                        </div>
                     </div>
+
+                    <div>
+                        <p class="text-xs text-zinc-500 mb-1">Auto-filled per subscriber:</p>
+                        <div class="flex flex-wrap gap-1">
+                            <span v-for="v in selectedTemplateVars.filter(v => SYSTEM_VARS.has(v))" :key="v"
+                                class="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-zinc-700 font-mono">
+                                {{ varLabel(v) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="selectedTemplate" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
+                    <p class="text-xs text-zinc-500">This template has no variables detected.</p>
                 </div>
 
                 <div>
