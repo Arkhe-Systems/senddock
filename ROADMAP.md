@@ -33,30 +33,28 @@
 - [x] Dashboard page (basic)
 - [x] Logout functionality
 - [x] Auth redirect with reason messages
-- [ ] Dashboard layout (sidebar, header)
-- [ ] Project list in dashboard
-- [ ] Create project modal/page
-- [ ] Project detail page
+- [x] Dashboard layout (sidebar, header)
+- [x] Project list in dashboard
+- [x] Create project modal/page
+- [x] Project detail page
 
 ## Phase 3: Subscribers & Templates
-- [ ] Subscribers table + migration
-- [ ] CRUD subscribers (per project)
-- [ ] Bulk import subscribers (CSV/JSON)
-- [ ] Subscriber segmentation (active, pending, unsubscribed)
-- [ ] Templates table + migration
-- [ ] CRUD templates (per project)
-- [ ] Handlebars template rendering with dynamic variables
-- [ ] Subscriber management UI
-- [ ] Template editor UI
+- [x] Subscribers table + migration
+- [x] CRUD subscribers (per project)
+- [x] Bulk import subscribers (CSV/JSON)
+- [x] Subscriber segmentation (active, pending, unsubscribed)
+- [x] Templates table + migration
+- [x] CRUD templates (per project)
+- [x] Handlebars template rendering with dynamic variables
+- [x] Subscriber management UI
+- [x] Template editor UI
 
 ## Phase 4: Email Sending
-- [ ] SMTP configuration per project
-- [ ] SMTP password encryption/decryption
-- [ ] Transactional email endpoint (POST /api/v1/send)
-- [ ] Email worker with asynq (Redis-based job queue)
-- [ ] Broadcast endpoint (send to all subscribers)
-- [ ] Rate limiting per user/project
-- [ ] Monthly email quota enforcement (cloud mode)
+- [x] SMTP configuration per project
+- [x] SMTP password encryption/decryption
+- [x] Transactional email endpoint (POST /api/v1/send)
+- [x] Email worker with asynq (Redis-based job queue)
+- [x] Broadcast endpoint (send to all subscribers)
 - [ ] Email validation before sending
 - [ ] Campaign builder UI (scheduled sends)
 
@@ -69,22 +67,22 @@
 - [ ] Account lockout after failed attempts
 
 ## Phase 6: Tracking & Analytics
-- [ ] Open tracking (pixel injection) — PRO
+- [x] Open tracking (pixel injection) — PRO
 - [ ] Click tracking (link rewriting) — PRO
-- [ ] Unsubscribe handling (one-click + link)
-- [ ] Analytics table + migration
-- [ ] Analytics endpoints (sent, failed, opened, clicked) — PRO
-- [ ] Logs table + migration
-- [ ] System logs endpoint
+- [x] Unsubscribe handling (one-click + link)
+- [x] Analytics table + migration
+- [x] Analytics endpoints (sent, failed, opened, clicked) — PRO
+- [x] Logs table + migration
+- [x] System logs endpoint
 - [ ] Analytics dashboard UI with charts
 
 ## Phase 7: API Keys & Security
-- [ ] API keys table + migration
-- [ ] API key generation (public pk_ / secret sdk_)
-- [ ] API key authentication middleware
+- [x] API keys table + migration
+- [x] API key generation (public pk_ / secret sdk_)
+- [x] API key authentication middleware
 - [ ] API key rate limiting
 - [ ] Request logging
-- [ ] API keys management UI
+- [x] API keys management UI
 
 ## Phase 8: Payments & Plans (Cloud mode)
 - [ ] Lemon Squeezy webhook handler
@@ -125,11 +123,11 @@
 - [ ] Activation codes for plan upgrades
 
 ## Phase 13: Deployment & Self-hosting
-- [ ] Production Dockerfile (multi-stage: Go build + Vue build)
-- [ ] Docker Compose for self-hosting (app + postgres + redis)
-- [ ] Go serves Vue static files (single binary/container)
+- [x] Production Dockerfile (multi-stage: Go build + Vue build)
+- [x] Docker Compose for self-hosting (app + postgres + redis)
+- [x] Go serves Vue static files (single binary/container)
 - [ ] Environment configuration documentation
-- [ ] Health check endpoints for container orchestration
+- [x] Health check endpoints for container orchestration
 - [ ] Graceful shutdown handling
 - [ ] CLI tool for admin tasks (create admin, reset password)
 
