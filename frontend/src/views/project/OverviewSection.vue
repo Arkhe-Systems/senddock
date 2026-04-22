@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import AppInput from '@/components/ui/AppInput.vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import type { Project } from '@/stores/projects'
@@ -25,6 +26,7 @@ interface Template {
     id: string
     name: string
     subject: string
+    html_body: string
 }
 
 const props = defineProps<{ project: Project }>()
@@ -40,6 +42,23 @@ const selectedTemplate = ref('')
 const sendMode = ref<'broadcast' | 'direct'>('broadcast')
 const directEmail = ref('')
 const sendLoading = ref(false)
+const templateVars = ref<Record<string, string>>({})
+
+const selectedTemplateVars = computed(() => {
+    const tmpl = templates.value.find(t => t.id === selectedTemplate.value)
+    if (!tmpl) return []
+    const text = tmpl.html_body + ' ' + tmpl.subject
+    const regex = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g
+    const matches = Array.from(text.matchAll(regex)).map(m => m[1] as string).filter(Boolean)
+    const unique = [...new Set(matches)]
+    const standard = ['name', 'email', 'subscriber_id', 'unsubscribe_url']
+    return unique.filter(v => !standard.includes(v))
+})
+
+watch(selectedTemplate, () => {
+    templateVars.value = {}
+    selectedTemplateVars.value.forEach(v => { templateVars.value[v] = '' })
+})
 
 async function loadData() {
     try {
@@ -83,7 +102,7 @@ async function handleSend() {
         if (sendMode.value === 'broadcast') {
             const result = await api<{ sent: number, failed: number }>(`/projects/${props.project.id}/broadcast`, {
                 method: 'POST',
-                body: { template_id: selectedTemplate.value },
+                body: { template_id: selectedTemplate.value, variables: templateVars.value },
             })
             toast.success(`Broadcast complete: ${result.sent} sent, ${result.failed} failed`)
         } else {
@@ -94,7 +113,7 @@ async function handleSend() {
             }
             await api(`/projects/${props.project.id}/send`, {
                 method: 'POST',
-                body: { template_id: selectedTemplate.value, to: directEmail.value },
+                body: { template_id: selectedTemplate.value, to: directEmail.value, data: templateVars.value },
             })
             toast.success(`Email sent to ${directEmail.value}`)
         }
@@ -190,6 +209,13 @@ onMounted(loadData)
                         class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent">
                         <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
                     </select>
+                </div>
+
+                <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
+                    <p class="text-xs font-medium text-zinc-400">Template Variables</p>
+                    <div v-for="v in selectedTemplateVars" :key="v">
+                        <AppInput v-model="templateVars[v]" :label="v" :placeholder="'Value for {{' + v + '}}'" />
+                    </div>
                 </div>
 
                 <div>
