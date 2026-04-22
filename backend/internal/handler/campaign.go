@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/middleware"
+	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
 )
 
@@ -76,7 +77,7 @@ func (h *CampaignHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(campaign)
+	json.NewEncoder(w).Encode(response.FromCampaign(campaign))
 }
 
 func (h *CampaignHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +98,7 @@ func (h *CampaignHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(campaigns)
+	json.NewEncoder(w).Encode(response.FromCampaigns(campaigns))
 }
 
 func (h *CampaignHandler) Delete(w http.ResponseWriter, r *http.Request) {
