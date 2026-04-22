@@ -33,6 +33,7 @@ type Campaign struct {
 	SentCount   int32
 	FailedCount int32
 	CreatedAt   time.Time
+	Variables   json.RawMessage
 }
 
 type EmailLog struct {

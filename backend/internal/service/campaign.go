@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -17,7 +18,7 @@ func NewCampaignService(queries *db.Queries) *CampaignService {
 	return &CampaignService{queries: queries}
 }
 
-func (s *CampaignService) Create(ctx context.Context, projectID, templateID, name string, scheduledAt time.Time) (db.Campaign, error) {
+func (s *CampaignService) Create(ctx context.Context, projectID, templateID, name string, scheduledAt time.Time, variables json.RawMessage) (db.Campaign, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return db.Campaign{}, errors.New("invalid project id")
@@ -37,6 +38,37 @@ func (s *CampaignService) Create(ctx context.Context, projectID, templateID, nam
 		TemplateID:  tid,
 		Name:        name,
 		ScheduledAt: scheduledAt,
+		Variables:   variables,
+	})
+}
+
+func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, templateID, name string, scheduledAt time.Time, variables json.RawMessage) (db.Campaign, error) {
+	cid, err := uuid.Parse(campaignID)
+	if err != nil {
+		return db.Campaign{}, errors.New("invalid campaign id")
+	}
+
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.Campaign{}, errors.New("invalid project id")
+	}
+
+	tid, err := uuid.Parse(templateID)
+	if err != nil {
+		return db.Campaign{}, errors.New("invalid template id")
+	}
+
+	if scheduledAt.Before(time.Now()) {
+		return db.Campaign{}, errors.New("scheduled time must be in the future")
+	}
+
+	return s.queries.UpdateCampaign(ctx, db.UpdateCampaignParams{
+		ID:          cid,
+		ProjectID:   pid,
+		TemplateID:  tid,
+		Name:        name,
+		ScheduledAt: scheduledAt,
+		Variables:   variables,
 	})
 }
 

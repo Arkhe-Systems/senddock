@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import type { Project } from '@/stores/projects'
@@ -11,6 +11,7 @@ interface Template {
     id: string
     name: string
     subject: string
+    html_body: string
 }
 
 interface Campaign {
@@ -22,6 +23,7 @@ interface Campaign {
     sent_at: string | null
     sent_count: number
     failed_count: number
+    variables: Record<string, string>
 }
 
 const props = defineProps<{ project: Project }>()
@@ -33,12 +35,32 @@ const loading = ref(true)
 
 const showCreateModal = ref(false)
 const createLoading = ref(false)
+const editingCampaign = ref<Campaign | null>(null)
 
 const newName = ref('')
 const selectedTemplate = ref('')
 const sendType = ref<'now' | 'scheduled'>('now')
 const scheduledDate = ref('')
 const scheduledTime = ref('')
+const campaignVars = ref<Record<string, string>>({})
+
+const selectedTemplateVars = computed(() => {
+    const tmpl = templates.value.find(t => t.id === selectedTemplate.value)
+    if (!tmpl) return []
+    const text = tmpl.html_body + ' ' + tmpl.subject
+    const regex = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g
+    const matches = Array.from(text.matchAll(regex)).map(m => m[1] as string).filter(Boolean)
+    const unique = [...new Set(matches)]
+    const standard = ['name', 'email', 'subscriber_id', 'unsubscribe_url']
+    return unique.filter(v => !standard.includes(v))
+})
+
+watch(selectedTemplateVars, (newVars) => {
+    if (!editingCampaign.value) {
+        campaignVars.value = {}
+        newVars.forEach(v => { campaignVars.value[v] = '' })
+    }
+}, { deep: true })
 
 async function loadData() {
     loading.value = true
@@ -61,6 +83,7 @@ function openCreateModal() {
         toast.error('You need to create a template first')
         return
     }
+    editingCampaign.value = null
     newName.value = ''
     selectedTemplate.value = templates.value[0]?.id ?? ''
     sendType.value = 'now'
@@ -69,11 +92,27 @@ function openCreateModal() {
     tomorrow.setDate(tomorrow.getDate() + 1)
     scheduledDate.value = tomorrow.toISOString().split('T')[0] ?? ''
     scheduledTime.value = '09:00'
+    campaignVars.value = {}
     
     showCreateModal.value = true
 }
 
-async function handleCreate() {
+function openEditModal(c: Campaign) {
+    editingCampaign.value = c
+    newName.value = c.name
+    selectedTemplate.value = c.template_id
+    sendType.value = 'scheduled'
+    
+    const date = new Date(c.scheduled_at)
+    scheduledDate.value = date.toISOString().split('T')[0] ?? ''
+    scheduledTime.value = date.toTimeString().split(' ')[0]?.slice(0, 5) ?? '09:00'
+    
+    campaignVars.value = c.variables ? { ...c.variables } : {}
+    
+    showCreateModal.value = true
+}
+
+async function handleSave() {
     if (!newName.value) {
         toast.error('Name is required')
         return
@@ -88,7 +127,7 @@ async function handleCreate() {
             return
         }
         const combined = new Date(`${scheduledDate.value}T${scheduledTime.value}:00`)
-        if (combined < new Date()) {
+        if (combined < new Date() && !editingCampaign.value) {
             toast.error('Scheduled time must be in the future')
             return
         }
@@ -97,34 +136,61 @@ async function handleCreate() {
 
     createLoading.value = true
     try {
-        await api(`/projects/${props.project.id}/campaigns`, {
-            method: 'POST',
-            body: {
-                name: newName.value,
-                template_id: selectedTemplate.value,
-                scheduled_at: finalScheduledAt
-            }
-        })
-        toast.success('Campaign scheduled successfully')
+        if (editingCampaign.value) {
+            await api(`/projects/${props.project.id}/campaigns/${editingCampaign.value.id}`, {
+                method: 'PATCH',
+                body: {
+                    name: newName.value,
+                    template_id: selectedTemplate.value,
+                    scheduled_at: finalScheduledAt,
+                    variables: campaignVars.value
+                }
+            })
+            toast.success('Campaign updated')
+        } else {
+            await api(`/projects/${props.project.id}/campaigns`, {
+                method: 'POST',
+                body: {
+                    name: newName.value,
+                    template_id: selectedTemplate.value,
+                    scheduled_at: finalScheduledAt,
+                    variables: campaignVars.value
+                }
+            })
+            toast.success('Campaign scheduled')
+        }
         showCreateModal.value = false
         loadData()
     } catch (e: any) {
-        toast.error(e.message || 'Failed to schedule campaign')
+        toast.error(e.message || 'Failed to save campaign')
     } finally {
         createLoading.value = false
     }
 }
 
-async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this scheduled campaign?')) return
+const showDeleteModal = ref(false)
+const campaignToDelete = ref<Campaign | null>(null)
+const deleteLoading = ref(false)
+
+function confirmDelete(c: Campaign) {
+    campaignToDelete.value = c
+    showDeleteModal.value = true
+}
+
+async function handleDelete() {
+    if (!campaignToDelete.value) return
+    deleteLoading.value = true
     try {
-        await api(`/projects/${props.project.id}/campaigns/${id}`, {
+        await api(`/projects/${props.project.id}/campaigns/${campaignToDelete.value.id}`, {
             method: 'DELETE'
         })
         toast.success('Campaign deleted')
+        showDeleteModal.value = false
         loadData()
     } catch (e: any) {
-        toast.error(e.message || 'Failed to delete campaign. It might have already started sending.')
+        toast.error(e.message || 'Failed to delete campaign.')
+    } finally {
+        deleteLoading.value = false
     }
 }
 
@@ -178,8 +244,12 @@ onMounted(loadData)
                             <span class="text-green-400">{{ c.sent_count }}</span> / 
                             <span :class="c.failed_count > 0 ? 'text-red-400' : 'text-zinc-500'">{{ c.failed_count }}</span>
                         </td>
-                        <td class="px-4 py-3 text-right">
-                            <button v-if="c.status === 'scheduled'" @click="handleDelete(c.id)"
+                        <td class="px-4 py-3 text-right space-x-3">
+                            <button v-if="c.status === 'scheduled'" @click="openEditModal(c)"
+                                class="text-xs text-zinc-500 hover:text-white transition cursor-pointer opacity-0 group-hover:opacity-100">
+                                Edit
+                            </button>
+                            <button v-if="c.status === 'scheduled'" @click="confirmDelete(c)"
                                 class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer opacity-0 group-hover:opacity-100">
                                 Delete
                             </button>
@@ -197,8 +267,8 @@ onMounted(loadData)
             </button>
         </div>
 
-        <AppModal :show="showCreateModal" title="New Newsletter Campaign" @close="showCreateModal = false">
-            <form @submit.prevent="handleCreate" class="space-y-4">
+        <AppModal :show="showCreateModal" :title="editingCampaign ? 'Edit Campaign' : 'New Newsletter Campaign'" @close="showCreateModal = false">
+            <form @submit.prevent="handleSave" class="space-y-4">
                 <AppInput v-model="newName" label="Campaign Name" placeholder="Monthly Update - May" required />
                 
                 <div>
@@ -209,10 +279,17 @@ onMounted(loadData)
                     </select>
                 </div>
 
+                <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
+                    <p class="text-xs font-medium text-zinc-400 mb-2">Template Variables</p>
+                    <div v-for="v in selectedTemplateVars" :key="v">
+                        <AppInput v-model="campaignVars[v]" :label="v" :placeholder="`Value for {{${v}}}`" />
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-2">When to send?</label>
                     <div class="flex gap-2 mb-3">
-                        <button type="button" @click="sendType = 'now'"
+                        <button v-if="!editingCampaign" type="button" @click="sendType = 'now'"
                             :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer', sendType === 'now' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white']">
                             Send Now
                         </button>
@@ -236,10 +313,27 @@ onMounted(loadData)
 
                 <div class="pt-2">
                     <AppButton :loading="createLoading" class="w-full">
-                        {{ createLoading ? 'Scheduling...' : (sendType === 'now' ? 'Send Campaign Now' : 'Schedule Campaign') }}
+                        {{ createLoading ? 'Saving...' : (editingCampaign ? 'Save Changes' : (sendType === 'now' ? 'Send Campaign Now' : 'Schedule Campaign')) }}
                     </AppButton>
                 </div>
             </form>
+        </AppModal>
+
+        <AppModal :show="showDeleteModal" title="Delete Campaign" @close="showDeleteModal = false">
+            <div class="space-y-4">
+                <p class="text-zinc-400 text-sm">
+                    Are you sure you want to delete <span class="font-semibold text-white">{{ campaignToDelete?.name }}</span>?
+                </p>
+                <p class="text-zinc-500 text-xs">
+                    This will permanently cancel the scheduled send.
+                </p>
+                <div class="flex gap-2 justify-end mt-4">
+                    <AppButton variant="secondary" @click="showDeleteModal = false">Cancel</AppButton>
+                    <AppButton variant="danger" :loading="deleteLoading" @click="handleDelete">
+                        {{ deleteLoading ? 'Deleting...' : 'Delete Campaign' }}
+                    </AppButton>
+                </div>
+            </div>
         </AppModal>
     </div>
 </template>
