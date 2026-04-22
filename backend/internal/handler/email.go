@@ -32,7 +32,8 @@ type sendRequest struct {
 }
 
 type broadcastRequest struct {
-	TemplateID string `json:"template_id"`
+	TemplateID string            `json:"template_id"`
+	Variables  map[string]string `json:"variables"`
 }
 
 type batchRecipient struct {
@@ -142,7 +143,12 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID, nil)
+	var varsJSON []byte
+	if len(req.Variables) > 0 {
+		varsJSON, _ = json.Marshal(req.Variables)
+	}
+
+	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID, varsJSON)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
