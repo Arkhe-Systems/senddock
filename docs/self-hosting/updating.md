@@ -57,6 +57,41 @@ What gets deleted:
 
 After reset, the script behaves like a fresh install: generates a new `.env`, builds the image, starts services, waits for the health check, and prompts you to create the admin account at `http://localhost:8080`.
 
+## Manual update without the setup script
+
+If you want to control each step yourself (CI/CD pipelines, restricted environments, debugging a release):
+
+```bash
+cd senddock
+git fetch origin
+git status                             # confirm there are no local changes you want to keep
+git reset --hard origin/main           # or origin/v0.x.x for a specific tag
+docker compose -f docker-compose.prod.yml build --pull
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+Same idea on Windows:
+
+```powershell
+cd senddock
+git fetch origin
+git reset --hard origin/main
+docker compose -f docker-compose.prod.yml build --pull
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+What each step does:
+
+- `git fetch origin` — downloads remote refs without touching your working tree.
+- `git reset --hard origin/main` — replaces your working tree with the remote contents. **Drops any local edits** to repo files. Your `.env` stays because it is gitignored.
+- `docker compose build --pull` — rebuilds the image with the new code and pulls fresh base images.
+- `docker compose up -d` — restarts the containers; migrations run automatically inside the entrypoint.
+- `docker compose logs -f app` — tail the log so you can see if startup succeeds.
+
+This is exactly what `setup.sh` does in update mode, just spelled out so you can wedge in extra steps (smoke tests, backups, monitoring) between any two lines.
+
 ## Backing up before a reset
 
 Before running `--reset` on a production instance, dump the database:
