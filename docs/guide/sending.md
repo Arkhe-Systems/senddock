@@ -21,7 +21,11 @@ curl -X POST https://your-instance.com/api/v1/projects/{id}/send \
   }'
 ```
 
-The `data` object replaces template variables: `{{name}}` becomes "John". You can use any key/value pairs. `subject` is optional — if provided, it overrides the template's subject.
+The `data` object replaces template variables: `{{name}}` becomes "John". You can use any key/value pairs. `subject` is optional — if provided, it overrides the template's subject. `/broadcast` and campaigns also accept an optional `subject` field for the same purpose.
+
+::: warning Sending without a subject
+Emails sent with an empty subject line are treated as spam by most providers (Gmail, Outlook, ProtonMail, etc.) and routed straight to the spam folder. SendDock does not block empty-subject sends, but the dashboard surfaces a warning when the selected template has no subject and no override is provided. Always set a subject — on the template or as an override.
+:::
 
 ### Template to a subscriber
 

@@ -141,7 +141,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	return SendResult{Sent: 1}, nil
 }
 
-func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID string, campaignVars json.RawMessage) (SendResult, error) {
+func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage) (SendResult, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return SendResult{}, errors.New("invalid project id")
@@ -187,12 +187,16 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 	}
 
 	templateBody := ensureUnsubscribeFooter(template.HtmlBody)
+	baseSubject := template.Subject
+	if subjectOverride != "" {
+		baseSubject = subjectOverride
+	}
 
 	go func() {
 		bgCtx := context.Background()
 		for _, sub := range subscribers {
 			body := templateBody
-			subject := template.Subject
+			subject := baseSubject
 
 			for k, v := range customVars {
 				body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))

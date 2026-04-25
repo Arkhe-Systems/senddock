@@ -208,6 +208,7 @@ type Campaign struct {
 	ProjectID   string          `json:"project_id"`
 	TemplateID  string          `json:"template_id"`
 	Name        string          `json:"name"`
+	Subject     string          `json:"subject"`
 	Status      string          `json:"status"`
 	ScheduledAt string          `json:"scheduled_at"`
 	SentAt      *string         `json:"sent_at"`
@@ -223,6 +224,7 @@ func FromCampaign(c db.Campaign) Campaign {
 		ProjectID:   c.ProjectID.String(),
 		TemplateID:  c.TemplateID.String(),
 		Name:        c.Name,
+		Subject:     c.Subject,
 		Status:      c.Status,
 		ScheduledAt: c.ScheduledAt.Format(time.RFC3339),
 		SentAt:      nullTime(c.SentAt),

@@ -18,7 +18,7 @@ func NewCampaignService(queries *db.Queries) *CampaignService {
 	return &CampaignService{queries: queries}
 }
 
-func (s *CampaignService) Create(ctx context.Context, projectID, templateID, name string, scheduledAt time.Time, variables json.RawMessage) (db.Campaign, error) {
+func (s *CampaignService) Create(ctx context.Context, projectID, templateID, name, subject string, scheduledAt time.Time, variables json.RawMessage) (db.Campaign, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return db.Campaign{}, errors.New("invalid project id")
@@ -37,12 +37,13 @@ func (s *CampaignService) Create(ctx context.Context, projectID, templateID, nam
 		ProjectID:   pid,
 		TemplateID:  tid,
 		Name:        name,
+		Subject:     subject,
 		ScheduledAt: scheduledAt,
 		Variables:   variables,
 	})
 }
 
-func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, templateID, name string, scheduledAt time.Time, variables json.RawMessage) (db.Campaign, error) {
+func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, templateID, name, subject string, scheduledAt time.Time, variables json.RawMessage) (db.Campaign, error) {
 	cid, err := uuid.Parse(campaignID)
 	if err != nil {
 		return db.Campaign{}, errors.New("invalid campaign id")
@@ -67,6 +68,7 @@ func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, tem
 		ProjectID:   pid,
 		TemplateID:  tid,
 		Name:        name,
+		Subject:     subject,
 		ScheduledAt: scheduledAt,
 		Variables:   variables,
 	})

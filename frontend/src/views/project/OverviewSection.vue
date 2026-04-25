@@ -43,8 +43,13 @@ const templates = ref<Template[]>([])
 const selectedTemplate = ref('')
 const sendMode = ref<'broadcast' | 'direct'>('broadcast')
 const directEmail = ref('')
+const subjectOverride = ref('')
 const sendLoading = ref(false)
 const templateVars = ref<Record<string, string>>({})
+
+const selectedTemplateData = computed(() => templates.value.find(t => t.id === selectedTemplate.value))
+const templateHasSubject = computed(() => !!(selectedTemplateData.value?.subject?.trim()))
+const effectiveSubject = computed(() => subjectOverride.value.trim() || selectedTemplateData.value?.subject?.trim() || '')
 
 const SYSTEM_VARS = new Set(['name', 'email', 'subscriber_id', 'unsubscribe_url'])
 
@@ -91,6 +96,7 @@ async function openSendModal() {
         selectedTemplate.value = templates.value[0]?.id ?? ''
         sendMode.value = appStore.publicUrlIsReachable ? 'broadcast' : 'direct'
         directEmail.value = ''
+        subjectOverride.value = ''
         showSendModal.value = true
     } catch {
         toast.error('Failed to load templates')
@@ -117,7 +123,7 @@ async function handleSend() {
         if (sendMode.value === 'broadcast') {
             const result = await api<{ sent: number, failed: number }>(`/projects/${props.project.id}/broadcast`, {
                 method: 'POST',
-                body: { template_id: selectedTemplate.value, variables: templateVars.value },
+                body: { template_id: selectedTemplate.value, subject: subjectOverride.value, variables: templateVars.value },
             })
             toast.success(`Broadcast complete: ${result.sent} sent, ${result.failed} failed`)
         } else {
@@ -128,7 +134,7 @@ async function handleSend() {
             }
             await api(`/projects/${props.project.id}/send`, {
                 method: 'POST',
-                body: { template_id: selectedTemplate.value, to: directEmail.value, data: templateVars.value },
+                body: { template_id: selectedTemplate.value, to: directEmail.value, subject: subjectOverride.value, data: templateVars.value },
             })
             toast.success(`Email sent to ${directEmail.value}`)
         }
@@ -224,6 +230,18 @@ onMounted(loadData)
                         class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent">
                         <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
                     </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-1">
+                        Subject
+                        <span v-if="templateHasSubject" class="text-zinc-500 font-normal">(override the template's subject — optional)</span>
+                    </label>
+                    <input v-model="subjectOverride" type="text" :placeholder="templateHasSubject ? selectedTemplateData?.subject : 'Set a subject'"
+                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent" />
+                    <p v-if="!templateHasSubject && !subjectOverride.trim()" class="text-xs text-yellow-400 mt-1">
+                        This template has no subject. Sending without one is a strong spam signal — most providers will route it to the spam folder.
+                    </p>
                 </div>
 
                 <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
