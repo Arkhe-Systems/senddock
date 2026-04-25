@@ -4,6 +4,17 @@ Common problems you might run into when self-hosting SendDock, and how to fix th
 
 ## Outgoing emails
 
+### 429 "rate limit exceeded for this project on this endpoint"
+
+**Cause:** You hit the per-project rate limit on a sending endpoint. The limits are intentional spam protection. See [Rate limits](/guide/sending#rate-limits-and-abuse-prevention) for the full table.
+
+**Fix:**
+
+- Check the `Retry-After` header for how long to wait before retrying.
+- If you legitimately need higher throughput, switch to **subscribers + broadcast** (a single broadcast call to a 50k list is one request, not 50k).
+- If you are looping over `/send` to reach all your subscribers, that is exactly the pattern these limits are meant to block — store the recipients as subscribers and call `/broadcast` once.
+- If your tests are tripping the limit, scope them to use a unique project per test run, or unset `REDIS_URL` in your test environment to disable rate limiting (do not do this in production).
+
 ### "Newsletters are disabled" banner / cannot send broadcasts
 
 **Symptom:** The Newsletters page shows a yellow banner saying broadcasts are disabled, the "+ New Campaign" button is greyed out, or the API returns 400 with an error mentioning `PUBLIC_URL is not set to a publicly reachable URL`.
