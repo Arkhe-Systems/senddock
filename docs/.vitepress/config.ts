@@ -25,6 +25,7 @@ export default defineConfig({
             { text: 'Installation', link: '/self-hosting/installation' },
             { text: 'Configuration', link: '/self-hosting/configuration' },
             { text: 'Updating', link: '/self-hosting/updating' },
+            { text: 'Troubleshooting & FAQ', link: '/self-hosting/troubleshooting' },
           ],
         },
       ],

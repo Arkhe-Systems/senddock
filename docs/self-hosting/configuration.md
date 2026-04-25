@@ -35,12 +35,14 @@ Redis is used for job queues and caching (planned features). Port `6380` by defa
 
 Before exposing to the internet:
 
-- [ ] Change `JWT_SECRET` to a random string (min 32 characters)
+- [ ] Change `JWT_SECRET` to a random string (min 32 characters): `openssl rand -base64 48`
 - [ ] Change PostgreSQL password from default
-- [ ] Set `FRONTEND_URL` to your actual domain
-- [ ] Use HTTPS via reverse proxy
-- [ ] Set cookie `Secure: true` in production (requires code change)
+- [ ] Set `FRONTEND_URL` to your actual domain (used for CORS)
+- [ ] Set `PUBLIC_URL` to the same domain (used for unsubscribe + tracking links inside emails)
+- [ ] Use HTTPS via reverse proxy — `Secure` cookies are set automatically when `FRONTEND_URL` starts with `https://`
 - [ ] Keep SendDock updated
+
+If anything misbehaves after going live, see [Troubleshooting](/self-hosting/troubleshooting).
 
 ## Ports
 

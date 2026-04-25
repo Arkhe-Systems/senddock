@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
+import { useAppStore } from '@/stores/app'
 import type { Project } from '@/stores/projects'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -26,6 +27,15 @@ const emit = defineEmits<{ updated: [] }>()
 
 const router = useRouter()
 const toast = useToastStore()
+const appStore = useAppStore()
+
+const instanceUrl = computed(() => appStore.publicUrl || window.location.origin)
+const isLocalhost = computed(() => instanceUrl.value.startsWith('http://localhost'))
+
+async function copyInstanceUrl() {
+    await navigator.clipboard.writeText(instanceUrl.value)
+    toast.success('Instance URL copied')
+}
 
 const projectName = ref('')
 const projectDescription = ref('')
@@ -161,6 +171,23 @@ async function handleDelete() {
                     </AppButton>
                 </div>
             </form>
+        </div>
+
+        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg">
+            <h2 class="text-sm font-medium text-white mb-2">Instance URL</h2>
+            <p class="text-xs text-zinc-500 mb-4">
+                Public URL used to build unsubscribe links and tracking pixels in outgoing emails. Set <code class="text-zinc-400">PUBLIC_URL</code> in your environment to change it.
+            </p>
+            <div class="flex items-center gap-2">
+                <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white break-all">{{ instanceUrl }}</code>
+                <button type="button" @click="copyInstanceUrl"
+                    class="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">
+                    Copy
+                </button>
+            </div>
+            <p v-if="isLocalhost" class="text-xs text-yellow-400 mt-3">
+                Heads up: this URL points to localhost. Unsubscribe links and tracking pixels in outgoing emails won't work outside this machine. Set <code>PUBLIC_URL</code> to your public domain in production.
+            </p>
         </div>
 
         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg">
