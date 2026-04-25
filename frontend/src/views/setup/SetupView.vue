@@ -22,10 +22,10 @@ const error = ref('')
 const loading = ref(false)
 
 function validatePassword(pw: string): string | null {
-    if (pw.length < 12) return 'Password must be at least 12 characters'
-    if (!/[a-zA-Z]/.test(pw)) return 'Password must contain at least one letter'
+    if (pw.length < 8) return 'Password must be at least 8 characters'
+    if (!/[A-Z]/.test(pw)) return 'Password must contain at least one uppercase letter'
     if (!/[0-9]/.test(pw)) return 'Password must contain at least one number'
-    if (new Set(pw).size < 6) return 'Password is too repetitive'
+    if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must contain at least one special character'
     return null
 }
 
@@ -33,11 +33,11 @@ const passwordStrength = computed(() => {
     const pw = password.value
     if (!pw) return { label: '', color: '', width: 0 }
     let score = 0
-    if (pw.length >= 12) score++
-    if (pw.length >= 16) score++
-    if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++
+    if (pw.length >= 8) score++
+    if (pw.length >= 14) score++
+    if (/[A-Z]/.test(pw)) score++
     if (/[0-9]/.test(pw)) score++
-    if (/[^a-zA-Z0-9]/.test(pw)) score++
+    if (/[^A-Za-z0-9]/.test(pw)) score++
     if (score <= 1) return { label: 'Weak', color: 'bg-red-500 text-red-400', width: 25 }
     if (score === 2) return { label: 'Fair', color: 'bg-yellow-500 text-yellow-400', width: 50 }
     if (score === 3) return { label: 'Good', color: 'bg-blue-500 text-blue-400', width: 75 }
@@ -110,7 +110,7 @@ async function handleSetup() {
                 <AppInput v-model="name" label="Full Name" placeholder="John Doe" required />
                 <AppInput v-model="email" label="Email" type="email" placeholder="admin@example.com" required />
                 <div>
-                    <AppInput v-model="password" label="Password" type="password" placeholder="At least 12 characters" required />
+                    <AppInput v-model="password" label="Password" type="password" placeholder="Min 8 chars with uppercase, number and symbol" required />
                     <div v-if="password" class="mt-2">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs" :class="passwordStrength.color.split(' ')[1]">{{ passwordStrength.label }}</span>

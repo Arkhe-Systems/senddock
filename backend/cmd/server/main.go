@@ -65,12 +65,15 @@ func main() {
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, projectService)
 
 	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache)
-	emailHandler := handler.NewEmailHandler(emailService, projectService)
+	emailHandler := handler.NewEmailHandler(emailService, projectService, redisCache)
 
 	campaignService := service.NewCampaignService(queries)
-	campaignHandler := handler.NewCampaignHandler(campaignService, projectService)
+	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
 
 	trackingHandler := handler.NewTrackingHandler(queries)
+
+	releaseService := service.NewReleaseService(redisCache)
+	releaseHandler := handler.NewReleaseHandler(releaseService)
 
 	worker := service.NewCampaignWorker(queries, emailService)
 	worker.Start()
@@ -153,6 +156,8 @@ func main() {
 	mux.HandleFunc("GET /t/{logId}", trackingHandler.Open)
 	mux.HandleFunc("POST /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
 	mux.HandleFunc("OPTIONS /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
+
+	mux.Handle("GET /api/v1/version", authMiddleware(http.HandlerFunc(releaseHandler.Get)))
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)

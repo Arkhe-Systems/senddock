@@ -4,22 +4,55 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/middleware"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
 )
 
+const (
+	maxBatchRecipients     = 500
+	sendRateLimit          = 60
+	sendRateWindow         = time.Minute
+	batchRateLimit         = 10
+	batchRateWindow        = time.Minute
+	broadcastRateLimit     = 5
+	broadcastRateWindow    = time.Hour
+)
+
 type EmailHandler struct {
 	emailService   *service.EmailService
 	projectService *service.ProjectService
+	cache          *cache.Redis
 }
 
-func NewEmailHandler(emailService *service.EmailService, projectService *service.ProjectService) *EmailHandler {
+func NewEmailHandler(emailService *service.EmailService, projectService *service.ProjectService, redis *cache.Redis) *EmailHandler {
 	return &EmailHandler{
 		emailService:   emailService,
 		projectService: projectService,
+		cache:          redis,
 	}
+}
+
+func (h *EmailHandler) checkRateLimit(w http.ResponseWriter, r *http.Request, prefix, projectID string, limit int64, window time.Duration) bool {
+	if h.cache == nil {
+		return true
+	}
+	count, err := h.cache.Increment(r.Context(), "ratelimit:"+prefix+":"+projectID, window)
+	if err != nil {
+		return true
+	}
+	if count > limit {
+		retryAfter := int(window.Seconds())
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(errorResponse{Error: "rate limit exceeded for this project on this endpoint. Slow down and retry later"})
+		return false
+	}
+	return true
 }
 
 type sendRequest struct {
@@ -33,6 +66,7 @@ type sendRequest struct {
 
 type broadcastRequest struct {
 	TemplateID string            `json:"template_id"`
+	Subject    string            `json:"subject"`
 	Variables  map[string]string `json:"variables"`
 }
 
@@ -64,6 +98,10 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	if !h.checkRateLimit(w, r, "send", projectID, sendRateLimit, sendRateWindow) {
 		return
 	}
 
@@ -128,6 +166,10 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !h.checkRateLimit(w, r, "broadcast", projectID, broadcastRateLimit, broadcastRateWindow) {
+		return
+	}
+
 	var req broadcastRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -148,7 +190,7 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		varsJSON, _ = json.Marshal(req.Variables)
 	}
 
-	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID, varsJSON)
+	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID, req.Subject, varsJSON)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -169,6 +211,10 @@ func (h *EmailHandler) BatchSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !h.checkRateLimit(w, r, "batch", projectID, batchRateLimit, batchRateWindow) {
+		return
+	}
+
 	var req batchSendRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -181,6 +227,13 @@ func (h *EmailHandler) BatchSend(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errorResponse{Error: "template_id and recipients are required"})
+		return
+	}
+
+	if len(req.Recipients) > maxBatchRecipients {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "too many recipients in a single request. Use a broadcast for sending to your subscriber list, or split this batch into chunks of 500 or fewer"})
 		return
 	}
 

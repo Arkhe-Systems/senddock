@@ -13,18 +13,31 @@ import (
 type CampaignHandler struct {
 	campaignService *service.CampaignService
 	projectService  *service.ProjectService
+	publicURL       string
 }
 
-func NewCampaignHandler(campaignService *service.CampaignService, projectService *service.ProjectService) *CampaignHandler {
+func NewCampaignHandler(campaignService *service.CampaignService, projectService *service.ProjectService, publicURL string) *CampaignHandler {
 	return &CampaignHandler{
 		campaignService: campaignService,
 		projectService:  projectService,
+		publicURL:       publicURL,
 	}
+}
+
+func (h *CampaignHandler) requirePublicURL(w http.ResponseWriter) bool {
+	if service.IsPublicURLReachable(h.publicURL) {
+		return true
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(errorResponse{Error: "PUBLIC_URL is not set to a publicly reachable URL. Newsletters need a working unsubscribe link before they can be scheduled. Set PUBLIC_URL in your .env to your public domain and restart the server"})
+	return false
 }
 
 type createCampaignRequest struct {
 	TemplateID  string            `json:"template_id"`
 	Name        string            `json:"name"`
+	Subject     string            `json:"subject"`
 	ScheduledAt string            `json:"scheduled_at"`
 	Variables   map[string]string `json:"variables"`
 }
@@ -37,6 +50,10 @@ func (h *CampaignHandler) verifyProjectOwner(r *http.Request) (string, error) {
 }
 
 func (h *CampaignHandler) Create(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePublicURL(w) {
+		return
+	}
+
 	projectID, err := h.verifyProjectOwner(r)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -75,7 +92,7 @@ func (h *CampaignHandler) Create(w http.ResponseWriter, r *http.Request) {
 		variablesJson = []byte("{}")
 	}
 
-	campaign, err := h.campaignService.Create(r.Context(), projectID, req.TemplateID, req.Name, scheduledAt, variablesJson)
+	campaign, err := h.campaignService.Create(r.Context(), projectID, req.TemplateID, req.Name, req.Subject, scheduledAt, variablesJson)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -132,6 +149,10 @@ func (h *CampaignHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CampaignHandler) Update(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePublicURL(w) {
+		return
+	}
+
 	projectID, err := h.verifyProjectOwner(r)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -172,7 +193,7 @@ func (h *CampaignHandler) Update(w http.ResponseWriter, r *http.Request) {
 		variablesJson = []byte("{}")
 	}
 
-	campaign, err := h.campaignService.Update(r.Context(), campaignID, projectID, req.TemplateID, req.Name, scheduledAt, variablesJson)
+	campaign, err := h.campaignService.Update(r.Context(), campaignID, projectID, req.TemplateID, req.Name, req.Subject, scheduledAt, variablesJson)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
