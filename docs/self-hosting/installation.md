@@ -25,10 +25,13 @@ cd senddock
 .\setup.ps1
 ```
 
-The setup script:
-- Generates a secure JWT secret and database password automatically
-- Creates the `.env` file
-- Starts all services via Docker Compose
+The setup script is **idempotent**:
+
+- **Fresh install**: generates secrets, creates `.env`, builds the image, starts services.
+- **Existing install**: keeps your `.env`, rebuilds the image with the current code, restarts services. This is the same script you use to update — `./setup.sh` after a `git pull` is the entire upgrade flow.
+- **Reset**: pass `--reset` (or `-Reset` on Windows) to wipe containers, volumes and `.env` before starting fresh. **This deletes all data**, so use it only on test instances.
+
+After running, the script waits for SendDock to be healthy and only then reports success. If startup fails it points at `docker compose logs app` so you can see the real error.
 
 Open `http://localhost:8080` and create your admin account.
 
