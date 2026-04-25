@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
+import { useAppStore } from '@/stores/app'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -28,6 +29,7 @@ interface Campaign {
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
+const appStore = useAppStore()
 
 const campaigns = ref<Campaign[]>([])
 const templates = ref<Template[]>([])
@@ -83,6 +85,10 @@ async function loadData() {
 }
 
 function openCreateModal() {
+    if (!appStore.publicUrlIsReachable) {
+        toast.error('Configure PUBLIC_URL with your public domain before scheduling newsletters. Recipients need a working unsubscribe link.')
+        return
+    }
     if (templates.value.length === 0) {
         toast.error('You need to create a template first')
         return
@@ -212,10 +218,16 @@ onMounted(loadData)
                 <h1 class="text-2xl font-bold text-white">Newsletters</h1>
                 <p class="text-sm text-zinc-400 mt-1">Schedule and send email campaigns to your subscribers.</p>
             </div>
-            <button @click="openCreateModal"
-                class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
+            <button @click="openCreateModal" :disabled="!appStore.publicUrlIsReachable"
+                :title="!appStore.publicUrlIsReachable ? 'Set PUBLIC_URL to a public domain in your .env to enable newsletters' : ''"
+                class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
                 + New Campaign
             </button>
+        </div>
+
+        <div v-if="!appStore.publicUrlIsReachable" class="bg-yellow-500/5 border border-yellow-500/30 text-yellow-300 rounded-lg p-4 mb-6 text-sm">
+            <p class="font-medium mb-1">Newsletters are disabled</p>
+            <p class="text-yellow-300/80">Your instance is reachable only at localhost, so unsubscribe links inside emails would not work for recipients. Set <code class="font-mono">PUBLIC_URL</code> to your public domain in <code class="font-mono">.env</code> and restart the server to enable newsletters.</p>
         </div>
 
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>

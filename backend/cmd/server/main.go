@@ -68,7 +68,7 @@ func main() {
 	emailHandler := handler.NewEmailHandler(emailService, projectService)
 
 	campaignService := service.NewCampaignService(queries)
-	campaignHandler := handler.NewCampaignHandler(campaignService, projectService)
+	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
 
 	trackingHandler := handler.NewTrackingHandler(queries)
 

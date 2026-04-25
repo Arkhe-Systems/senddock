@@ -4,6 +4,20 @@ Common problems you might run into when self-hosting SendDock, and how to fix th
 
 ## Outgoing emails
 
+### "Newsletters are disabled" banner / cannot send broadcasts
+
+**Symptom:** The Newsletters page shows a yellow banner saying broadcasts are disabled, the "+ New Campaign" button is greyed out, or the API returns 400 with an error mentioning `PUBLIC_URL is not set to a publicly reachable URL`.
+
+**Cause:** SendDock refuses to send broadcasts and schedule campaigns when `PUBLIC_URL` is unset or resolves to `localhost` / `127.0.0.1` / `::1`. Without a public URL, the unsubscribe links inside outgoing emails would not work for recipients, which is the canonical spam pattern.
+
+**Fix:**
+
+1. Put SendDock behind a real domain (reverse proxy + DNS — see [Reverse Proxy](/self-hosting/installation#reverse-proxy-https)).
+2. Set `PUBLIC_URL=https://your-domain.com` in your `.env` (no trailing slash).
+3. Restart the server.
+
+Single-recipient sends (`/send`) and `/send/batch` continue to work without `PUBLIC_URL`, so transactional flows (password resets, contact-form notifications) do not require a public domain.
+
 ### Unsubscribe links don't work / land on a 404
 
 **Symptom:** Recipients click the unsubscribe link inside an email and get a 404 or a "Link expired or invalid" page.

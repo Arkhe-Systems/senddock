@@ -90,13 +90,37 @@ Response includes the count of sent and failed:
 
 ### Unsubscribe link
 
-Broadcast emails automatically inject `{{unsubscribe_url}}` — a public link where subscribers can opt out. Use it in your templates:
+Every broadcast carries a working unsubscribe link, no matter what your template looks like:
+
+- If your template uses the `{{unsubscribe_url}}` placeholder, SendDock replaces it with a per-recipient link signed with HMAC.
+- If your template **does not** use the placeholder, SendDock auto-appends a small unsubscribe footer at the bottom of the email so the link is always present.
+- A `List-Unsubscribe` header is also added, so Gmail and Outlook show their native "Unsubscribe" button next to the sender's name.
+
+The link is signed with a token derived from `JWT_SECRET` — recipients cannot be unsubscribed by guessing UUIDs, and tampering with the token returns a "Link expired or invalid" page.
 
 ```html
 <a href="{{unsubscribe_url}}">Unsubscribe</a>
 ```
 
-The link takes the subscriber to a confirmation page and changes their status to `unsubscribed`.
+### PUBLIC_URL is required for broadcasts and campaigns
+
+Both `/broadcast` and the campaign scheduler will refuse to run when `PUBLIC_URL` is unset or points at localhost. Without a public URL, recipients cannot reach the unsubscribe page, and that is a hard "no" for SendDock — sending without a working unsubscribe is the canonical spam pattern.
+
+The error returned is:
+
+```json
+{
+  "error": "PUBLIC_URL is not set to a publicly reachable URL. Newsletters need a working unsubscribe link before they can be sent. Set PUBLIC_URL in your .env to your public domain and restart the server"
+}
+```
+
+To enable broadcasts:
+
+1. Put SendDock behind a real domain (reverse proxy + DNS).
+2. Set `PUBLIC_URL=https://your-domain.com` in `.env`.
+3. Restart the server.
+
+`/send` (single-recipient transactional) and `/send/batch` continue to work without `PUBLIC_URL`, since their use cases are typically internal apps and explicit recipient lists, not list emails.
 
 ## Scheduled Campaigns
 
