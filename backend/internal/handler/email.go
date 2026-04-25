@@ -66,6 +66,7 @@ type sendRequest struct {
 
 type broadcastRequest struct {
 	TemplateID string            `json:"template_id"`
+	Subject    string            `json:"subject"`
 	Variables  map[string]string `json:"variables"`
 }
 
@@ -189,7 +190,7 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		varsJSON, _ = json.Marshal(req.Variables)
 	}
 
-	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID, varsJSON)
+	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID, req.Subject, varsJSON)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)

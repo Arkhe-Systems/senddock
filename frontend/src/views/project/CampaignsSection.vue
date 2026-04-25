@@ -19,6 +19,7 @@ interface Campaign {
     id: string
     name: string
     template_id: string
+    subject: string
     status: string
     scheduled_at: string
     sent_at: string | null
@@ -41,10 +42,14 @@ const editingCampaign = ref<Campaign | null>(null)
 
 const newName = ref('')
 const selectedTemplate = ref('')
+const subjectOverride = ref('')
 const sendType = ref<'now' | 'scheduled'>('now')
 const scheduledDate = ref('')
 const scheduledTime = ref('')
 const campaignVars = ref<Record<string, string>>({})
+
+const selectedTemplateData = computed(() => templates.value.find(t => t.id === selectedTemplate.value))
+const templateHasSubject = computed(() => !!(selectedTemplateData.value?.subject?.trim()))
 
 const SYSTEM_VARS = new Set(['name', 'email', 'subscriber_id', 'unsubscribe_url'])
 
@@ -96,14 +101,15 @@ function openCreateModal() {
     editingCampaign.value = null
     newName.value = ''
     selectedTemplate.value = templates.value[0]?.id ?? ''
+    subjectOverride.value = ''
     sendType.value = 'now'
-    
+
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
     scheduledDate.value = tomorrow.toISOString().split('T')[0] ?? ''
     scheduledTime.value = '09:00'
     campaignVars.value = {}
-    
+
     showCreateModal.value = true
 }
 
@@ -111,14 +117,15 @@ function openEditModal(c: Campaign) {
     editingCampaign.value = c
     newName.value = c.name
     selectedTemplate.value = c.template_id
+    subjectOverride.value = c.subject || ''
     sendType.value = 'scheduled'
-    
+
     const date = new Date(c.scheduled_at)
     scheduledDate.value = date.toISOString().split('T')[0] ?? ''
     scheduledTime.value = date.toTimeString().split(' ')[0]?.slice(0, 5) ?? '09:00'
-    
+
     campaignVars.value = c.variables ? { ...c.variables } : {}
-    
+
     showCreateModal.value = true
 }
 
@@ -152,6 +159,7 @@ async function handleSave() {
                 body: {
                     name: newName.value,
                     template_id: selectedTemplate.value,
+                    subject: subjectOverride.value,
                     scheduled_at: finalScheduledAt,
                     variables: campaignVars.value
                 }
@@ -163,6 +171,7 @@ async function handleSave() {
                 body: {
                     name: newName.value,
                     template_id: selectedTemplate.value,
+                    subject: subjectOverride.value,
                     scheduled_at: finalScheduledAt,
                     variables: campaignVars.value
                 }
@@ -290,13 +299,25 @@ onMounted(loadData)
         <AppModal :show="showCreateModal" :title="editingCampaign ? 'Edit Campaign' : 'New Newsletter Campaign'" @close="showCreateModal = false">
             <form @submit.prevent="handleSave" class="space-y-4">
                 <AppInput v-model="newName" label="Campaign Name" placeholder="Monthly Update - May" required />
-                
+
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Template</label>
                     <select v-model="selectedTemplate"
                         class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent">
                         <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
                     </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-1">
+                        Email Subject
+                        <span v-if="templateHasSubject" class="text-zinc-500 font-normal">(override the template's subject — optional)</span>
+                    </label>
+                    <input v-model="subjectOverride" type="text" :placeholder="templateHasSubject ? selectedTemplateData?.subject : 'Set a subject for this campaign'"
+                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent" />
+                    <p v-if="!templateHasSubject && !subjectOverride.trim()" class="text-xs text-yellow-400 mt-1">
+                        This template has no subject. Sending newsletters without a subject is a strong spam signal — most providers will route them to the spam folder.
+                    </p>
                 </div>
 
                 <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
