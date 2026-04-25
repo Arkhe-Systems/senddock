@@ -173,3 +173,45 @@ curl https://your-instance.com/api/v1/projects/{id}/stats \
 ## Authentication
 
 All sending endpoints accept both cookie auth (from the UI) and API key auth (`Authorization: Bearer sk_...`).
+
+## Rate limits and abuse prevention
+
+Sending endpoints are rate-limited per project to stop the API from being used as a spam loop. The limits are designed to leave room for normal application traffic (signup confirmations, password resets, policy notices) while making bulk-loop abuse impractical.
+
+| Endpoint | Limit per project | Window | Hard cap per request |
+|---|---|---|---|
+| `POST /send` | 60 requests | 1 minute | — |
+| `POST /send/batch` | 10 requests | 1 minute | 500 recipients |
+| `POST /broadcast` | 5 requests | 1 hour | — |
+
+When you exceed a limit the API returns:
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60
+Content-Type: application/json
+
+{"error":"rate limit exceeded for this project on this endpoint. Slow down and retry later"}
+```
+
+The `Retry-After` header tells you how many seconds to wait before retrying.
+
+### What "per project" means
+
+Limits are tracked by project ID, not by API key or IP. If you generate three API keys for the same project, they share the project's quota. If you run two SendDock instances behind a load balancer (with shared Redis), they share the limit too.
+
+### How to think about the limits
+
+- **`/send` at 60/min** — fits a steady stream of transactional emails. A typical SaaS sends a confirmation email per signup; even at 1 signup per second this stays inside the limit.
+- **`/send/batch` at 10/min × 500 recipients** — up to 5,000 known recipients per minute, intended for explicit recipient lists (announcements to a known set of users, notifications to a vendor list). Trying to use it as a hidden broadcast loop hits the cap.
+- **`/broadcast` at 5/hour** — broadcasts to your subscriber list happen rarely on purpose. Five per hour leaves room for legitimate retries and segmented sends without being a spam vector.
+
+### What the limits are not
+
+These are abuse limits, not deliverability limits. Your SMTP provider applies its own quotas (SES at 14/sec by default, Mailgun depending on plan, etc.) which you must stay inside regardless of what SendDock allows. SendDock does not artificially throttle to match your provider — that is your responsibility.
+
+If you need higher throughput than the per-project caps, the right answer is **subscribers + broadcast**, not loops over `/send`. A 50,000-subscriber broadcast counts as 1 broadcast call.
+
+### Disabling Redis
+
+If `REDIS_URL` is not set, rate limiting is bypassed (the cache is required to track counts across requests). Self-hosted instances exposed to the internet should run Redis even if you don't need it for caching, specifically so these limits stay enforced.
