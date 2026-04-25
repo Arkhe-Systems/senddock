@@ -30,6 +30,7 @@ func (h *SetupHandler) Status(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"setup_required":  count == 0,
 		"deployment_mode": h.cfg.DeploymentMode,
+		"public_url":      h.cfg.PublicURL,
 	})
 }
 
