@@ -64,7 +64,7 @@ func main() {
 	apiKeyService := service.NewAPIKeyService(queries)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, projectService)
 
-	emailService := service.NewEmailService(queries, cfg.FrontendURL, cfg.JWTSecret, redisCache)
+	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache)
 	emailHandler := handler.NewEmailHandler(emailService, projectService)
 
 	campaignService := service.NewCampaignService(queries)
