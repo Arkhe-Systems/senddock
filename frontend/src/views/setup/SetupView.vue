@@ -1,20 +1,48 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { useAppStore } from '@/stores/app'
+import { useToastStore } from '@/stores/toast'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const app = useAppStore()
+const toast = useToastStore()
 
 const name = ref('')
 const email = ref('')
 const password = ref('')
+const passwordConfirm = ref('')
 const error = ref('')
 const loading = ref(false)
+
+function validatePassword(pw: string): string | null {
+    if (pw.length < 12) return 'Password must be at least 12 characters'
+    if (!/[a-zA-Z]/.test(pw)) return 'Password must contain at least one letter'
+    if (!/[0-9]/.test(pw)) return 'Password must contain at least one number'
+    if (new Set(pw).size < 6) return 'Password is too repetitive'
+    return null
+}
+
+const passwordStrength = computed(() => {
+    const pw = password.value
+    if (!pw) return { label: '', color: '', width: 0 }
+    let score = 0
+    if (pw.length >= 12) score++
+    if (pw.length >= 16) score++
+    if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++
+    if (/[0-9]/.test(pw)) score++
+    if (/[^a-zA-Z0-9]/.test(pw)) score++
+    if (score <= 1) return { label: 'Weak', color: 'bg-red-500 text-red-400', width: 25 }
+    if (score === 2) return { label: 'Fair', color: 'bg-yellow-500 text-yellow-400', width: 50 }
+    if (score === 3) return { label: 'Good', color: 'bg-blue-500 text-blue-400', width: 75 }
+    return { label: 'Strong', color: 'bg-green-500 text-green-400', width: 100 }
+})
 
 async function handleSetup() {
     error.value = ''
@@ -24,8 +52,14 @@ async function handleSetup() {
         return
     }
 
-    if (password.value.length < 8) {
-        error.value = 'Password must be at least 8 characters'
+    const pwErr = validatePassword(password.value)
+    if (pwErr) {
+        error.value = pwErr
+        return
+    }
+
+    if (password.value !== passwordConfirm.value) {
+        error.value = 'Passwords do not match'
         return
     }
 
@@ -36,6 +70,8 @@ async function handleSetup() {
             body: { name: name.value, email: email.value, password: password.value },
         })
         auth.isAuthenticated = true
+        app.setupRequired = false
+        toast.success('Welcome to SendDock! Your admin account is ready.')
         router.push('/dashboard')
     } catch (e: any) {
         error.value = e.message || 'Setup failed'
@@ -73,7 +109,18 @@ async function handleSetup() {
                 <AppAlert :message="error" />
                 <AppInput v-model="name" label="Full Name" placeholder="John Doe" required />
                 <AppInput v-model="email" label="Email" type="email" placeholder="admin@example.com" required />
-                <AppInput v-model="password" label="Password" type="password" placeholder="Minimum 8 characters" required />
+                <div>
+                    <AppInput v-model="password" label="Password" type="password" placeholder="At least 12 characters" required />
+                    <div v-if="password" class="mt-2">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs" :class="passwordStrength.color.split(' ')[1]">{{ passwordStrength.label }}</span>
+                        </div>
+                        <div class="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                            <div class="h-full transition-all" :class="passwordStrength.color.split(' ')[0]" :style="{ width: passwordStrength.width + '%' }"></div>
+                        </div>
+                    </div>
+                </div>
+                <AppInput v-model="passwordConfirm" label="Confirm Password" type="password" placeholder="Repeat your password" required />
                 <AppButton :loading="loading">
                     {{ loading ? 'Setting up...' : 'Complete Setup' }}
                 </AppButton>

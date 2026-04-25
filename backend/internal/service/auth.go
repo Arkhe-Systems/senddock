@@ -8,12 +8,40 @@ import (
 	"encoding/hex"
 	"errors"
 	"time"
+	"unicode"
 
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func ValidatePassword(password string) error {
+	if len(password) < 12 {
+		return errors.New("password must be at least 12 characters")
+	}
+	var hasLetter, hasDigit bool
+	unique := map[rune]struct{}{}
+	for _, r := range password {
+		unique[r] = struct{}{}
+		switch {
+		case unicode.IsLetter(r):
+			hasLetter = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		}
+	}
+	if !hasLetter {
+		return errors.New("password must contain at least one letter")
+	}
+	if !hasDigit {
+		return errors.New("password must contain at least one number")
+	}
+	if len(unique) < 6 {
+		return errors.New("password is too repetitive")
+	}
+	return nil
+}
 
 type AuthTokens struct {
 	AccessToken  string
@@ -32,6 +60,10 @@ func NewAuthService(queries *db.Queries, jwtSecret string) *AuthService {
 }
 
 func (s *AuthService) Register(ctx context.Context, email, password, name string) (AuthTokens, error) {
+	if err := ValidatePassword(password); err != nil {
+		return AuthTokens{}, err
+	}
+
 	_, err := s.queries.GetUserByEmail(ctx, email)
 	if err == nil {
 		return AuthTokens{}, errors.New("email already registered")

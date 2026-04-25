@@ -67,7 +67,7 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 	tokens, err := h.authService.Register(r.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return
 	}
