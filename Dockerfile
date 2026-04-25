@@ -23,7 +23,7 @@ COPY --from=backend /go/bin/goose /usr/local/bin/goose
 COPY --from=backend /app/frontend/dist ./frontend/dist
 COPY backend/migrations ./migrations
 COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 ENV FRONTEND_DIST_PATH=./frontend/dist
 EXPOSE 8080
 CMD ["./entrypoint.sh"]

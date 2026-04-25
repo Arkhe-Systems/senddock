@@ -21,7 +21,11 @@ curl -X POST https://your-instance.com/api/v1/projects/{id}/send \
   }'
 ```
 
-The `data` object replaces template variables: `{{name}}` becomes "John". You can use any key/value pairs. `subject` is optional — if provided, it overrides the template's subject.
+The `data` object replaces template variables: `{{name}}` becomes "John". You can use any key/value pairs. `subject` is optional — if provided, it overrides the template's subject. `/broadcast` and campaigns also accept an optional `subject` field for the same purpose.
+
+::: warning Sending without a subject
+Emails sent with an empty subject line are treated as spam by most providers (Gmail, Outlook, ProtonMail, etc.) and routed straight to the spam folder. SendDock does not block empty-subject sends, but the dashboard surfaces a warning when the selected template has no subject and no override is provided. Always set a subject — on the template or as an override.
+:::
 
 ### Template to a subscriber
 
@@ -90,13 +94,37 @@ Response includes the count of sent and failed:
 
 ### Unsubscribe link
 
-Broadcast emails automatically inject `{{unsubscribe_url}}` — a public link where subscribers can opt out. Use it in your templates:
+Every broadcast carries a working unsubscribe link, no matter what your template looks like:
+
+- If your template uses the `{{unsubscribe_url}}` placeholder, SendDock replaces it with a per-recipient link signed with HMAC.
+- If your template **does not** use the placeholder, SendDock auto-appends a small unsubscribe footer at the bottom of the email so the link is always present.
+- A `List-Unsubscribe` header is also added, so Gmail and Outlook show their native "Unsubscribe" button next to the sender's name.
+
+The link is signed with a token derived from `JWT_SECRET` — recipients cannot be unsubscribed by guessing UUIDs, and tampering with the token returns a "Link expired or invalid" page.
 
 ```html
 <a href="{{unsubscribe_url}}">Unsubscribe</a>
 ```
 
-The link takes the subscriber to a confirmation page and changes their status to `unsubscribed`.
+### PUBLIC_URL is required for broadcasts and campaigns
+
+Both `/broadcast` and the campaign scheduler will refuse to run when `PUBLIC_URL` is unset or points at localhost. Without a public URL, recipients cannot reach the unsubscribe page, and that is a hard "no" for SendDock — sending without a working unsubscribe is the canonical spam pattern.
+
+The error returned is:
+
+```json
+{
+  "error": "PUBLIC_URL is not set to a publicly reachable URL. Newsletters need a working unsubscribe link before they can be sent. Set PUBLIC_URL in your .env to your public domain and restart the server"
+}
+```
+
+To enable broadcasts:
+
+1. Put SendDock behind a real domain (reverse proxy + DNS).
+2. Set `PUBLIC_URL=https://your-domain.com` in `.env`.
+3. Restart the server.
+
+`/send` (single-recipient transactional) and `/send/batch` continue to work without `PUBLIC_URL`, since their use cases are typically internal apps and explicit recipient lists, not list emails.
 
 ## Scheduled Campaigns
 
@@ -149,3 +177,45 @@ curl https://your-instance.com/api/v1/projects/{id}/stats \
 ## Authentication
 
 All sending endpoints accept both cookie auth (from the UI) and API key auth (`Authorization: Bearer sk_...`).
+
+## Rate limits and abuse prevention
+
+Sending endpoints are rate-limited per project to stop the API from being used as a spam loop. The limits are designed to leave room for normal application traffic (signup confirmations, password resets, policy notices) while making bulk-loop abuse impractical.
+
+| Endpoint | Limit per project | Window | Hard cap per request |
+|---|---|---|---|
+| `POST /send` | 60 requests | 1 minute | — |
+| `POST /send/batch` | 10 requests | 1 minute | 500 recipients |
+| `POST /broadcast` | 5 requests | 1 hour | — |
+
+When you exceed a limit the API returns:
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60
+Content-Type: application/json
+
+{"error":"rate limit exceeded for this project on this endpoint. Slow down and retry later"}
+```
+
+The `Retry-After` header tells you how many seconds to wait before retrying.
+
+### What "per project" means
+
+Limits are tracked by project ID, not by API key or IP. If you generate three API keys for the same project, they share the project's quota. If you run two SendDock instances behind a load balancer (with shared Redis), they share the limit too.
+
+### How to think about the limits
+
+- **`/send` at 60/min** — fits a steady stream of transactional emails. A typical SaaS sends a confirmation email per signup; even at 1 signup per second this stays inside the limit.
+- **`/send/batch` at 10/min × 500 recipients** — up to 5,000 known recipients per minute, intended for explicit recipient lists (announcements to a known set of users, notifications to a vendor list). Trying to use it as a hidden broadcast loop hits the cap.
+- **`/broadcast` at 5/hour** — broadcasts to your subscriber list happen rarely on purpose. Five per hour leaves room for legitimate retries and segmented sends without being a spam vector.
+
+### What the limits are not
+
+These are abuse limits, not deliverability limits. Your SMTP provider applies its own quotas (SES at 14/sec by default, Mailgun depending on plan, etc.) which you must stay inside regardless of what SendDock allows. SendDock does not artificially throttle to match your provider — that is your responsibility.
+
+If you need higher throughput than the per-project caps, the right answer is **subscribers + broadcast**, not loops over `/send`. A 50,000-subscriber broadcast counts as 1 broadcast call.
+
+### Disabling Redis
+
+If `REDIS_URL` is not set, rate limiting is bypassed (the cache is required to track counts across requests). Self-hosted instances exposed to the internet should run Redis even if you don't need it for caching, specifically so these limits stay enforced.

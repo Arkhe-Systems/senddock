@@ -17,28 +17,28 @@ import (
 )
 
 func ValidatePassword(password string) error {
-	if len(password) < 12 {
-		return errors.New("password must be at least 12 characters")
+	if len(password) < 8 {
+		return errors.New("password must be at least 8 characters")
 	}
-	var hasLetter, hasDigit bool
-	unique := map[rune]struct{}{}
+	var hasUpper, hasDigit, hasSpecial bool
 	for _, r := range password {
-		unique[r] = struct{}{}
 		switch {
-		case unicode.IsLetter(r):
-			hasLetter = true
+		case unicode.IsUpper(r):
+			hasUpper = true
 		case unicode.IsDigit(r):
 			hasDigit = true
+		case !unicode.IsLetter(r) && !unicode.IsDigit(r) && !unicode.IsSpace(r):
+			hasSpecial = true
 		}
 	}
-	if !hasLetter {
-		return errors.New("password must contain at least one letter")
+	if !hasUpper {
+		return errors.New("password must contain at least one uppercase letter")
 	}
 	if !hasDigit {
 		return errors.New("password must contain at least one number")
 	}
-	if len(unique) < 6 {
-		return errors.New("password is too repetitive")
+	if !hasSpecial {
+		return errors.New("password must contain at least one special character")
 	}
 	return nil
 }

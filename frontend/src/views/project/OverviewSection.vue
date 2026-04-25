@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
+import { useAppStore } from '@/stores/app'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -31,6 +32,7 @@ interface Template {
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
+const appStore = useAppStore()
 
 const stats = ref<EmailStats>({ total: 0, sent: 0, failed: 0 })
 const recentLogs = ref<EmailLog[]>([])
@@ -41,8 +43,13 @@ const templates = ref<Template[]>([])
 const selectedTemplate = ref('')
 const sendMode = ref<'broadcast' | 'direct'>('broadcast')
 const directEmail = ref('')
+const subjectOverride = ref('')
 const sendLoading = ref(false)
 const templateVars = ref<Record<string, string>>({})
+
+const selectedTemplateData = computed(() => templates.value.find(t => t.id === selectedTemplate.value))
+const templateHasSubject = computed(() => !!(selectedTemplateData.value?.subject?.trim()))
+const effectiveSubject = computed(() => subjectOverride.value.trim() || selectedTemplateData.value?.subject?.trim() || '')
 
 const SYSTEM_VARS = new Set(['name', 'email', 'subscriber_id', 'unsubscribe_url'])
 
@@ -87,8 +94,9 @@ async function openSendModal() {
             return
         }
         selectedTemplate.value = templates.value[0]?.id ?? ''
-        sendMode.value = 'broadcast'
+        sendMode.value = appStore.publicUrlIsReachable ? 'broadcast' : 'direct'
         directEmail.value = ''
+        subjectOverride.value = ''
         showSendModal.value = true
     } catch {
         toast.error('Failed to load templates')
@@ -105,12 +113,17 @@ async function handleSend() {
         return
     }
 
+    if (sendMode.value === 'broadcast' && !appStore.publicUrlIsReachable) {
+        toast.error('Configure PUBLIC_URL with your public domain before sending broadcasts. Recipients need a working unsubscribe link.')
+        return
+    }
+
     sendLoading.value = true
     try {
         if (sendMode.value === 'broadcast') {
             const result = await api<{ sent: number, failed: number }>(`/projects/${props.project.id}/broadcast`, {
                 method: 'POST',
-                body: { template_id: selectedTemplate.value, variables: templateVars.value },
+                body: { template_id: selectedTemplate.value, subject: subjectOverride.value, variables: templateVars.value },
             })
             toast.success(`Broadcast complete: ${result.sent} sent, ${result.failed} failed`)
         } else {
@@ -121,7 +134,7 @@ async function handleSend() {
             }
             await api(`/projects/${props.project.id}/send`, {
                 method: 'POST',
-                body: { template_id: selectedTemplate.value, to: directEmail.value, data: templateVars.value },
+                body: { template_id: selectedTemplate.value, to: directEmail.value, subject: subjectOverride.value, data: templateVars.value },
             })
             toast.success(`Email sent to ${directEmail.value}`)
         }
@@ -219,6 +232,18 @@ onMounted(loadData)
                     </select>
                 </div>
 
+                <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-1">
+                        Subject
+                        <span v-if="templateHasSubject" class="text-zinc-500 font-normal">(override the template's subject — optional)</span>
+                    </label>
+                    <input v-model="subjectOverride" type="text" :placeholder="templateHasSubject ? selectedTemplateData?.subject : 'Set a subject'"
+                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent" />
+                    <p v-if="!templateHasSubject && !subjectOverride.trim()" class="text-xs text-yellow-400 mt-1">
+                        This template has no subject. Sending without one is a strong spam signal — most providers will route it to the spam folder.
+                    </p>
+                </div>
+
                 <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
                     <p class="text-xs font-medium text-zinc-400">Template Variables</p>
 
@@ -247,8 +272,9 @@ onMounted(loadData)
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-2">Send to</label>
                     <div class="flex gap-2 mb-3">
-                        <button @click="sendMode = 'broadcast'"
-                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer', sendMode === 'broadcast' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white']">
+                        <button @click="sendMode = 'broadcast'" :disabled="!appStore.publicUrlIsReachable"
+                            :title="!appStore.publicUrlIsReachable ? 'Set PUBLIC_URL to a public domain to enable broadcasts' : ''"
+                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed', sendMode === 'broadcast' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white']">
                             All subscribers
                         </button>
                         <button @click="sendMode = 'direct'"

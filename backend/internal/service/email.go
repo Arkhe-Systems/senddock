@@ -13,6 +13,7 @@ import (
 	"html"
 	"log"
 	"net/smtp"
+	"net/url"
 	"strings"
 	"time"
 
@@ -21,6 +22,36 @@ import (
 	"github.com/google/uuid"
 	premailer "github.com/vanng822/go-premailer/premailer"
 )
+
+const unsubscribeFooter = `<hr style="margin:32px 0 16px;border:none;border-top:1px solid #e5e5e5"><p style="font-size:12px;color:#888;text-align:center;font-family:Arial,sans-serif;line-height:1.5">Don't want to receive these emails? <a href="{{unsubscribe_url}}" style="color:#888;text-decoration:underline">Unsubscribe</a>.</p>`
+
+func IsPublicURLReachable(rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "" {
+		return false
+	}
+	if host == "localhost" || strings.HasPrefix(host, "127.") || host == "::1" || host == "0.0.0.0" {
+		return false
+	}
+	return true
+}
+
+func ensureUnsubscribeFooter(body string) string {
+	if strings.Contains(body, "{{unsubscribe_url}}") {
+		return body
+	}
+	if idx := strings.LastIndex(strings.ToLower(body), "</body>"); idx != -1 {
+		return body[:idx] + unsubscribeFooter + body[idx:]
+	}
+	return body + unsubscribeFooter
+}
 
 type EmailService struct {
 	queries   *db.Queries
@@ -92,15 +123,17 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 		return SendResult{}, errors.New("subscriber is not active")
 	}
 
-	body := replaceVariables(template.HtmlBody, sub)
+	body := ensureUnsubscribeFooter(template.HtmlBody)
+	body = replaceVariables(body, sub)
 	subject := replaceVariablesSimple(template.Subject, sub)
 
-	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", s.unsubURL(pid.String(), sid.String()))
+	unsubURL := s.unsubURL(pid.String(), sid.String())
+	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
 	logID := s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, nil)
 	body = s.injectTrackingPixel(body, logID)
 
-	sendErr := s.sendSMTP(project, sub.Email, subject, body)
+	sendErr := s.sendSMTP(project, sub.Email, subject, body, unsubURL)
 	if sendErr != nil {
 		s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
 		return SendResult{Failed: 1}, sendErr
@@ -108,7 +141,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	return SendResult{Sent: 1}, nil
 }
 
-func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID string, campaignVars json.RawMessage) (SendResult, error) {
+func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage) (SendResult, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return SendResult{}, errors.New("invalid project id")
@@ -121,6 +154,10 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 
 	if !project.SmtpHost.Valid || !project.SmtpUser.Valid || !project.SmtpPasswordEncrypted.Valid {
 		return SendResult{}, errors.New("smtp not configured")
+	}
+
+	if !IsPublicURLReachable(s.publicURL) {
+		return SendResult{}, errors.New("PUBLIC_URL is not set to a publicly reachable URL. Newsletters need a working unsubscribe link before they can be sent. Set PUBLIC_URL in your .env to your public domain and restart the server")
 	}
 
 	tid, err := uuid.Parse(templateID)
@@ -149,11 +186,17 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 		_ = json.Unmarshal(campaignVars, &customVars)
 	}
 
+	templateBody := ensureUnsubscribeFooter(template.HtmlBody)
+	baseSubject := template.Subject
+	if subjectOverride != "" {
+		baseSubject = subjectOverride
+	}
+
 	go func() {
 		bgCtx := context.Background()
 		for _, sub := range subscribers {
-			body := template.HtmlBody
-			subject := template.Subject
+			body := templateBody
+			subject := baseSubject
 
 			for k, v := range customVars {
 				body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
@@ -163,9 +206,10 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 			body = replaceVariables(body, sub)
 			subject = replaceVariablesSimple(subject, sub)
 
-			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", s.unsubURL(pid.String(), sub.ID.String()))
+			unsubURL := s.unsubURL(pid.String(), sub.ID.String())
+			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-			sendErr := s.sendSMTP(project, sub.Email, subject, body)
+			sendErr := s.sendSMTP(project, sub.Email, subject, body, unsubURL)
 			s.logEmail(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
 		}
 		log.Printf("Broadcast to %d subscribers completed for project %s", total, pid.String())
@@ -189,7 +233,7 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 		return errors.New("smtp not configured")
 	}
 
-	sendErr := s.sendSMTP(project, to, subject, htmlBody)
+	sendErr := s.sendSMTP(project, to, subject, htmlBody, "")
 
 	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, sendErr)
 
@@ -231,7 +275,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		subject = strings.ReplaceAll(subject, "{{"+key+"}}", val)
 	}
 
-	sendErr := s.sendSMTP(project, to, subject, body)
+	sendErr := s.sendSMTP(project, to, subject, body, "")
 
 	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, sendErr)
 
@@ -394,10 +438,10 @@ func (s *EmailService) TestSMTP(ctx context.Context, projectID string) error {
 		fromEmail = project.FromEmail.String
 	}
 
-	return s.sendSMTP(project, fromEmail, "SendDock SMTP Test", "<h2>SMTP is working!</h2><p>Your SendDock SMTP configuration is correct.</p>")
+	return s.sendSMTP(project, fromEmail, "SendDock SMTP Test", "<h2>SMTP is working!</h2><p>Your SendDock SMTP configuration is correct.</p>", "")
 }
 
-func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody string) error {
+func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody, unsubscribeURL string) error {
 	host := project.SmtpHost.String
 	port := project.SmtpPort.Int32
 	user := project.SmtpUser.String
@@ -419,8 +463,12 @@ func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody string
 
 	inlinedBody := inlineCSS(htmlBody)
 
-	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n%s",
-		from, to, subject, inlinedBody)
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n",
+		from, to, subject)
+	if unsubscribeURL != "" {
+		headers += fmt.Sprintf("List-Unsubscribe: <%s>\r\n", unsubscribeURL)
+	}
+	msg := headers + "\r\n" + inlinedBody
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 

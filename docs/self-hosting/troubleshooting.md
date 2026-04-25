@@ -4,6 +4,31 @@ Common problems you might run into when self-hosting SendDock, and how to fix th
 
 ## Outgoing emails
 
+### 429 "rate limit exceeded for this project on this endpoint"
+
+**Cause:** You hit the per-project rate limit on a sending endpoint. The limits are intentional spam protection. See [Rate limits](/guide/sending#rate-limits-and-abuse-prevention) for the full table.
+
+**Fix:**
+
+- Check the `Retry-After` header for how long to wait before retrying.
+- If you legitimately need higher throughput, switch to **subscribers + broadcast** (a single broadcast call to a 50k list is one request, not 50k).
+- If you are looping over `/send` to reach all your subscribers, that is exactly the pattern these limits are meant to block — store the recipients as subscribers and call `/broadcast` once.
+- If your tests are tripping the limit, scope them to use a unique project per test run, or unset `REDIS_URL` in your test environment to disable rate limiting (do not do this in production).
+
+### "Newsletters are disabled" banner / cannot send broadcasts
+
+**Symptom:** The Newsletters page shows a yellow banner saying broadcasts are disabled, the "+ New Campaign" button is greyed out, or the API returns 400 with an error mentioning `PUBLIC_URL is not set to a publicly reachable URL`.
+
+**Cause:** SendDock refuses to send broadcasts and schedule campaigns when `PUBLIC_URL` is unset or resolves to `localhost` / `127.0.0.1` / `::1`. Without a public URL, the unsubscribe links inside outgoing emails would not work for recipients, which is the canonical spam pattern.
+
+**Fix:**
+
+1. Put SendDock behind a real domain (reverse proxy + DNS — see [Reverse Proxy](/self-hosting/installation#reverse-proxy-https)).
+2. Set `PUBLIC_URL=https://your-domain.com` in your `.env` (no trailing slash).
+3. Restart the server.
+
+Single-recipient sends (`/send`) and `/send/batch` continue to work without `PUBLIC_URL`, so transactional flows (password resets, contact-form notifications) do not require a public domain.
+
 ### Unsubscribe links don't work / land on a 404
 
 **Symptom:** Recipients click the unsubscribe link inside an email and get a 404 or a "Link expired or invalid" page.
@@ -129,47 +154,70 @@ Or, if running via Docker, exec into the backend container and run the same comm
 
 **Cause:** Default Windows execution policy blocks unsigned PowerShell scripts. SendDock's `setup.ps1` is plain text, not signed by a certificate.
 
-**Fix:** Allow scripts **for the current session only** — no permanent security change, the bypass reverts when you close the window:
+**Fix (one-shot, for the current session only):**
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-### "`.env` already exists. Delete it first if you want to re-run setup"
+The bypass reverts when you close the PowerShell window — nothing is changed permanently.
 
-**Cause:** A previous run of `setup.ps1` / `setup.sh` got far enough to create the `.env` file but failed before finishing (usually because the Docker daemon wasn't ready yet, or an image pull errored). The script refuses to overwrite your `.env` so it doesn't clobber a working config.
-
-**Fix:** Clean the partial state and re-run:
-
-```bash
-# Linux / macOS
-rm .env
-docker compose -f docker-compose.prod.yml down -v
-./setup.sh
-```
+**Fix (permanent, for your user):**
 
 ```powershell
-# Windows
-Remove-Item .env
-docker compose -f docker-compose.prod.yml down -v
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+`RemoteSigned` allows local scripts (like `setup.ps1` after you have it on disk) and still requires a signature for scripts downloaded from the internet, so it is safer than a blanket `Bypass`.
+
+If you downloaded SendDock as a ZIP, Windows may have flagged the extracted files as "from the internet" (Mark-of-the-Web), and `RemoteSigned` will keep blocking them. Unblock the script once and it stays unblocked:
+
+```powershell
+Unblock-File .\setup.ps1
 .\setup.ps1
 ```
 
-The `down -v` flag also removes the Postgres and Redis volumes — important so the next run doesn't try to run migrations against a half-initialized database.
+Cloning the repository with `git clone` instead of downloading a ZIP avoids the Mark-of-the-Web tag entirely.
 
-### `setup.ps1` prints "SendDock is running" but `localhost:8080` refuses the connection
+### Postgres "password authentication failed" after re-running setup
 
-**Cause:** The script reports success based on the file generation steps, not on whether `docker compose up` actually brought the containers online. If an image pull fails partway through, you'll see the green "running" message but no container is actually serving on 8080.
+**Cause:** A previous setup run created a Postgres volume with one password, then `.env` was deleted and the script generated a new password on the next run. Postgres does not re-initialize when its data directory already has data, so it keeps the old password — the app then fails to authenticate against it.
 
-**Fix:** Check what's actually up:
+**Fix:** Use the reset flag, which tears down volumes and `.env` together:
+
+```bash
+./setup.sh --reset      # Linux / macOS
+.\setup.ps1 -Reset      # Windows
+```
+
+This runs `docker compose down -v` (wiping the Postgres volume), removes `.env`, and performs a clean install with matching credentials.
+
+If you previously ran setup with an older version that did not have `--reset`, manually clean before retrying:
+
+```bash
+docker compose -f docker-compose.prod.yml down -v
+docker volume prune -f
+rm .env
+./setup.sh
+```
+
+### Setup exits with "SendDock did not become ready within 60 seconds"
+
+**Cause:** The setup script waits up to 60 seconds for `GET /health` on the app container to respond. If it does not, the container is either still building, restarting, or failing on startup.
+
+**Fix:** Inspect what the app container is doing:
 
 ```bash
 docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs app
+docker compose -f docker-compose.prod.yml logs app --tail 100
 ```
 
-If `app` isn't listed or is restarting, scroll up in the `setup.ps1` / `setup.sh` output for the real error (commonly a Docker pull failure or a migration error). Once you've fixed the underlying issue, follow the cleanup steps from the previous section and re-run setup.
+Common causes:
+
+- The build was very slow (large npm install, slow disk). Wait another minute and check `docker compose ps` — if `app` is `Up`, you are fine; just refresh the browser.
+- Migration failure — usually a Postgres password mismatch, see the section above on credential mismatches.
+- `JWT_SECRET must be at least 32 characters` — re-run with `--reset` to regenerate.
 
 ## Redis
 
