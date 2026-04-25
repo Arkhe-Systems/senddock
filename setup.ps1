@@ -3,21 +3,18 @@ param(
     [switch]$Logs
 )
 
-$ErrorActionPreference = "Stop"
 $ComposeFile = "docker-compose.prod.yml"
 
 function Test-DockerReady {
-    try {
-        docker info *> $null
-        return $LASTEXITCODE -eq 0
-    } catch {
-        return $false
-    }
+    docker info 2>&1 | Out-Null
+    return $LASTEXITCODE -eq 0
 }
 
 function Get-SenddockVolumes {
-    $project = Split-Path -Leaf (Get-Location)
-    docker volume ls --format "{{.Name}}" 2>$null | Where-Object { $_ -like "${project}_*" }
+    $project = (Split-Path -Leaf (Get-Location)).ToLower() -replace '[^a-z0-9]', ''
+    $output = docker volume ls --format "{{.Name}}" 2>&1
+    if ($LASTEXITCODE -ne 0) { return @() }
+    return $output | Where-Object { $_ -like "${project}_*" }
 }
 
 if (-not (Test-DockerReady)) {
@@ -28,7 +25,7 @@ if (-not (Test-DockerReady)) {
 
 if ($Reset) {
     Write-Host "Reset requested. Tearing down containers and volumes..." -ForegroundColor Yellow
-    docker compose -f $ComposeFile down -v *> $null
+    docker compose -f $ComposeFile down -v 2>&1 | Out-Null
     if (Test-Path .env) { Remove-Item .env -Force }
     Write-Host "Reset complete. Continuing with a fresh install." -ForegroundColor Green
     Write-Host ""
