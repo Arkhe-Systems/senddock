@@ -7,6 +7,7 @@ import { api } from '@/api/client'
 interface SetupStatus {
   setup_required: boolean
   deployment_mode: string
+  public_url: string
 }
 
 const router = createRouter({
@@ -90,6 +91,7 @@ router.beforeEach(async (to) => {
       const status = await api<SetupStatus>('/setup/status')
       app.setupRequired = status.setup_required
       app.deploymentMode = status.deployment_mode
+      app.publicUrl = status.public_url || ''
     } catch {
       app.setupRequired = false
     }

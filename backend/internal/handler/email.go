@@ -286,8 +286,9 @@ func (h *EmailHandler) Stats(w http.ResponseWriter, r *http.Request) {
 func (h *EmailHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("id")
 	subscriberID := r.PathValue("subscriberId")
+	token := r.URL.Query().Get("t")
 
-	err := h.emailService.Unsubscribe(r.Context(), projectID, subscriberID)
+	err := h.emailService.Unsubscribe(r.Context(), projectID, subscriberID, token)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusNotFound)

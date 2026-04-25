@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/tls"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,13 +24,28 @@ import (
 
 type EmailService struct {
 	queries   *db.Queries
-	baseURL   string
+	publicURL string
 	encSecret string
 	cache     *cache.Redis
 }
 
-func NewEmailService(queries *db.Queries, baseURL, encSecret string, redis *cache.Redis) *EmailService {
-	return &EmailService{queries: queries, baseURL: baseURL, encSecret: encSecret, cache: redis}
+func NewEmailService(queries *db.Queries, publicURL, encSecret string, redis *cache.Redis) *EmailService {
+	return &EmailService{queries: queries, publicURL: publicURL, encSecret: encSecret, cache: redis}
+}
+
+func (s *EmailService) signUnsub(projectID, subscriberID string) string {
+	mac := hmac.New(sha256.New, []byte(s.encSecret))
+	mac.Write([]byte(projectID + ":" + subscriberID))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func (s *EmailService) verifyUnsubToken(projectID, subscriberID, token string) bool {
+	expected := s.signUnsub(projectID, subscriberID)
+	return hmac.Equal([]byte(expected), []byte(token))
+}
+
+func (s *EmailService) unsubURL(projectID, subscriberID string) string {
+	return fmt.Sprintf("%s/unsubscribe/%s/%s?t=%s", s.publicURL, projectID, subscriberID, s.signUnsub(projectID, subscriberID))
 }
 
 type SendResult struct {
@@ -77,8 +95,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	body := replaceVariables(template.HtmlBody, sub)
 	subject := replaceVariablesSimple(template.Subject, sub)
 
-	unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sid.String())
-	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
+	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", s.unsubURL(pid.String(), sid.String()))
 
 	logID := s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, nil)
 	body = s.injectTrackingPixel(body, logID)
@@ -146,8 +163,7 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID stri
 			body = replaceVariables(body, sub)
 			subject = replaceVariablesSimple(subject, sub)
 
-			unsubURL := fmt.Sprintf("%s/unsubscribe/%s/%s", s.baseURL, pid.String(), sub.ID.String())
-			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
+			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", s.unsubURL(pid.String(), sub.ID.String()))
 
 			sendErr := s.sendSMTP(project, sub.Email, subject, body)
 			s.logEmail(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
@@ -327,14 +343,18 @@ func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscr
 }
 
 func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string {
-	pixel := fmt.Sprintf(`<img src="%s/t/%s.gif" width="1" height="1" style="display:none" />`, s.baseURL, logID.String())
+	pixel := fmt.Sprintf(`<img src="%s/t/%s.gif" width="1" height="1" style="display:none" />`, s.publicURL, logID.String())
 	if strings.Contains(body, "</body>") {
 		return strings.Replace(body, "</body>", pixel+"</body>", 1)
 	}
 	return body + pixel
 }
 
-func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID string) error {
+func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID, token string) error {
+	if !s.verifyUnsubToken(projectID, subscriberID, token) {
+		return errors.New("invalid token")
+	}
+
 	sid, err := uuid.Parse(subscriberID)
 	if err != nil {
 		return errors.New("invalid subscriber id")
