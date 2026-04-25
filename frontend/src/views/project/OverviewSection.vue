@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
+import { useAppStore } from '@/stores/app'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -31,6 +32,7 @@ interface Template {
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
+const appStore = useAppStore()
 
 const stats = ref<EmailStats>({ total: 0, sent: 0, failed: 0 })
 const recentLogs = ref<EmailLog[]>([])
@@ -87,7 +89,7 @@ async function openSendModal() {
             return
         }
         selectedTemplate.value = templates.value[0]?.id ?? ''
-        sendMode.value = 'broadcast'
+        sendMode.value = appStore.publicUrlIsReachable ? 'broadcast' : 'direct'
         directEmail.value = ''
         showSendModal.value = true
     } catch {
@@ -102,6 +104,11 @@ function varLabel(v: string | undefined) {
 async function handleSend() {
     if (!selectedTemplate.value) {
         toast.error('Select a template')
+        return
+    }
+
+    if (sendMode.value === 'broadcast' && !appStore.publicUrlIsReachable) {
+        toast.error('Configure PUBLIC_URL with your public domain before sending broadcasts. Recipients need a working unsubscribe link.')
         return
     }
 
@@ -247,8 +254,9 @@ onMounted(loadData)
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-2">Send to</label>
                     <div class="flex gap-2 mb-3">
-                        <button @click="sendMode = 'broadcast'"
-                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer', sendMode === 'broadcast' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white']">
+                        <button @click="sendMode = 'broadcast'" :disabled="!appStore.publicUrlIsReachable"
+                            :title="!appStore.publicUrlIsReachable ? 'Set PUBLIC_URL to a public domain to enable broadcasts' : ''"
+                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed', sendMode === 'broadcast' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white']">
                             All subscribers
                         </button>
                         <button @click="sendMode = 'direct'"
