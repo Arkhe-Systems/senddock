@@ -8,6 +8,7 @@ import AppModal from '@/components/ui/AppModal.vue';
 import AppLoader from '@/components/ui/AppLoader.vue';
 import AppInput from '@/components/ui/AppInput.vue';
 import AppAlert from '@/components/ui/AppAlert.vue';
+import UpdateBadge from '@/components/UpdateBadge.vue';
 import { api } from '@/api/client';
 import { useToastStore } from '@/stores/toast';
 
@@ -91,10 +92,13 @@ onMounted(async () => {
         <div class="max-w-5xl mx-auto">
             <div class="flex items-center justify-between mb-10">
                 <h1 class="text-2xl font-bold text-white">SendDock</h1>
-                <button @click="handleLogout"
-                    class="px-4 py-2 text-sm text-zinc-400 hover:text-white border border-zinc-800 rounded-lg transition cursor-pointer">
-                    Logout
-                </button>
+                <div class="flex items-center gap-3">
+                    <UpdateBadge />
+                    <button @click="handleLogout"
+                        class="px-4 py-2 text-sm text-zinc-400 hover:text-white border border-zinc-800 rounded-lg transition cursor-pointer">
+                        Logout
+                    </button>
+                </div>
             </div>
 
             <AppLoader v-if="pageLoading" message="Loading projects..." />
