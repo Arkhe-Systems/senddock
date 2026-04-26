@@ -275,7 +275,19 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		subject = strings.ReplaceAll(subject, "{{"+key+"}}", val)
 	}
 
-	sendErr := s.sendSMTP(project, to, subject, body, "")
+	var unsubscribeURL string
+	if strings.Contains(body, "{{unsubscribe_url}}") {
+		sub, err := s.queries.GetSubscriberByEmail(ctx, db.GetSubscriberByEmailParams{Email: to, ProjectID: pid})
+		if err == nil {
+			unsubscribeURL = s.unsubURL(pid.String(), sub.ID.String())
+			body = strings.ReplaceAll(body, "{{name}}", html.EscapeString(sub.Name))
+			body = strings.ReplaceAll(body, "{{email}}", html.EscapeString(sub.Email))
+			body = strings.ReplaceAll(body, "{{subscriber_id}}", sub.ID.String())
+		}
+		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubscribeURL)
+	}
+
+	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
 
 	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, sendErr)
 
