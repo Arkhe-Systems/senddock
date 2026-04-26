@@ -406,6 +406,39 @@ func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string 
 	return body + pixel
 }
 
+type UnsubscribeContext struct {
+	ProjectName string
+	Email       string
+}
+
+func (s *EmailService) ResolveUnsubscribe(ctx context.Context, projectID, subscriberID, token string) (UnsubscribeContext, error) {
+	if !s.verifyUnsubToken(projectID, subscriberID, token) {
+		return UnsubscribeContext{}, errors.New("invalid token")
+	}
+
+	sid, err := uuid.Parse(subscriberID)
+	if err != nil {
+		return UnsubscribeContext{}, errors.New("invalid subscriber id")
+	}
+
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return UnsubscribeContext{}, errors.New("invalid project id")
+	}
+
+	sub, err := s.queries.GetSubscriberByID(ctx, db.GetSubscriberByIDParams{ID: sid, ProjectID: pid})
+	if err != nil {
+		return UnsubscribeContext{}, errors.New("subscriber not found")
+	}
+
+	project, err := s.queries.GetProjectByIDOnly(ctx, pid)
+	if err != nil {
+		return UnsubscribeContext{}, errors.New("project not found")
+	}
+
+	return UnsubscribeContext{ProjectName: project.Name, Email: sub.Email}, nil
+}
+
 func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID, token string) error {
 	if !s.verifyUnsubToken(projectID, subscriberID, token) {
 		return errors.New("invalid token")
@@ -478,7 +511,7 @@ func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody, unsub
 	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n",
 		from, to, subject)
 	if unsubscribeURL != "" {
-		headers += fmt.Sprintf("List-Unsubscribe: <%s>\r\n", unsubscribeURL)
+		headers += fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", unsubscribeURL)
 	}
 	msg := headers + "\r\n" + inlinedBody
 

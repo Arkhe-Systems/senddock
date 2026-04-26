@@ -98,7 +98,9 @@ Every broadcast carries a working unsubscribe link, no matter what your template
 
 - If your template uses the `{{unsubscribe_url}}` placeholder, SendDock replaces it with a per-recipient link signed with HMAC.
 - If your template **does not** use the placeholder, SendDock auto-appends a small unsubscribe footer at the bottom of the email so the link is always present.
-- A `List-Unsubscribe` header is also added, so Gmail and Outlook show their native "Unsubscribe" button next to the sender's name.
+- The `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers are also added (RFC 8058), so Gmail and Outlook expose their native one-click "Unsubscribe" button next to the sender's name. Hitting that button POSTs directly to the unsubscribe endpoint without requiring the recipient to load a webpage.
+
+When a recipient clicks the unsubscribe link inside the email body, SendDock shows a minimal confirmation page styled to match the app — the recipient must click "Confirm unsubscribe" before their status changes. That second step prevents accidental unsubscribes from email-client link prefetchers and corporate security scanners that follow links automatically.
 
 The link is signed with a token derived from `JWT_SECRET` — recipients cannot be unsubscribed by guessing UUIDs, and tampering with the token returns a "Link expired or invalid" page.
 
