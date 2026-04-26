@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"html"
 	"net/http"
 	"strconv"
 	"time"
@@ -336,19 +337,93 @@ func (h *EmailHandler) Stats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(stats)
 }
 
+func (h *EmailHandler) UnsubscribePage(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("id")
+	subscriberID := r.PathValue("subscriberId")
+	token := r.URL.Query().Get("t")
+
+	ctx, err := h.emailService.ResolveUnsubscribe(r.Context(), projectID, subscriberID, token)
+	if err != nil {
+		writeUnsubscribeHTML(w, http.StatusNotFound, unsubscribeInvalidPage())
+		return
+	}
+
+	writeUnsubscribeHTML(w, http.StatusOK, unsubscribeConfirmPage(ctx.ProjectName, ctx.Email, projectID, subscriberID, token))
+}
+
 func (h *EmailHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("id")
 	subscriberID := r.PathValue("subscriberId")
 	token := r.URL.Query().Get("t")
 
-	err := h.emailService.Unsubscribe(r.Context(), projectID, subscriberID, token)
-	if err != nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>Link expired or invalid</h2></body></html>"))
+	if err := h.emailService.Unsubscribe(r.Context(), projectID, subscriberID, token); err != nil {
+		writeUnsubscribeHTML(w, http.StatusNotFound, unsubscribeInvalidPage())
 		return
 	}
 
+	writeUnsubscribeHTML(w, http.StatusOK, unsubscribeDonePage())
+}
+
+func writeUnsubscribeHTML(w http.ResponseWriter, status int, body string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte("<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>You have been unsubscribed</h2><p>You will no longer receive emails from this project.</p></body></html>"))
+	w.WriteHeader(status)
+	w.Write([]byte(body))
+}
+
+func unsubscribePageShell(content string) string {
+	return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Unsubscribe</title><style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#09090b;color:#fafafa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,sans-serif;line-height:1.5;padding:24px}
+.card{width:100%;max-width:420px;background:#18181b;border:1px solid #27272a;border-radius:12px;padding:32px;text-align:center}
+.card h1{margin:0 0 8px;font-size:18px;font-weight:600;letter-spacing:-0.01em}
+.card p{margin:0 0 8px;font-size:14px;color:#a1a1aa}
+.email{display:inline-block;margin:8px 0 24px;padding:6px 12px;background:#27272a;border-radius:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:13px;color:#fafafa}
+.project{color:#fafafa;font-weight:500}
+button,.button{display:inline-block;width:100%;padding:10px 16px;border:0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+.danger{background:#fafafa;color:#09090b}
+.danger:hover{background:#e4e4e7}
+.muted{margin-top:8px;background:transparent;color:#a1a1aa}
+.muted:hover{color:#fafafa}
+.hint{margin-top:24px;font-size:12px;color:#52525b}
+.icon{margin:0 auto 16px;width:40px;height:40px;border-radius:999px;background:#27272a;display:flex;align-items:center;justify-content:center;color:#a1a1aa;font-size:20px;line-height:1}
+.success .icon{background:rgba(34,197,94,0.1);color:#4ade80}
+.error .icon{background:rgba(239,68,68,0.1);color:#f87171}
+form{margin:0}
+</style></head><body>` + content + `</body></html>`
+}
+
+func unsubscribeConfirmPage(projectName, email, projectID, subscriberID, token string) string {
+	safeProject := html.EscapeString(projectName)
+	safeEmail := html.EscapeString(email)
+	action := "/unsubscribe/" + projectID + "/" + subscriberID + "?t=" + token
+	return unsubscribePageShell(`
+<div class="card">
+	<div class="icon">&#9993;</div>
+	<h1>Unsubscribe from <span class="project">` + safeProject + `</span>?</h1>
+	<p>You are about to stop receiving emails sent to</p>
+	<span class="email">` + safeEmail + `</span>
+	<form method="POST" action="` + action + `">
+		<button type="submit" class="danger">Confirm unsubscribe</button>
+	</form>
+	<p class="hint">If you reached this page by accident, just close this tab.</p>
+</div>`)
+}
+
+func unsubscribeDonePage() string {
+	return unsubscribePageShell(`
+<div class="card success">
+	<div class="icon">&#10003;</div>
+	<h1>You have been unsubscribed</h1>
+	<p>You will no longer receive emails from this list. You can close this tab.</p>
+</div>`)
+}
+
+func unsubscribeInvalidPage() string {
+	return unsubscribePageShell(`
+<div class="card error">
+	<div class="icon">&#9888;</div>
+	<h1>Link expired or invalid</h1>
+	<p>This unsubscribe link is no longer valid. If you keep receiving emails you don't want, reply to one of them and the sender can remove you manually.</p>
+</div>`)
 }
