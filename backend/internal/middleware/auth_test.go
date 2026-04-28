@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -71,7 +72,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 	var capturedUserID string
 
 	handler := Auth(secret)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedUserID = r.Context().Value(UserIDKey).(string)
+		capturedUserID = r.Context().Value(auth.UserIDKey).(string)
 		w.WriteHeader(http.StatusOK)
 	}))
 

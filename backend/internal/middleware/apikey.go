@@ -9,9 +9,8 @@ import (
 	"strings"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/pkg/auth"
 )
-
-const ProjectIDKey contextKey = "projectID"
 
 type APIKeyValidator interface {
 	GetAPIKeyByHash(ctx context.Context, keyHash string) (db.ApiKey, error)
@@ -44,7 +43,7 @@ func APIKey(queries *db.Queries) func(http.Handler) http.Handler {
 
 			queries.UpdateAPIKeyLastUsed(r.Context(), apiKey.ID)
 
-			ctx := context.WithValue(r.Context(), ProjectIDKey, apiKey.ProjectID.String())
+			ctx := context.WithValue(r.Context(), auth.ProjectIDKey, apiKey.ProjectID.String())
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
