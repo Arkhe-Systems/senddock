@@ -10,7 +10,6 @@ import AppAlert from '@/components/ui/AppAlert.vue'
 const route = useRoute()
 
 const reasonMessages: Record<string, string> = {
-    auth_required: "You need to sign in to access that page.",
     session_expired: "Your session has expired. Please sign in again."
 }
 const reason = route.query.reason as string | undefined
