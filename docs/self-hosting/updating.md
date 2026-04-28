@@ -1,21 +1,72 @@
 # Updating
 
-SendDock checks for new releases on its own and tells you when one is available. The dashboard displays the current version next to the logout button. When a newer version is published on GitHub, the version label turns into a yellow "Update available" badge — click it to see what changed and copy the update command.
+SendDock checks for new releases on its own and tells you when one is available. The dashboard displays the current version next to the logout button. When a newer version is published on Docker Hub / GitHub, the version label turns into a yellow "Update available" badge — click it to see what changed and copy the update command.
 
 Behind the scenes the dashboard polls `GET /api/v1/version` once on load. The backend caches the GitHub releases response in Redis for 1 hour, so check traffic stays well inside GitHub's anonymous rate limit even with hundreds of self-hosters.
 
-Two paths exist depending on what you want to do.
+The update path depends on which install you started from.
 
-| Goal | Command | Loses data? |
-|------|---------|-------------|
-| Pick up a new release, keep all my data | `git pull && ./setup.sh` | No |
-| My install is broken, wipe and start over | `./setup.sh --reset` | **Yes, everything** |
+| Install path | Update command |
+|---|---|
+| Prebuilt image (Option 1) | `docker compose pull && docker compose up -d` |
+| Dokploy (Option 2) | One-click "Redeploy" in the Dokploy UI |
+| Build from source (Option 3) | `git pull && ./setup.sh` |
 
-The `setup.sh` / `setup.ps1` script is the single entry point. It detects what state you're in and acts accordingly — there is no separate `update` command to remember.
+In every case **your data is preserved**. Postgres lives in a named Docker volume that is not touched by image updates. Migrations are run by `goose`, which deduplicates against the `goose_db_version` table and only applies what hasn't been applied before.
 
-## Update without losing data
+---
 
-Use this when a new version is available and you want to keep your subscribers, templates, email history, and configuration.
+## Updating a prebuilt image install
+
+Use this when you installed via the canonical `arkhe-systems/senddock` image (Option 1 in [Installation](./installation)).
+
+```bash
+cd senddock
+docker compose pull
+docker compose up -d
+docker compose logs -f senddock
+```
+
+What happens:
+
+1. `docker compose pull` fetches the latest `arkhe-systems/senddock` image from Docker Hub. Postgres and Redis images update too unless you've pinned them.
+2. `docker compose up -d` recreates the `senddock` container with the new image. Postgres and Redis containers stay running unless their image changed.
+3. The new container's entrypoint runs `goose -dir /app/migrations postgres "$DATABASE_URL" up`, which applies any new migrations. Existing rows in `goose_db_version` are skipped.
+4. The healthcheck in `docker-compose.yml` flips to "healthy" once `/health` returns 200 — usually within 10 seconds.
+
+What is preserved:
+
+- `pgdata` volume (subscribers, templates, projects, logs, campaigns, API keys, audit log)
+- `redisdata` volume (caches; not critical, will rebuild)
+- `.env` (secrets, license key, configuration)
+
+Pin the version in `docker-compose.yml` to control update timing:
+
+```yaml
+services:
+  senddock:
+    image: arkhe-systems/senddock:0.4.0
+```
+
+When you decide to upgrade, edit the tag, then `docker compose pull && docker compose up -d`.
+
+### License key on update
+
+The license validator caches its last-good response for 1 hour. After an update the new container runs through validation again on first startup. If your subscription is active, Pro features unlock immediately. If the license has expired or been revoked, Pro routes start returning `402 Payment Required` on the next validation tick — Core features remain fully available.
+
+---
+
+## Updating a Dokploy install
+
+Open the SendDock app in Dokploy → click "Redeploy". Dokploy runs `docker compose pull && docker compose up -d` against the same volumes.
+
+If you switch to a pinned version, edit the env var in Dokploy and Redeploy. The volume is not touched.
+
+---
+
+## Updating a source build
+
+Use this when you installed via `git clone` + `./setup.sh`.
 
 ```bash
 cd senddock
@@ -24,122 +75,130 @@ git pull origin main
 .\setup.ps1       # Windows
 ```
 
-What is preserved:
-
-- `.env` (secrets, database password, JWT secret, configuration)
-- Postgres volume (subscribers, templates, projects, logs, campaigns, API keys)
-- Redis volume (caches; not critical, will rebuild)
-
-What happens during the update:
+What happens:
 
 1. Detects the existing `.env` and reuses it.
-2. `docker compose build --pull` rebuilds the image with the new code.
+2. `docker compose -f docker-compose.prod.yml build --pull` rebuilds the image with the new code and pulls fresh base images.
 3. `docker compose up -d` restarts the services.
-4. The `entrypoint.sh` runs any new migrations on the existing database.
+4. The container's entrypoint runs any new migrations on the existing database.
 5. A health check polls `GET /health` for up to 60 seconds. The script only reports success once SendDock actually responds.
 
-If the build fails or the app never becomes healthy, the script exits non-zero and points at `docker compose logs app`.
+Same data preservation guarantees as the image flow.
 
-## Clean reinstall (wipe everything)
+If the build fails or the app never becomes healthy, the script exits non-zero and points at `docker compose logs senddock`.
 
-Use this only when:
+---
 
-- Your install is broken in a way that an update can't fix (corrupted volume, password mismatch you can't recover from, etc.).
-- You're testing on a throwaway instance.
-- You took a backup and want a fresh start.
+## Manual update without scripts or Compose
 
-```bash
-./setup.sh --reset        # Linux / macOS
-.\setup.ps1 -Reset        # Windows
-```
-
-What gets deleted:
-
-- Both Docker volumes (Postgres + Redis) — **all your data**.
-- `.env` (regenerated with new secrets).
-- Existing containers (recreated from scratch).
-
-After reset, the script behaves like a fresh install: generates a new `.env`, builds the image, starts services, waits for the health check, and prompts you to create the admin account at `http://localhost:8080`.
-
-## Manual update without the setup script
-
-If you want to control each step yourself (CI/CD pipelines, restricted environments, debugging a release):
+For CI/CD pipelines, restricted environments, or step-by-step debugging:
 
 ```bash
-cd senddock
-git fetch origin
-git status                             # confirm there are no local changes you want to keep
-git reset --hard origin/main           # or origin/v0.x.x for a specific tag
-docker compose -f docker-compose.prod.yml build --pull
-docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml logs -f app
+docker pull arkhe-systems/senddock:latest
+docker stop senddock-old
+docker rm senddock-old
+docker run -d \
+    --name senddock \
+    --env-file /etc/senddock/.env \
+    --network senddock-net \
+    -p 8080:8080 \
+    arkhe-systems/senddock:latest
 ```
 
-Same idea on Windows:
+Whatever orchestrator you use (Kubernetes, Nomad, plain systemd-with-podman), the steps boil down to:
 
-```powershell
-cd senddock
-git fetch origin
-git reset --hard origin/main
-docker compose -f docker-compose.prod.yml build --pull
-docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml logs -f app
-```
+1. Pull the new image.
+2. Stop the old container.
+3. Start a new container against the same `DATABASE_URL` and `JWT_SECRET`.
+4. The entrypoint runs `goose up`. New migrations apply, old ones are skipped.
 
-What each step does:
+---
 
-- `git fetch origin` — downloads remote refs without touching your working tree.
-- `git reset --hard origin/main` — replaces your working tree with the remote contents. **Drops any local edits** to repo files. Your `.env` stays because it is gitignored.
-- `docker compose build --pull` — rebuilds the image with the new code and pulls fresh base images.
-- `docker compose up -d` — restarts the containers; migrations run automatically inside the entrypoint.
-- `docker compose logs -f app` — tail the log so you can see if startup succeeds.
+## Backing up before an update
 
-This is exactly what `setup.sh` does in update mode, just spelled out so you can wedge in extra steps (smoke tests, backups, monitoring) between any two lines.
-
-## Backing up before a reset
-
-Before running `--reset` on a production instance, dump the database:
+While the update path itself is safe, taking a snapshot before any update is good hygiene.
 
 ```bash
-docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U senddock senddock > senddock-backup-$(date +%Y%m%d).sql
+docker compose exec -T postgres pg_dump -U senddock senddock \
+    > senddock-backup-$(date +%Y%m%d).sql
 ```
 
 To restore later into a fresh install:
 
 ```bash
-cat senddock-backup-YYYYMMDD.sql | docker compose -f docker-compose.prod.yml exec -T postgres psql -U senddock senddock
+cat senddock-backup-YYYYMMDD.sql | \
+    docker compose exec -T postgres psql -U senddock senddock
 ```
 
-## Updating without Docker
+---
 
-If you build SendDock from source instead of using Docker, the update flow is manual:
+## Rolling back
+
+### Image install
+
+Edit `docker-compose.yml` to point at the previous tag, then:
 
 ```bash
-cd senddock
-git pull origin main
-cd frontend && npm ci && npm run build && cd ..
-cd backend
-make migrate
-make build
+docker compose pull
+docker compose up -d
 ```
 
-Restart the `senddock` binary.
+Data is preserved as long as the older version's schema is compatible with what your current database has. Major releases may include irreversible migrations — if rolling back across one, restore from the backup you took before the upgrade.
 
-## Rolling back to a previous version
+### Source build
 
 ```bash
 git checkout v0.x.x
 ./setup.sh
 ```
 
-The script picks up the older code and rebuilds. Data is preserved as long as the older version's schema is compatible with what your current database has — major releases may include irreversible migrations, in which case you need to restore from a backup taken before the upgrade.
+The script picks up the older code and rebuilds.
 
-To roll back a single migration manually (without Docker):
+### Manual migration rollback
+
+If a single migration is the problem:
 
 ```bash
-goose -dir backend/migrations postgres "$DATABASE_URL" down
+docker compose exec senddock goose -dir /app/migrations postgres "$DATABASE_URL" down
 ```
+
+Run it once per migration you want to undo. Verify the application still starts before doing more.
+
+---
+
+## Wiping and reinstalling
+
+Use this only when:
+
+- Your install is broken in a way that an update can't fix (corrupted volume, password mismatch you can't recover from).
+- You're testing on a throwaway instance.
+- You took a backup and want a fresh start.
+
+### Image install
+
+```bash
+docker compose down -v
+docker compose up -d
+```
+
+`down -v` removes the named volumes — **all data is gone**.
+
+### Source build
+
+```bash
+./setup.sh --reset        # Linux / macOS
+.\setup.ps1 -Reset        # Windows
+```
+
+What gets deleted in either flow:
+
+- Both Docker volumes (Postgres + Redis) — all your data.
+- For source builds, `.env` is regenerated with new secrets.
+
+After reset, the next start behaves like a fresh install: setup screen appears, create the admin account again.
+
+---
 
 ## Checking the current version
 
-The latest release and changelog live on [GitHub releases](https://github.com/arkhe-systems/senddock/releases).
+The latest release and changelog live on [GitHub releases](https://github.com/arkhe-systems/senddock/releases). The image tag matching that release is published on [Docker Hub](https://hub.docker.com/r/arkhe-systems/senddock/tags) within a few minutes of the GitHub release going live.
