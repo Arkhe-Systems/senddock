@@ -3,6 +3,7 @@ const API_URL = import.meta.env.VITE_API_URL || '/api/v1'
 interface ApiOptions {
     method?: string
     body?: unknown
+    silent?: boolean
     _retry?: boolean
 }
 
@@ -13,7 +14,7 @@ export function setSessionExpiredHandler(fn: () => void) {
 }
 
 export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-    const { method = 'GET', body, _retry = false } = options
+    const { method = 'GET', body, silent = false, _retry = false } = options
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -36,7 +37,7 @@ export async function api<T>(endpoint: string, options: ApiOptions = {}): Promis
             return api<T>(endpoint, { ...options, _retry: true })
         }
 
-        if (onSessionExpired) onSessionExpired()
+        if (!silent && onSessionExpired) onSessionExpired()
         throw new Error('session_expired')
     }
 
