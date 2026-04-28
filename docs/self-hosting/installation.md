@@ -1,6 +1,6 @@
 # Installation
 
-SendDock ships as a single Docker image: `arkhe-systems/senddock`. Three install paths are supported, in order of preference.
+SendDock ships as a single Docker image: `ghcr.io/arkhe-systems/senddock`. Three install paths are supported, in order of preference.
 
 ## Requirements
 
@@ -60,10 +60,10 @@ The image is the same in both cases. The license key, validated against a hosted
 ```yaml
 services:
   senddock:
-    image: arkhe-systems/senddock:0.4.0
+    image: ghcr.io/arkhe-systems/senddock:0.4.0
 ```
 
-See available tags on [Docker Hub](https://hub.docker.com/r/arkhe-systems/senddock/tags).
+See available tags on [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock).
 
 ---
 

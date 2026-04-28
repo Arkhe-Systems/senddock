@@ -1,6 +1,6 @@
 # Updating
 
-SendDock checks for new releases on its own and tells you when one is available. The dashboard displays the current version next to the logout button. When a newer version is published on Docker Hub / GitHub, the version label turns into a yellow "Update available" badge — click it to see what changed and copy the update command.
+SendDock checks for new releases on its own and tells you when one is available. The dashboard displays the current version next to the logout button. When a newer version is published on GitHub, the version label turns into a yellow "Update available" badge — click it to see what changed and copy the update command.
 
 Behind the scenes the dashboard polls `GET /api/v1/version` once on load. The backend caches the GitHub releases response in Redis for 1 hour, so check traffic stays well inside GitHub's anonymous rate limit even with hundreds of self-hosters.
 
@@ -18,7 +18,7 @@ In every case **your data is preserved**. Postgres lives in a named Docker volum
 
 ## Updating a prebuilt image install
 
-Use this when you installed via the canonical `arkhe-systems/senddock` image (Option 1 in [Installation](./installation)).
+Use this when you installed via the canonical `ghcr.io/arkhe-systems/senddock` image (Option 1 in [Installation](./installation)).
 
 ```bash
 cd senddock
@@ -29,7 +29,7 @@ docker compose logs -f senddock
 
 What happens:
 
-1. `docker compose pull` fetches the latest `arkhe-systems/senddock` image from Docker Hub. Postgres and Redis images update too unless you've pinned them.
+1. `docker compose pull` fetches the latest `ghcr.io/arkhe-systems/senddock` image from GitHub Container Registry. Postgres and Redis images update too unless you've pinned them.
 2. `docker compose up -d` recreates the `senddock` container with the new image. Postgres and Redis containers stay running unless their image changed.
 3. The new container's entrypoint runs `goose -dir /app/migrations postgres "$DATABASE_URL" up`, which applies any new migrations. Existing rows in `goose_db_version` are skipped.
 4. The healthcheck in `docker-compose.yml` flips to "healthy" once `/health` returns 200 — usually within 10 seconds.
@@ -45,7 +45,7 @@ Pin the version in `docker-compose.yml` to control update timing:
 ```yaml
 services:
   senddock:
-    image: arkhe-systems/senddock:0.4.0
+    image: ghcr.io/arkhe-systems/senddock:0.4.0
 ```
 
 When you decide to upgrade, edit the tag, then `docker compose pull && docker compose up -d`.
@@ -94,7 +94,7 @@ If the build fails or the app never becomes healthy, the script exits non-zero a
 For CI/CD pipelines, restricted environments, or step-by-step debugging:
 
 ```bash
-docker pull arkhe-systems/senddock:latest
+docker pull ghcr.io/arkhe-systems/senddock:latest
 docker stop senddock-old
 docker rm senddock-old
 docker run -d \
@@ -102,7 +102,7 @@ docker run -d \
     --env-file /etc/senddock/.env \
     --network senddock-net \
     -p 8080:8080 \
-    arkhe-systems/senddock:latest
+    ghcr.io/arkhe-systems/senddock:latest
 ```
 
 Whatever orchestrator you use (Kubernetes, Nomad, plain systemd-with-podman), the steps boil down to:
@@ -201,4 +201,4 @@ After reset, the next start behaves like a fresh install: setup screen appears, 
 
 ## Checking the current version
 
-The latest release and changelog live on [GitHub releases](https://github.com/arkhe-systems/senddock/releases). The image tag matching that release is published on [Docker Hub](https://hub.docker.com/r/arkhe-systems/senddock/tags) within a few minutes of the GitHub release going live.
+The latest release and changelog live on [GitHub releases](https://github.com/arkhe-systems/senddock/releases). The image tag matching that release is published to [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock) within a few minutes of the GitHub release going live.
