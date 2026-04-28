@@ -45,6 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
         })
         isAuthenticated.value = true
         sessionExpired.value = false
+        api('/license/status').catch(() => {})
     }
 
     async function register(email: string, password: string, name: string) {
