@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/arkhe-systems/senddock/internal/config"
 	"github.com/arkhe-systems/senddock/pkg/app"
+	"github.com/arkhe-systems/senddock/pkg/config"
 )
 
 func main() {
