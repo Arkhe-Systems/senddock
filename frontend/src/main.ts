@@ -16,6 +16,7 @@ app.use(router)
 
 setSessionExpiredHandler(() => {
     const auth = useAuthStore()
+    if (auth.sessionExpired) return
     auth.isAuthenticated = false
     auth.sessionExpired = true
     const toast = useToastStore()
