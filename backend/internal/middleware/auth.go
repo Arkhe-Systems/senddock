@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/golang-jwt/jwt/v5"
 )
-
-type contextKey string
-
-const UserIDKey contextKey = "userID"
 
 func Auth(jwtSecret []byte) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -55,7 +52,7 @@ func Auth(jwtSecret []byte) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), UserIDKey, userID)
+			ctx := context.WithValue(r.Context(), auth.UserIDKey, userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
