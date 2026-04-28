@@ -1,6 +1,6 @@
 services:
   senddock:
-    image: arkhe-systems/senddock:latest
+    image: ghcr.io/arkhe-systems/senddock:latest
     restart: unless-stopped
     depends_on:
       postgres:
