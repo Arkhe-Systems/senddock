@@ -597,6 +597,23 @@ const (
 	smtpSessionTimeout = 30 * time.Second
 )
 
+func wrapDialError(addr string, err error) error {
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return fmt.Errorf("could not reach SMTP server at %s within %s. The host or port may be wrong, or your network is blocking outbound SMTP (residential ISPs often block ports 25/465/587). Try from a cloud server or use a local SMTP catcher like Mailpit", addr, smtpConnectTimeout)
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		if strings.Contains(err.Error(), "connection refused") {
+			return fmt.Errorf("connection to %s refused. The SMTP server is up but not accepting connections on this port — confirm the port number with your provider", addr)
+		}
+		if strings.Contains(err.Error(), "no such host") {
+			return fmt.Errorf("DNS lookup failed for SMTP host. Confirm the hostname is correct (no typos, no http:// prefix)")
+		}
+	}
+	return fmt.Errorf("smtp connection failed: %w", err)
+}
+
 func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool) error {
 	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
 	dialer := &net.Dialer{Timeout: smtpConnectTimeout}
@@ -605,14 +622,11 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 	var err error
 	if implicitTLS {
 		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
-		if err != nil {
-			return fmt.Errorf("smtp tls connection failed: %w", err)
-		}
 	} else {
 		conn, err = dialer.Dial("tcp", addr)
-		if err != nil {
-			return fmt.Errorf("smtp connection failed: %w", err)
-		}
+	}
+	if err != nil {
+		return wrapDialError(addr, err)
 	}
 	defer conn.Close()
 

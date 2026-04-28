@@ -15,6 +15,16 @@ services:
     ports:
       - "6380:6379"
 
+  mailpit:
+    image: axllent/mailpit:latest
+    profiles: ["mail"]
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    restart: unless-stopped
+
 volumes:
   pgdata:
-  
