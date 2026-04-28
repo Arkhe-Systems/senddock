@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/cache"
-	"github.com/arkhe-systems/senddock/internal/config"
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/internal/handler"
 	"github.com/arkhe-systems/senddock/internal/middleware"
 	"github.com/arkhe-systems/senddock/internal/service"
 	"github.com/arkhe-systems/senddock/pkg/auth"
+	"github.com/arkhe-systems/senddock/pkg/config"
 
 	_ "github.com/lib/pq"
 )
