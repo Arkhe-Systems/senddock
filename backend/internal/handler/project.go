@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/arkhe-systems/senddock/internal/middleware"
+	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
 )
@@ -23,7 +23,7 @@ type createProjectRequest struct {
 }
 
 func (h *ProjectHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).(string)
+	userID := r.Context().Value(auth.UserIDKey).(string)
 
 	var req createProjectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -59,7 +59,7 @@ type updateProjectRequest struct {
 }
 
 func (h *ProjectHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).(string)
+	userID := r.Context().Value(auth.UserIDKey).(string)
 	projectID := r.PathValue("id")
 
 	var req updateProjectRequest
@@ -90,7 +90,7 @@ func (h *ProjectHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProjectHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).(string)
+	userID := r.Context().Value(auth.UserIDKey).(string)
 
 	projects, err := h.projectService.ListByUser(r.Context(), userID)
 	if err != nil {
@@ -105,7 +105,7 @@ func (h *ProjectHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProjectHandler) Get(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).(string)
+	userID := r.Context().Value(auth.UserIDKey).(string)
 	projectID := r.PathValue("id")
 
 	project, err := h.projectService.GetByID(r.Context(), projectID, userID)
@@ -130,7 +130,7 @@ type updateSMTPRequest struct {
 }
 
 func (h *ProjectHandler) UpdateSMTP(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).(string)
+	userID := r.Context().Value(auth.UserIDKey).(string)
 	projectID := r.PathValue("id")
 
 	var req updateSMTPRequest
@@ -161,7 +161,7 @@ func (h *ProjectHandler) UpdateSMTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProjectHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).(string)
+	userID := r.Context().Value(auth.UserIDKey).(string)
 	projectID := r.PathValue("id")
 
 	err := h.projectService.Delete(r.Context(), projectID, userID)
