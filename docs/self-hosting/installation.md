@@ -6,8 +6,16 @@ SendDock ships as a single Docker image: `ghcr.io/arkhe-systems/senddock`. Three
 
 - A Linux server (Ubuntu, Debian, etc.)
 - Docker and Docker Compose
+- A **publicly reachable domain** pointed at the server (required for unsubscribe links, broadcasts, and SMTP)
+- The server's network must allow **outbound TCP** on the SMTP port your provider uses (usually 465 or 587)
 
 That's it. Everything else is handled by Docker.
+
+::: warning Don't expect to send real emails from a laptop
+Most residential ISPs block outbound SMTP ports (25, 465, 587) at the network edge to prevent spam botnets. A SendDock instance on your home network cannot deliver mail through any external SMTP provider — including Gmail, SES, Mailgun, or your own Mailcow if it lives elsewhere. **SendDock in production must run on a cloud server (DigitalOcean, Hetzner, AWS, etc.) where outbound SMTP is unblocked.**
+
+For local development and evaluation, ship `make mail` (or any other [Mailpit](https://mailpit.axllent.org/)-like catcher) and configure SendDock to talk to it on `localhost:1025`. See the [SMTP guide](/guide/smtp) for the workaround details.
+:::
 
 ---
 

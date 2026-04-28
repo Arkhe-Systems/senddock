@@ -19,6 +19,16 @@ Go to **SMTP Settings** in the project sidebar and fill in:
 
 After saving, click **Test Connection**. SendDock will send a test email to the configured from address (or SMTP username) to verify the connection works.
 
+::: warning Why your local install times out
+Most residential ISPs (Comcast, Claro, Movistar, BT, and many more) block outbound TCP ports 25, 465 and 587 at the network edge to prevent spam botnets. This means a SendDock instance running on your laptop or home server **cannot reach external SMTP providers** at all — it has nothing to do with SendDock or your credentials. You will see a 10-second timeout error.
+
+There are three ways around it:
+
+1. **Run SendDock on a public domain / cloud server.** Cloud providers (DigitalOcean, Hetzner, AWS, etc.) do not apply the residential SMTP block. This is the supported production setup. See [Installation](/self-hosting/installation).
+2. **Use port 2525 if your provider supports it.** SendGrid, Mailgun, Postmark, Resend and Brevo all listen on `2525` specifically as an escape hatch for ISP-blocked users. Self-hosted Mailcow / Postfix / Stalwart instances can be configured the same way.
+3. **For local development**, use a fake SMTP catcher like [Mailpit](https://mailpit.axllent.org/) — it accepts any auth on `localhost:1025` and shows captured emails in a web UI. SendDock ships a `mail` profile in its dev `docker-compose.yml` for exactly this case.
+:::
+
 ## Common SMTP Providers
 
 ### Gmail
