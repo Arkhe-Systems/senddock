@@ -6,6 +6,12 @@ interface ApiOptions {
     _retry?: boolean
 }
 
+let onSessionExpired: (() => void) | null = null
+
+export function setSessionExpiredHandler(fn: () => void) {
+    onSessionExpired = fn
+}
+
 export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
     const { method = 'GET', body, _retry = false } = options
 
@@ -30,6 +36,7 @@ export async function api<T>(endpoint: string, options: ApiOptions = {}): Promis
             return api<T>(endpoint, { ...options, _retry: true })
         }
 
+        if (onSessionExpired) onSessionExpired()
         throw new Error('session_expired')
     }
 
