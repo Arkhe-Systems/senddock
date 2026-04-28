@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 type ApiKey struct {
@@ -37,6 +38,16 @@ type Campaign struct {
 	Subject     string
 }
 
+type EmailClick struct {
+	ID        uuid.UUID
+	LogID     uuid.UUID
+	Url       string
+	UrlHash   string
+	ClickedAt time.Time
+	UserAgent sql.NullString
+	IpAddress pqtype.Inet
+}
+
 type EmailLog struct {
 	ID           uuid.UUID
 	ProjectID    uuid.UUID
@@ -48,6 +59,7 @@ type EmailLog struct {
 	Error        sql.NullString
 	SentAt       time.Time
 	OpenedAt     sql.NullTime
+	ClickedAt    sql.NullTime
 }
 
 type Project struct {

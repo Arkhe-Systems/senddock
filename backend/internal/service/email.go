@@ -12,11 +12,13 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net"
 	"net/smtp"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/google/uuid"
@@ -130,12 +132,8 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	unsubURL := s.unsubURL(pid.String(), sid.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	logID := s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, nil)
-	body = s.injectTrackingPixel(body, logID)
-
-	sendErr := s.sendSMTP(project, sub.Email, subject, body, unsubURL)
+	sendErr := s.trackAndSend(ctx, project, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
 	if sendErr != nil {
-		s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
 		return SendResult{Failed: 1}, sendErr
 	}
 	return SendResult{Sent: 1}, nil
@@ -209,8 +207,7 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 			unsubURL := s.unsubURL(pid.String(), sub.ID.String())
 			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-			sendErr := s.sendSMTP(project, sub.Email, subject, body, unsubURL)
-			s.logEmail(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
+			s.trackAndSend(bgCtx, project, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
 		}
 		log.Printf("Broadcast to %d subscribers completed for project %s", total, pid.String())
 	}()
@@ -233,11 +230,7 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 		return errors.New("smtp not configured")
 	}
 
-	sendErr := s.sendSMTP(project, to, subject, htmlBody, "")
-
-	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, sendErr)
-
-	return sendErr
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "")
 }
 
 func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string) error {
@@ -287,11 +280,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubscribeURL)
 	}
 
-	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
-
-	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, sendErr)
-
-	return sendErr
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL)
 }
 
 func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, status, from, to string) ([]db.EmailLog, int64, error) {
@@ -376,26 +365,38 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 	return stats, nil
 }
 
-func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, sendErr error) uuid.UUID {
-	status := "sent"
-	var errMsg sql.NullString
-	if sendErr != nil {
-		status = "failed"
-		errMsg = sql.NullString{String: sendErr.Error(), Valid: true}
-	}
-
+func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string) uuid.UUID {
 	logEntry, _ := s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
 		TemplateID:   templateID,
 		ToEmail:      toEmail,
 		Subject:      subject,
-		Status:       status,
-		Error:        errMsg,
+		Status:       "sent",
 	})
-
 	s.cache.Delete(ctx, "stats:"+projectID.String())
 	return logEntry.ID
+}
+
+func (s *EmailService) markLogFailed(ctx context.Context, projectID, logID uuid.UUID, sendErr error) {
+	if sendErr == nil || logID == uuid.Nil {
+		return
+	}
+	s.queries.UpdateEmailLogStatus(ctx, db.UpdateEmailLogStatusParams{
+		ID:     logID,
+		Status: "failed",
+		Error:  sql.NullString{String: sendErr.Error(), Valid: true},
+	})
+	s.cache.Delete(ctx, "stats:"+projectID.String())
+}
+
+func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string) error {
+	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject)
+	body = s.injectTrackingPixel(body, logID)
+	body = s.rewriteLinksForTracking(body, logID)
+	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
+	s.markLogFailed(ctx, projectID, logID, sendErr)
+	return sendErr
 }
 
 func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string {
@@ -404,6 +405,77 @@ func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string 
 		return strings.Replace(body, "</body>", pixel+"</body>", 1)
 	}
 	return body + pixel
+}
+
+func (s *EmailService) signClickToken(logID, rawURL string) string {
+	mac := hmac.New(sha256.New, []byte(s.encSecret))
+	mac.Write([]byte(logID + ":" + rawURL))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))[:22]
+}
+
+func (s *EmailService) verifyClickToken(logID, rawURL, token string) bool {
+	expected := s.signClickToken(logID, rawURL)
+	return hmac.Equal([]byte(expected), []byte(token))
+}
+
+func (s *EmailService) clickURL(logID uuid.UUID, rawURL string) string {
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(rawURL))
+	sig := s.signClickToken(logID.String(), rawURL)
+	return fmt.Sprintf("%s/c/%s/%s.%s", s.publicURL, logID.String(), encoded, sig)
+}
+
+func shortURLHash(rawURL string) string {
+	h := sha256.Sum256([]byte(rawURL))
+	return base64.RawURLEncoding.EncodeToString(h[:])[:16]
+}
+
+func (s *EmailService) ClickURLHash(rawURL string) string {
+	return shortURLHash(rawURL)
+}
+
+func (s *EmailService) DecodeClickURL(encoded string) (string, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+func (s *EmailService) VerifyClickToken(logID, rawURL, token string) bool {
+	return s.verifyClickToken(logID, rawURL, token)
+}
+
+func (s *EmailService) rewriteLinksForTracking(body string, logID uuid.UUID) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+	if err != nil {
+		return body
+	}
+	doc.Find("a").Each(func(_ int, sel *goquery.Selection) {
+		href, ok := sel.Attr("href")
+		if !ok {
+			return
+		}
+		trimmed := strings.TrimSpace(href)
+		if trimmed == "" {
+			return
+		}
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(lower, "#") || strings.HasPrefix(lower, "mailto:") || strings.HasPrefix(lower, "tel:") {
+			return
+		}
+		if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+			return
+		}
+		if strings.HasPrefix(trimmed, s.publicURL+"/unsubscribe/") || strings.HasPrefix(trimmed, s.publicURL+"/c/") || strings.HasPrefix(trimmed, s.publicURL+"/t/") {
+			return
+		}
+		sel.SetAttr("href", s.clickURL(logID, trimmed))
+	})
+	out, err := doc.Html()
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 type UnsubscribeContext struct {
@@ -517,28 +589,64 @@ func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody, unsub
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	if port == 465 {
-		return sendSMTPImplicitTLS(host, addr, user, pass, fromEmail, to, []byte(msg))
-	}
-
-	auth := smtp.PlainAuth("", user, pass, host)
-	return smtp.SendMail(addr, auth, fromEmail, []string{to}, []byte(msg))
+	return deliverSMTP(host, addr, user, pass, fromEmail, to, []byte(msg), port == 465)
 }
 
-func sendSMTPImplicitTLS(host, addr, user, pass, from, to string, msg []byte) error {
-	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
+const (
+	smtpConnectTimeout = 10 * time.Second
+	smtpSessionTimeout = 30 * time.Second
+)
 
-	conn, err := tls.Dial("tcp", addr, tlsConfig)
+func wrapDialError(addr string, err error) error {
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return fmt.Errorf("could not reach SMTP server at %s within %s. The host or port may be wrong, or your network is blocking outbound SMTP (residential ISPs often block ports 25/465/587). Try from a cloud server or use a local SMTP catcher like Mailpit", addr, smtpConnectTimeout)
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		if strings.Contains(err.Error(), "connection refused") {
+			return fmt.Errorf("connection to %s refused. The SMTP server is up but not accepting connections on this port — confirm the port number with your provider", addr)
+		}
+		if strings.Contains(err.Error(), "no such host") {
+			return fmt.Errorf("DNS lookup failed for SMTP host. Confirm the hostname is correct (no typos, no http:// prefix)")
+		}
+	}
+	return fmt.Errorf("smtp connection failed: %w", err)
+}
+
+func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool) error {
+	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
+	dialer := &net.Dialer{Timeout: smtpConnectTimeout}
+
+	var conn net.Conn
+	var err error
+	if implicitTLS {
+		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
+	} else {
+		conn, err = dialer.Dial("tcp", addr)
+	}
 	if err != nil {
-		return fmt.Errorf("tls connection failed: %w", err)
+		return wrapDialError(addr, err)
 	}
 	defer conn.Close()
+
+	if err := conn.SetDeadline(time.Now().Add(smtpSessionTimeout)); err != nil {
+		return fmt.Errorf("smtp set deadline failed: %w", err)
+	}
 
 	client, err := smtp.NewClient(conn, host)
 	if err != nil {
 		return fmt.Errorf("smtp client failed: %w", err)
 	}
 	defer client.Close()
+
+	if !implicitTLS {
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			if err = client.StartTLS(tlsConfig); err != nil {
+				return fmt.Errorf("smtp starttls failed: %w", err)
+			}
+		}
+	}
 
 	auth := smtp.PlainAuth("", user, pass, host)
 	if err = client.Auth(auth); err != nil {
@@ -557,14 +665,10 @@ func sendSMTPImplicitTLS(host, addr, user, pass, from, to string, msg []byte) er
 	if err != nil {
 		return fmt.Errorf("smtp data failed: %w", err)
 	}
-
-	_, err = w.Write(msg)
-	if err != nil {
+	if _, err = w.Write(msg); err != nil {
 		return fmt.Errorf("smtp write failed: %w", err)
 	}
-
-	err = w.Close()
-	if err != nil {
+	if err = w.Close(); err != nil {
 		return fmt.Errorf("smtp close failed: %w", err)
 	}
 
