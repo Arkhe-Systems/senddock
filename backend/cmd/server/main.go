@@ -1,232 +1,28 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
-	"io/fs"
+	"context"
 	"log"
-	"net/http"
-	"os"
-	"strings"
-	"time"
+	"os/signal"
+	"syscall"
 
-	"github.com/arkhe-systems/senddock/internal/cache"
-	"github.com/arkhe-systems/senddock/internal/config"
-	"github.com/arkhe-systems/senddock/internal/db"
-	"github.com/arkhe-systems/senddock/internal/handler"
-	"github.com/arkhe-systems/senddock/internal/middleware"
-	"github.com/arkhe-systems/senddock/internal/service"
-
-	_ "github.com/lib/pq"
+	"github.com/arkhe-systems/senddock/pkg/app"
+	"github.com/arkhe-systems/senddock/pkg/config"
 )
 
 func main() {
 	cfg := config.Load()
 
-	if len(cfg.JWTSecret) < 32 {
-		log.Fatal("JWT_SECRET must be at least 32 characters")
-	}
-
-	if cfg.DatabaseUrl == "" {
-		log.Fatal("DATABASE_URL is required")
-	}
-
-	conn, err := sql.Open("postgres", cfg.DatabaseUrl)
+	application, err := app.New(cfg)
 	if err != nil {
-		log.Fatal("Error connecting to database ", err)
+		log.Fatal(err)
 	}
+	defer application.Close()
 
-	defer conn.Close()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	if err := conn.Ping(); err != nil {
-		log.Fatal("Error pinging database: ", err)
+	if err := application.Run(ctx); err != nil {
+		log.Fatal(err)
 	}
-	log.Println("Connected to PostgreSQL")
-	queries := db.New(conn)
-
-	redisCache := cache.NewRedis(cfg.RedisUrl)
-	if redisCache != nil {
-		defer redisCache.Close()
-	}
-
-	authService := service.NewAuthService(queries, cfg.JWTSecret)
-	authHandler := handler.NewAuthHandler(authService)
-
-	projectService := service.NewProjectService(queries, cfg.JWTSecret)
-	projectHandler := handler.NewProjectHandler(projectService)
-
-	subscriberService := service.NewSubscriberService(queries)
-	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
-
-	templateService := service.NewTemplateService(queries)
-	templateHandler := handler.NewTemplateHandler(templateService, projectService)
-
-	apiKeyService := service.NewAPIKeyService(queries)
-	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, projectService)
-
-	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache)
-	emailHandler := handler.NewEmailHandler(emailService, projectService, redisCache)
-
-	campaignService := service.NewCampaignService(queries)
-	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
-
-	trackingHandler := handler.NewTrackingHandler(queries)
-
-	releaseService := service.NewReleaseService(redisCache)
-	releaseHandler := handler.NewReleaseHandler(releaseService)
-
-	worker := service.NewCampaignWorker(queries, emailService)
-	worker.Start()
-
-	waitlistHandler := handler.NewWaitlistHandler(subscriberService, emailService)
-
-	setupHandler := handler.NewSetupHandler(queries, authService, cfg)
-
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"status": "ok",
-		})
-	})
-
-	authMiddleware := middleware.Auth([]byte(cfg.JWTSecret))
-	apiKeyMiddleware := middleware.APIKey(queries)
-	eitherAuth := middleware.EitherAuth(authMiddleware, apiKeyMiddleware)
-
-	mux.HandleFunc("GET /api/v1/setup/status", setupHandler.Status)
-	mux.HandleFunc("POST /api/v1/setup", setupHandler.Setup)
-
-	mux.Handle("GET /api/v1/me", authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Context().Value(middleware.UserIDKey).(string)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"user_id": userID,
-		})
-	})))
-
-	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
-
-	if cfg.IsSelfHosted() {
-		log.Println("Mode: self-hosted (registration disabled)")
-	} else {
-		log.Println("Mode: cloud (registration enabled)")
-		mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
-	}
-
-	mux.Handle("POST /api/v1/projects", authMiddleware(http.HandlerFunc(projectHandler.Create)))
-	mux.Handle("GET /api/v1/projects", authMiddleware(http.HandlerFunc(projectHandler.List)))
-	mux.Handle("GET /api/v1/projects/{id}", authMiddleware(http.HandlerFunc(projectHandler.Get)))
-	mux.Handle("PUT /api/v1/projects/{id}", authMiddleware(http.HandlerFunc(projectHandler.Update)))
-	mux.Handle("DELETE /api/v1/projects/{id}", authMiddleware(http.HandlerFunc(projectHandler.Delete)))
-	mux.Handle("PUT /api/v1/projects/{id}/smtp", authMiddleware(http.HandlerFunc(projectHandler.UpdateSMTP)))
-
-	mux.Handle("POST /api/v1/projects/{id}/subscribers", authMiddleware(http.HandlerFunc(subscriberHandler.Create)))
-	mux.Handle("GET /api/v1/projects/{id}/subscribers", authMiddleware(http.HandlerFunc(subscriberHandler.List)))
-	mux.Handle("POST /api/v1/projects/{id}/subscribers/bulk", authMiddleware(http.HandlerFunc(subscriberHandler.BulkAction)))
-	mux.Handle("PATCH /api/v1/projects/{id}/subscribers/{subscriberId}", authMiddleware(http.HandlerFunc(subscriberHandler.UpdateStatus)))
-	mux.Handle("DELETE /api/v1/projects/{id}/subscribers/{subscriberId}", authMiddleware(http.HandlerFunc(subscriberHandler.Delete)))
-	mux.Handle("POST /api/v1/projects/{id}/subscribers/import", eitherAuth(http.HandlerFunc(subscriberHandler.Import)))
-
-	mux.Handle("POST /api/v1/projects/{id}/keys", authMiddleware(http.HandlerFunc(apiKeyHandler.Create)))
-	mux.Handle("GET /api/v1/projects/{id}/keys", authMiddleware(http.HandlerFunc(apiKeyHandler.List)))
-	mux.Handle("DELETE /api/v1/projects/{id}/keys/{keyId}", authMiddleware(http.HandlerFunc(apiKeyHandler.Delete)))
-
-	mux.Handle("POST /api/v1/projects/{id}/templates", authMiddleware(http.HandlerFunc(templateHandler.Create)))
-	mux.Handle("GET /api/v1/projects/{id}/templates", authMiddleware(http.HandlerFunc(templateHandler.List)))
-	mux.Handle("GET /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Get)))
-	mux.Handle("PUT /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Update)))
-	mux.Handle("DELETE /api/v1/projects/{id}/templates/{templateId}", authMiddleware(http.HandlerFunc(templateHandler.Delete)))
-
-	mux.Handle("POST /api/v1/projects/{id}/campaigns", authMiddleware(http.HandlerFunc(campaignHandler.Create)))
-	mux.Handle("GET /api/v1/projects/{id}/campaigns", authMiddleware(http.HandlerFunc(campaignHandler.List)))
-	mux.Handle("DELETE /api/v1/projects/{id}/campaigns/{campaignId}", authMiddleware(http.HandlerFunc(campaignHandler.Delete)))
-	mux.Handle("PATCH /api/v1/projects/{id}/campaigns/{campaignId}", authMiddleware(http.HandlerFunc(campaignHandler.Update)))
-
-	mux.Handle("POST /api/v1/projects/{id}/smtp/test", authMiddleware(http.HandlerFunc(emailHandler.TestSMTP)))
-	mux.Handle("POST /api/v1/projects/{id}/send", eitherAuth(http.HandlerFunc(emailHandler.Send)))
-	mux.Handle("POST /api/v1/projects/{id}/broadcast", eitherAuth(http.HandlerFunc(emailHandler.Broadcast)))
-	mux.Handle("POST /api/v1/projects/{id}/send/batch", eitherAuth(http.HandlerFunc(emailHandler.BatchSend)))
-	mux.Handle("GET /api/v1/projects/{id}/logs", authMiddleware(http.HandlerFunc(emailHandler.Logs)))
-	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
-
-	mux.HandleFunc("GET /unsubscribe/{id}/{subscriberId}", emailHandler.UnsubscribePage)
-	mux.HandleFunc("POST /unsubscribe/{id}/{subscriberId}", emailHandler.Unsubscribe)
-
-	mux.HandleFunc("GET /t/{logId}", trackingHandler.Open)
-	mux.HandleFunc("POST /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
-	mux.HandleFunc("OPTIONS /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
-
-	mux.Handle("GET /api/v1/version", authMiddleware(http.HandlerFunc(releaseHandler.Get)))
-
-	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
-	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
-
-	serveFrontend(mux)
-
-	rateLimiter := middleware.NewRateLimiter(redisCache, 100, time.Minute)
-
-	handler := middleware.Security(
-		middleware.LimitBody(
-			rateLimiter.Middleware(
-				middleware.CORS(cfg.FrontendURL)(mux),
-			),
-		),
-	)
-
-	server := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	log.Println("Server running:" + cfg.Port)
-	log.Fatal(server.ListenAndServe())
 }
-
-func serveFrontend(mux *http.ServeMux) {
-	distPath := os.Getenv("FRONTEND_DIST_PATH")
-	if distPath == "" {
-		distPath = "../frontend/dist"
-	}
-
-	if _, err := os.Stat(distPath); os.IsNotExist(err) {
-		log.Println("Frontend dist/ not found, skipping static file serving")
-		return
-	}
-
-	frontendFS := os.DirFS(distPath)
-	fileServer := http.FileServerFS(frontendFS)
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || strings.HasPrefix(r.URL.Path, "/t/") || r.URL.Path == "/health" {
-			http.NotFound(w, r)
-			return
-		}
-
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		if path == "" {
-			path = "index.html"
-		}
-
-		if _, err := fs.Stat(frontendFS, path); err == nil {
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-
-		indexFile, err := fs.ReadFile(frontendFS, "index.html")
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(indexFile)
-	})
-
-	log.Println("Serving frontend from " + distPath)
-}
-

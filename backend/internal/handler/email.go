@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/cache"
-	"github.com/arkhe-systems/senddock/internal/middleware"
+	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
 )
@@ -83,11 +83,11 @@ type batchSendRequest struct {
 }
 
 func (h *EmailHandler) verifyAccess(r *http.Request) (string, error) {
-	if pid, ok := r.Context().Value(middleware.ProjectIDKey).(string); ok {
+	if pid, ok := r.Context().Value(auth.ProjectIDKey).(string); ok {
 		return pid, nil
 	}
 
-	userID := r.Context().Value(middleware.UserIDKey).(string)
+	userID := r.Context().Value(auth.UserIDKey).(string)
 	projectID := r.PathValue("id")
 	_, err := h.projectService.GetByID(r.Context(), projectID, userID)
 	return projectID, err

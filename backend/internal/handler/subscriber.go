@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/arkhe-systems/senddock/internal/middleware"
+	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
 )
@@ -33,7 +33,7 @@ type updateStatusRequest struct {
 }
 
 func (h *SubscriberHandler) verifyProjectOwner(r *http.Request) (string, string, error) {
-	userID := r.Context().Value(middleware.UserIDKey).(string)
+	userID := r.Context().Value(auth.UserIDKey).(string)
 	projectID := r.PathValue("id")
 
 	_, err := h.projectService.GetByID(r.Context(), projectID, userID)
