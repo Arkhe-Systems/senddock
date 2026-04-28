@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net"
 	"net/smtp"
 	"net/url"
 	"strings"
@@ -588,28 +589,50 @@ func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody, unsub
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	if port == 465 {
-		return sendSMTPImplicitTLS(host, addr, user, pass, fromEmail, to, []byte(msg))
-	}
-
-	auth := smtp.PlainAuth("", user, pass, host)
-	return smtp.SendMail(addr, auth, fromEmail, []string{to}, []byte(msg))
+	return deliverSMTP(host, addr, user, pass, fromEmail, to, []byte(msg), port == 465)
 }
 
-func sendSMTPImplicitTLS(host, addr, user, pass, from, to string, msg []byte) error {
-	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
+const (
+	smtpConnectTimeout = 10 * time.Second
+	smtpSessionTimeout = 30 * time.Second
+)
 
-	conn, err := tls.Dial("tcp", addr, tlsConfig)
-	if err != nil {
-		return fmt.Errorf("tls connection failed: %w", err)
+func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool) error {
+	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
+	dialer := &net.Dialer{Timeout: smtpConnectTimeout}
+
+	var conn net.Conn
+	var err error
+	if implicitTLS {
+		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("smtp tls connection failed: %w", err)
+		}
+	} else {
+		conn, err = dialer.Dial("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("smtp connection failed: %w", err)
+		}
 	}
 	defer conn.Close()
+
+	if err := conn.SetDeadline(time.Now().Add(smtpSessionTimeout)); err != nil {
+		return fmt.Errorf("smtp set deadline failed: %w", err)
+	}
 
 	client, err := smtp.NewClient(conn, host)
 	if err != nil {
 		return fmt.Errorf("smtp client failed: %w", err)
 	}
 	defer client.Close()
+
+	if !implicitTLS {
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			if err = client.StartTLS(tlsConfig); err != nil {
+				return fmt.Errorf("smtp starttls failed: %w", err)
+			}
+		}
+	}
 
 	auth := smtp.PlainAuth("", user, pass, host)
 	if err = client.Auth(auth); err != nil {
@@ -628,14 +651,10 @@ func sendSMTPImplicitTLS(host, addr, user, pass, from, to string, msg []byte) er
 	if err != nil {
 		return fmt.Errorf("smtp data failed: %w", err)
 	}
-
-	_, err = w.Write(msg)
-	if err != nil {
+	if _, err = w.Write(msg); err != nil {
 		return fmt.Errorf("smtp write failed: %w", err)
 	}
-
-	err = w.Close()
-	if err != nil {
+	if err = w.Close(); err != nil {
 		return fmt.Errorf("smtp close failed: %w", err)
 	}
 
