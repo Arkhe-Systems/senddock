@@ -138,7 +138,7 @@ func (s *AuthService) generateTokens(ctx context.Context, userID uuid.UUID) (Aut
 	}
 
 	tokenHash := hashToken(refreshToken)
-	expiredAt := time.Now().Add(7 * 24 * time.Hour)
+	expiredAt := time.Now().Add(2 * time.Hour)
 
 	_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
 		UserID:    userID,
