@@ -173,7 +173,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	campaignService := service.NewCampaignService(queries)
 	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
 
-	trackingHandler := handler.NewTrackingHandler(queries)
+	trackingHandler := handler.NewTrackingHandler(queries, emailService)
 
 	releaseService := service.NewReleaseService(a.cache)
 	releaseHandler := handler.NewReleaseHandler(releaseService)
@@ -248,6 +248,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.HandleFunc("POST /unsubscribe/{id}/{subscriberId}", emailHandler.Unsubscribe)
 
 	mux.HandleFunc("GET /t/{logId}", trackingHandler.Open)
+	mux.HandleFunc("GET /c/{logId}/{payload}", trackingHandler.Click)
 	mux.HandleFunc("POST /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
 	mux.HandleFunc("OPTIONS /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
 
@@ -272,7 +273,7 @@ func (a *App) serveFrontend() {
 	fileServer := http.FileServerFS(frontendFS)
 
 	a.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || strings.HasPrefix(r.URL.Path, "/t/") || r.URL.Path == "/health" {
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || strings.HasPrefix(r.URL.Path, "/t/") || strings.HasPrefix(r.URL.Path, "/c/") || r.URL.Path == "/health" {
 			http.NotFound(w, r)
 			return
 		}

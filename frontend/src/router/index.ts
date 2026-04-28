@@ -70,6 +70,11 @@ const router = createRouter({
           component: () => import('@/views/project/CampaignsSection.vue'),
         },
         {
+          path: 'analytics',
+          name: 'project-analytics',
+          component: () => import('@/views/project/AnalyticsSection.vue'),
+        },
+        {
           path: 'settings',
           name: 'project-settings',
           component: () => import('@/views/project/SettingsSection.vue'),

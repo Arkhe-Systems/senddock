@@ -4,6 +4,21 @@ Common problems you might run into when self-hosting SendDock, and how to fix th
 
 ## Outgoing emails
 
+### Test Connection times out / "could not reach SMTP server within 10s"
+
+**Symptom:** SMTP Settings → Test Connection sits for 10 seconds, then errors with a message about ISPs blocking outbound SMTP. The same SMTP credentials work fine from another machine (cloud, office, phone tether).
+
+**Cause:** Your network — almost certainly a residential ISP (Comcast, Claro, Movistar, BT, and most others worldwide) — blocks outbound TCP on ports 25, 465 and 587 to stop spam botnets. The block is at the ISP's edge router, so the TCP packet never leaves your house. Every email tool hits the same wall — it is not specific to SendDock.
+
+**Fix (in order of preference):**
+
+1. **Run SendDock on a public cloud server** (DigitalOcean, Hetzner, AWS, etc.). Cloud providers don't apply the residential SMTP block. This is the supported production deployment.
+2. **Ask your SMTP provider for port `2525`.** SendGrid, Mailgun, Postmark, Resend and Brevo all listen on `2525` specifically as an escape hatch. If your provider does, change Port to `2525` and Test Connection again.
+3. **Use a VPN** that doesn't apply ISP filters. Paid VPNs (NordVPN, Mullvad, ProtonVPN) work; free ones often also block SMTP.
+4. **For local dev**, use [Mailpit](https://mailpit.axllent.org/) on `localhost:1025` — see the [SMTP guide](/guide/smtp#testing) for the workflow. Mailpit captures sends without ever leaving the host.
+
+In other words: SendDock cannot deliver mail from a network that blocks outbound mail ports. There is no software workaround for ISP egress filtering.
+
 ### 429 "rate limit exceeded for this project on this endpoint"
 
 **Cause:** You hit the per-project rate limit on a sending endpoint. The limits are intentional spam protection. See [Rate limits](/guide/sending#rate-limits-and-abuse-prevention) for the full table.
