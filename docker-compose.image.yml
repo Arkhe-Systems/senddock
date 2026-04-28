@@ -1,0 +1,57 @@
+services:
+  senddock:
+    image: arkhe-systems/senddock:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://senddock:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/senddock?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required (min 32 chars)}
+      PORT: 8080
+      PUBLIC_URL: ${PUBLIC_URL:?PUBLIC_URL is required, e.g. https://senddock.example.com}
+      FRONTEND_URL: ${PUBLIC_URL}
+      DEPLOYMENT_MODE: self-hosted
+      SENDDOCK_LICENSE_KEY: ${SENDDOCK_LICENSE_KEY:-}
+      SENDDOCK_LICENSE_ENDPOINT: ${SENDDOCK_LICENSE_ENDPOINT:-https://license.senddock.com/v1/validate}
+    ports:
+      - "${SENDDOCK_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: senddock
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: senddock
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U senddock"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:
