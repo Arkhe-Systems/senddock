@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/google/uuid"
@@ -130,12 +131,8 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	unsubURL := s.unsubURL(pid.String(), sid.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	logID := s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, nil)
-	body = s.injectTrackingPixel(body, logID)
-
-	sendErr := s.sendSMTP(project, sub.Email, subject, body, unsubURL)
+	sendErr := s.trackAndSend(ctx, project, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
 	if sendErr != nil {
-		s.logEmail(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
 		return SendResult{Failed: 1}, sendErr
 	}
 	return SendResult{Sent: 1}, nil
@@ -209,8 +206,7 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 			unsubURL := s.unsubURL(pid.String(), sub.ID.String())
 			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-			sendErr := s.sendSMTP(project, sub.Email, subject, body, unsubURL)
-			s.logEmail(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, sendErr)
+			s.trackAndSend(bgCtx, project, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
 		}
 		log.Printf("Broadcast to %d subscribers completed for project %s", total, pid.String())
 	}()
@@ -233,11 +229,7 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 		return errors.New("smtp not configured")
 	}
 
-	sendErr := s.sendSMTP(project, to, subject, htmlBody, "")
-
-	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, sendErr)
-
-	return sendErr
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "")
 }
 
 func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string) error {
@@ -287,11 +279,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubscribeURL)
 	}
 
-	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
-
-	s.logEmail(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, sendErr)
-
-	return sendErr
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL)
 }
 
 func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, status, from, to string) ([]db.EmailLog, int64, error) {
@@ -376,26 +364,38 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 	return stats, nil
 }
 
-func (s *EmailService) logEmail(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, sendErr error) uuid.UUID {
-	status := "sent"
-	var errMsg sql.NullString
-	if sendErr != nil {
-		status = "failed"
-		errMsg = sql.NullString{String: sendErr.Error(), Valid: true}
-	}
-
+func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string) uuid.UUID {
 	logEntry, _ := s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
 		TemplateID:   templateID,
 		ToEmail:      toEmail,
 		Subject:      subject,
-		Status:       status,
-		Error:        errMsg,
+		Status:       "sent",
 	})
-
 	s.cache.Delete(ctx, "stats:"+projectID.String())
 	return logEntry.ID
+}
+
+func (s *EmailService) markLogFailed(ctx context.Context, projectID, logID uuid.UUID, sendErr error) {
+	if sendErr == nil || logID == uuid.Nil {
+		return
+	}
+	s.queries.UpdateEmailLogStatus(ctx, db.UpdateEmailLogStatusParams{
+		ID:     logID,
+		Status: "failed",
+		Error:  sql.NullString{String: sendErr.Error(), Valid: true},
+	})
+	s.cache.Delete(ctx, "stats:"+projectID.String())
+}
+
+func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string) error {
+	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject)
+	body = s.injectTrackingPixel(body, logID)
+	body = s.rewriteLinksForTracking(body, logID)
+	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
+	s.markLogFailed(ctx, projectID, logID, sendErr)
+	return sendErr
 }
 
 func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string {
@@ -404,6 +404,77 @@ func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string 
 		return strings.Replace(body, "</body>", pixel+"</body>", 1)
 	}
 	return body + pixel
+}
+
+func (s *EmailService) signClickToken(logID, rawURL string) string {
+	mac := hmac.New(sha256.New, []byte(s.encSecret))
+	mac.Write([]byte(logID + ":" + rawURL))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))[:22]
+}
+
+func (s *EmailService) verifyClickToken(logID, rawURL, token string) bool {
+	expected := s.signClickToken(logID, rawURL)
+	return hmac.Equal([]byte(expected), []byte(token))
+}
+
+func (s *EmailService) clickURL(logID uuid.UUID, rawURL string) string {
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(rawURL))
+	sig := s.signClickToken(logID.String(), rawURL)
+	return fmt.Sprintf("%s/c/%s/%s.%s", s.publicURL, logID.String(), encoded, sig)
+}
+
+func shortURLHash(rawURL string) string {
+	h := sha256.Sum256([]byte(rawURL))
+	return base64.RawURLEncoding.EncodeToString(h[:])[:16]
+}
+
+func (s *EmailService) ClickURLHash(rawURL string) string {
+	return shortURLHash(rawURL)
+}
+
+func (s *EmailService) DecodeClickURL(encoded string) (string, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+func (s *EmailService) VerifyClickToken(logID, rawURL, token string) bool {
+	return s.verifyClickToken(logID, rawURL, token)
+}
+
+func (s *EmailService) rewriteLinksForTracking(body string, logID uuid.UUID) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+	if err != nil {
+		return body
+	}
+	doc.Find("a").Each(func(_ int, sel *goquery.Selection) {
+		href, ok := sel.Attr("href")
+		if !ok {
+			return
+		}
+		trimmed := strings.TrimSpace(href)
+		if trimmed == "" {
+			return
+		}
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(lower, "#") || strings.HasPrefix(lower, "mailto:") || strings.HasPrefix(lower, "tel:") {
+			return
+		}
+		if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+			return
+		}
+		if strings.HasPrefix(trimmed, s.publicURL+"/unsubscribe/") || strings.HasPrefix(trimmed, s.publicURL+"/c/") || strings.HasPrefix(trimmed, s.publicURL+"/t/") {
+			return
+		}
+		sel.SetAttr("href", s.clickURL(logID, trimmed))
+	})
+	out, err := doc.Html()
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 type UnsubscribeContext struct {
