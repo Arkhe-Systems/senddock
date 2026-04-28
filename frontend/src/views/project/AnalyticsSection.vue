@@ -110,11 +110,13 @@ const chart = computed<ChartGeometry>(() => {
         opens: d.opens,
     }))
 
-    let line = `M ${points[0].x} ${points[0].y}`
+    const first = points[0]!
+    const last = points[points.length - 1]!
+    let line = `M ${first.x} ${first.y}`
     for (let i = 1; i < points.length; i++) {
-        const p0 = points[i - 2] ?? points[i - 1]
-        const p1 = points[i - 1]
-        const p2 = points[i]
+        const p1 = points[i - 1]!
+        const p2 = points[i]!
+        const p0 = points[i - 2] ?? p1
         const p3 = points[i + 1] ?? p2
         const cp1x = p1.x + (p2.x - p0.x) / 6
         const cp1y = p1.y + (p2.y - p0.y) / 6
@@ -122,7 +124,7 @@ const chart = computed<ChartGeometry>(() => {
         const cp2y = p2.y - (p3.y - p1.y) / 6
         line += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`
     }
-    const area = `${line} L ${points[points.length - 1].x} ${h} L ${points[0].x} ${h} Z`
+    const area = `${line} L ${last.x} ${h} L ${first.x} ${h} Z`
 
     return { width: w, height: h, points, linePath: line, areaPath: area }
 })
@@ -217,11 +219,11 @@ const insights = computed(() => {
         }
     }
 
-    if (topTemplates.value.length > 0) {
-        const top = topTemplates.value[0]
+    const topTpl = topTemplates.value[0]
+    if (topTpl) {
         items.push({
             tone: 'info',
-            text: `Most-used template: ${top.name} with ${top.sends} send${top.sends === 1 ? '' : 's'}.`,
+            text: `Most-used template: ${topTpl.name} with ${topTpl.sends} send${topTpl.sends === 1 ? '' : 's'}.`,
         })
     }
 
