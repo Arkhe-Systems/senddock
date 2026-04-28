@@ -27,6 +27,7 @@ require (
 	github.com/olekukonko/ll v0.0.9 // indirect
 	github.com/olekukonko/tablewriter v1.0.7 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/sqlc-dev/pqtype v0.3.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
 	github.com/vanng822/css v1.0.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect

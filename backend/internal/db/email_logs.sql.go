@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const countEmailLogsByProject = `-- name: CountEmailLogsByProject :one
@@ -67,6 +68,17 @@ func (q *Queries) CountEmailLogsByStatus(ctx context.Context, arg CountEmailLogs
 	return count, err
 }
 
+const countEmailLogsClicked = `-- name: CountEmailLogsClicked :one
+SELECT COUNT(*) FROM email_logs WHERE project_id = $1 AND clicked_at IS NOT NULL
+`
+
+func (q *Queries) CountEmailLogsClicked(ctx context.Context, projectID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countEmailLogsClicked, projectID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countEmailLogsOpened = `-- name: CountEmailLogsOpened :one
 SELECT COUNT(*) FROM email_logs WHERE project_id = $1 AND opened_at IS NOT NULL
 `
@@ -78,10 +90,34 @@ func (q *Queries) CountEmailLogsOpened(ctx context.Context, projectID uuid.UUID)
 	return count, err
 }
 
+const createEmailClick = `-- name: CreateEmailClick :exec
+INSERT INTO email_clicks (log_id, url, url_hash, user_agent, ip_address)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type CreateEmailClickParams struct {
+	LogID     uuid.UUID
+	Url       string
+	UrlHash   string
+	UserAgent sql.NullString
+	IpAddress pqtype.Inet
+}
+
+func (q *Queries) CreateEmailClick(ctx context.Context, arg CreateEmailClickParams) error {
+	_, err := q.db.ExecContext(ctx, createEmailClick,
+		arg.LogID,
+		arg.Url,
+		arg.UrlHash,
+		arg.UserAgent,
+		arg.IpAddress,
+	)
+	return err
+}
+
 const createEmailLog = `-- name: CreateEmailLog :one
 INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at
+RETURNING id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at
 `
 
 type CreateEmailLogParams struct {
@@ -116,12 +152,24 @@ func (q *Queries) CreateEmailLog(ctx context.Context, arg CreateEmailLogParams) 
 		&i.Error,
 		&i.SentAt,
 		&i.OpenedAt,
+		&i.ClickedAt,
 	)
 	return i, err
 }
 
+const getEmailLogProjectID = `-- name: GetEmailLogProjectID :one
+SELECT project_id FROM email_logs WHERE id = $1
+`
+
+func (q *Queries) GetEmailLogProjectID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getEmailLogProjectID, id)
+	var project_id uuid.UUID
+	err := row.Scan(&project_id)
+	return project_id, err
+}
+
 const listEmailLogsByProject = `-- name: ListEmailLogsByProject :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at FROM email_logs
 WHERE project_id = $1
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3
@@ -153,6 +201,7 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 			&i.Error,
 			&i.SentAt,
 			&i.OpenedAt,
+			&i.ClickedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -168,7 +217,7 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 }
 
 const listEmailLogsByProjectFiltered = `-- name: ListEmailLogsByProjectFiltered :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at FROM email_logs
 WHERE project_id = $1
 AND ($4::text = '' OR status = $4::text)
 AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
@@ -213,6 +262,7 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 			&i.Error,
 			&i.SentAt,
 			&i.OpenedAt,
+			&i.ClickedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -227,11 +277,35 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 	return items, nil
 }
 
+const markEmailClicked = `-- name: MarkEmailClicked :exec
+UPDATE email_logs SET clicked_at = NOW() WHERE id = $1 AND clicked_at IS NULL
+`
+
+func (q *Queries) MarkEmailClicked(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, markEmailClicked, id)
+	return err
+}
+
 const markEmailOpened = `-- name: MarkEmailOpened :exec
 UPDATE email_logs SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL
 `
 
 func (q *Queries) MarkEmailOpened(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, markEmailOpened, id)
+	return err
+}
+
+const updateEmailLogStatus = `-- name: UpdateEmailLogStatus :exec
+UPDATE email_logs SET status = $2, error = $3 WHERE id = $1
+`
+
+type UpdateEmailLogStatusParams struct {
+	ID     uuid.UUID
+	Status string
+	Error  sql.NullString
+}
+
+func (q *Queries) UpdateEmailLogStatus(ctx context.Context, arg UpdateEmailLogStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateEmailLogStatus, arg.ID, arg.Status, arg.Error)
 	return err
 }
