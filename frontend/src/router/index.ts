@@ -50,6 +50,11 @@ const router = createRouter({
           component: () => import('@/views/project/SubscribersSection.vue'),
         },
         {
+          path: 'suppressions',
+          name: 'project-suppressions',
+          component: () => import('@/views/project/SuppressionsSection.vue'),
+        },
+        {
           path: 'templates',
           name: 'project-templates',
           component: () => import('@/views/project/TemplatesSection.vue'),

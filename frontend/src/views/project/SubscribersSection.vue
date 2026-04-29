@@ -42,6 +42,7 @@ interface ImportResult {
     syntax_invalid: number
     no_mx: number
     disposable: number
+    suppressed: number
     rejected: RejectedRow[]
 }
 const importResult = ref<ImportResult | null>(null)
@@ -461,7 +462,7 @@ onMounted(fetchSubscribers)
             </div>
 
             <div v-else class="space-y-4">
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                     <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
                         <p class="text-[11px] text-emerald-400/80 uppercase tracking-wide">Imported</p>
                         <p class="text-2xl font-bold text-emerald-300 tabular-nums">{{ importResult.imported }}</p>
@@ -481,6 +482,10 @@ onMounted(fetchSubscribers)
                     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
                         <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Disposable</p>
                         <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.disposable }}</p>
+                    </div>
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Suppressed</p>
+                        <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.suppressed }}</p>
                     </div>
                 </div>
 

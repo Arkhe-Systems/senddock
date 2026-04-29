@@ -25,6 +25,7 @@ async function loadProject() {
 const navItems = [
     { name: 'Overview', route: 'project-overview' },
     { name: 'Subscribers', route: 'project-subscribers' },
+    { name: 'Suppressions', route: 'project-suppressions' },
     { name: 'Templates', route: 'project-templates' },
     { name: 'Logs', route: 'project-logs' },
     { name: 'SMTP Settings', route: 'project-smtp' },
