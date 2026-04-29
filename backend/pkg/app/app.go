@@ -181,7 +181,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	trackingHandler := handler.NewTrackingHandler(queries, emailService, a.webhooks)
 
-	releaseService := service.NewReleaseService(a.cache)
+	releaseService := service.NewReleaseService(a.cache, cfg.DeploymentMode)
 	releaseHandler := handler.NewReleaseHandler(releaseService)
 
 	waitlistHandler := handler.NewWaitlistHandler(subscriberService, emailService)
