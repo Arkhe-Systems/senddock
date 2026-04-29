@@ -361,7 +361,7 @@ onMounted(() => applyPreset(preset.value))
                 Detailed deliverability metrics, open tracking trends and top-template insights
                 require a SendDock Pro license. Activate one to unlock this section.
             </p>
-            <a href="https://senddock.com/pricing" target="_blank" rel="noopener"
+            <a href="https://senddock.dev/pricing" target="_blank" rel="noopener"
                 class="inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
                 See Pro plans
             </a>
