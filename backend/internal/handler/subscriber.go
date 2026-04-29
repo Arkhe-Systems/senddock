@@ -13,6 +13,7 @@ import (
 type SubscriberHandler struct {
 	subscriberService *service.SubscriberService
 	projectService    *service.ProjectService
+	Audit             *service.AuditService
 }
 
 func NewSubscriberHandler(subscriberService *service.SubscriberService, projectService *service.ProjectService) *SubscriberHandler {
@@ -274,6 +275,16 @@ func (h *SubscriberHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return
+	}
+
+	if h.Audit != nil {
+		userID := r.Context().Value(auth.UserIDKey).(string)
+		action := "subscriber.bulk_" + req.Action
+		meta := map[string]any{"count": len(req.SubscriberIDs)}
+		if req.Action == "update_status" {
+			meta["status"] = req.Status
+		}
+		h.Audit.LogFromRequest(r, projectID, userID, action, "subscriber", "", meta)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

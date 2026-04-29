@@ -16,6 +16,7 @@ import (
 type SuppressionHandler struct {
 	suppressions   *service.SuppressionService
 	projectService *service.ProjectService
+	Audit          *service.AuditService
 }
 
 func NewSuppressionHandler(suppressions *service.SuppressionService, projectService *service.ProjectService) *SuppressionHandler {
@@ -129,6 +130,11 @@ func (h *SuppressionHandler) Add(w http.ResponseWriter, r *http.Request) {
 		added++
 	}
 
+	if h.Audit != nil && added > 0 {
+		userID := r.Context().Value(auth.UserIDKey).(string)
+		h.Audit.LogFromRequest(r, pid.String(), userID, "suppression.add", "suppression", "", map[string]any{"added": added, "reason": reason})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]int{"added": added, "skipped": skipped})
 }
@@ -148,6 +154,10 @@ func (h *SuppressionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.suppressions.Remove(r.Context(), pid, sid); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "failed to delete suppression")
 		return
+	}
+	if h.Audit != nil {
+		userID := r.Context().Value(auth.UserIDKey).(string)
+		h.Audit.LogFromRequest(r, pid.String(), userID, "suppression.delete", "suppression", sid.String(), nil)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -42,6 +42,7 @@ type App struct {
 	worker       *service.CampaignWorker
 	webhooks     *webhooks.Service
 	suppressions *service.SuppressionService
+	audit        *service.AuditService
 
 	server *http.Server
 }
@@ -85,6 +86,7 @@ func New(cfg config.Config) (*App, error) {
 	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks, suppressionService)
 	a.worker = service.NewCampaignWorker(queries, emailService)
 	a.suppressions = suppressionService
+	a.audit = service.NewAuditService(queries)
 
 	a.registerCoreRoutes(emailService)
 	a.serveFrontend()
@@ -97,6 +99,8 @@ func (a *App) Mux() *http.ServeMux { return a.mux }
 func (a *App) DB() *sql.DB { return a.conn }
 
 func (a *App) Webhooks() *webhooks.Service { return a.webhooks }
+
+func (a *App) Audit() *service.AuditService { return a.audit }
 
 func (a *App) WithAuth(h http.Handler) http.Handler {
 	return a.authMiddleware(h)
@@ -185,6 +189,12 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
 
 	trackingHandler := handler.NewTrackingHandler(queries, emailService, a.webhooks)
+
+	projectHandler.Audit = a.audit
+	subscriberHandler.Audit = a.audit
+	apiKeyHandler.Audit = a.audit
+	emailHandler.Audit = a.audit
+	suppressionHandler.Audit = a.audit
 
 	releaseService := service.NewReleaseService(a.cache, cfg.DeploymentMode)
 	releaseHandler := handler.NewReleaseHandler(releaseService)

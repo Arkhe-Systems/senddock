@@ -85,6 +85,11 @@ const router = createRouter({
           component: () => import('@/views/project/WebhooksSection.vue'),
         },
         {
+          path: 'audit-log',
+          name: 'project-audit-log',
+          component: () => import('@/views/project/AuditLogSection.vue'),
+        },
+        {
           path: 'settings',
           name: 'project-settings',
           component: () => import('@/views/project/SettingsSection.vue'),
