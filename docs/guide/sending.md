@@ -134,6 +134,29 @@ For recurring or scheduled sends, use **Campaigns** instead of sending directly.
 
 See the [Campaigns guide](/guide/campaigns) for details on creating and managing campaigns.
 
+## How tracking works
+
+```mermaid
+sequenceDiagram
+    participant API as POST /send
+    participant SMTP
+    participant Inbox as Recipient inbox
+    participant Track as /t/{logId}<br/>/c/{logId}/{payload}
+    participant DB as email_logs<br/>email_clicks
+
+    API->>API: rewrite &lt;a href&gt;<br/>inject pixel
+    API->>SMTP: deliver
+    SMTP-->>Inbox: email
+    API-->>DB: status=sent
+    Inbox->>Track: GET pixel.gif
+    Track-->>DB: opened_at = NOW()
+    Inbox->>Track: GET click redirect
+    Track-->>DB: clicked_at + email_clicks row
+    Track-->>Inbox: 302 → original URL
+```
+
+Tracking is on by default for every send. The two touch points — the open pixel and the click redirect — are public endpoints on your SendDock instance, so `PUBLIC_URL` must point at a host the recipient can reach.
+
 ## Open Tracking
 
 SendDock automatically injects a 1x1 transparent tracking pixel into emails sent to subscribers and via broadcast. When the recipient opens the email and their email client loads the pixel, SendDock records the open.
