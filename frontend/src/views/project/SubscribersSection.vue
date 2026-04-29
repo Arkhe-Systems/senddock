@@ -390,7 +390,7 @@ onMounted(fetchSubscribers)
             </div>
         </AppModal>
 
-        <AppModal :show="showImportModal" title="Import subscribers" @close="resetImport">
+        <AppModal :show="showImportModal" title="Import subscribers" size="lg" @close="resetImport">
             <div v-if="!importResult" class="space-y-4">
                 <div>
                     <div class="flex items-center justify-between mb-1">
