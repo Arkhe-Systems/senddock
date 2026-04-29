@@ -101,6 +101,16 @@ type Subscriber struct {
 	UpdatedAt      time.Time
 }
 
+type Suppression struct {
+	ID              uuid.UUID
+	ProjectID       uuid.UUID
+	EmailNormalized string
+	Reason          string
+	Source          sql.NullString
+	CreatedAt       time.Time
+	LastSeenAt      time.Time
+}
+
 type Template struct {
 	ID        uuid.UUID
 	ProjectID uuid.UUID

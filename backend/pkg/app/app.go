@@ -39,8 +39,9 @@ type App struct {
 	eitherAuth       func(http.Handler) http.Handler
 	rateLimiter      *middleware.RateLimiter
 
-	worker   *service.CampaignWorker
-	webhooks *webhooks.Service
+	worker       *service.CampaignWorker
+	webhooks     *webhooks.Service
+	suppressions *service.SuppressionService
 
 	server *http.Server
 }
@@ -80,8 +81,10 @@ func New(cfg config.Config) (*App, error) {
 	a.rateLimiter = middleware.NewRateLimiter(redisCache, 100, time.Minute)
 
 	a.webhooks = webhooks.NewService(queries)
-	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks)
+	suppressionService := service.NewSuppressionService(queries)
+	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks, suppressionService)
 	a.worker = service.NewCampaignWorker(queries, emailService)
+	a.suppressions = suppressionService
 
 	a.registerCoreRoutes(emailService)
 	a.serveFrontend()
@@ -166,7 +169,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	projectHandler := handler.NewProjectHandler(projectService)
 
 	emailValidator := service.NewEmailValidator()
-	subscriberService := service.NewSubscriberService(queries, a.webhooks, emailValidator)
+	subscriberService := service.NewSubscriberService(queries, a.webhooks, emailValidator, a.suppressions)
+	suppressionHandler := handler.NewSuppressionHandler(a.suppressions, projectService)
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
 
 	templateService := service.NewTemplateService(queries)
@@ -228,6 +232,10 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("PATCH /api/v1/projects/{id}/subscribers/{subscriberId}", authMW(http.HandlerFunc(subscriberHandler.UpdateStatus)))
 	mux.Handle("DELETE /api/v1/projects/{id}/subscribers/{subscriberId}", authMW(http.HandlerFunc(subscriberHandler.Delete)))
 	mux.Handle("POST /api/v1/projects/{id}/subscribers/import", eitherAuth(http.HandlerFunc(subscriberHandler.Import)))
+
+	mux.Handle("GET /api/v1/projects/{id}/suppressions", authMW(http.HandlerFunc(suppressionHandler.List)))
+	mux.Handle("POST /api/v1/projects/{id}/suppressions", authMW(http.HandlerFunc(suppressionHandler.Add)))
+	mux.Handle("DELETE /api/v1/projects/{id}/suppressions/{suppressionId}", authMW(http.HandlerFunc(suppressionHandler.Delete)))
 
 	mux.Handle("POST /api/v1/projects/{id}/keys", authMW(http.HandlerFunc(apiKeyHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/keys", authMW(http.HandlerFunc(apiKeyHandler.List)))

@@ -61,15 +61,16 @@ type WebhookDispatcher interface {
 }
 
 type EmailService struct {
-	queries   *db.Queries
-	publicURL string
-	encSecret string
-	cache     *cache.Redis
-	hooks     WebhookDispatcher
+	queries      *db.Queries
+	publicURL    string
+	encSecret    string
+	cache        *cache.Redis
+	hooks        WebhookDispatcher
+	suppressions *SuppressionService
 }
 
-func NewEmailService(queries *db.Queries, publicURL, encSecret string, redis *cache.Redis, hooks WebhookDispatcher) *EmailService {
-	return &EmailService{queries: queries, publicURL: publicURL, encSecret: encSecret, cache: redis, hooks: hooks}
+func NewEmailService(queries *db.Queries, publicURL, encSecret string, redis *cache.Redis, hooks WebhookDispatcher, suppressions *SuppressionService) *EmailService {
+	return &EmailService{queries: queries, publicURL: publicURL, encSecret: encSecret, cache: redis, hooks: hooks, suppressions: suppressions}
 }
 
 func (s *EmailService) signUnsub(projectID, subscriberID string) string {
@@ -88,8 +89,23 @@ func (s *EmailService) unsubURL(projectID, subscriberID string) string {
 }
 
 type SendResult struct {
-	Sent   int `json:"sent"`
-	Failed int `json:"failed"`
+	Sent       int `json:"sent"`
+	Failed     int `json:"failed"`
+	Suppressed int `json:"suppressed,omitempty"`
+}
+
+var ErrRecipientSuppressed = errors.New("recipient is on the project suppression list")
+
+func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject string) {
+	_, _ = s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
+		ProjectID:    projectID,
+		SubscriberID: subscriberID,
+		TemplateID:   templateID,
+		ToEmail:      to,
+		Subject:      subject,
+		Status:       "suppressed",
+		Error:        sql.NullString{String: "recipient on suppression list", Valid: true},
+	})
 }
 
 func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscriberID, templateID string) (SendResult, error) {
@@ -129,6 +145,11 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 
 	if sub.Status != "active" {
 		return SendResult{}, errors.New("subscriber is not active")
+	}
+
+	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, sub.Email) {
+		s.logSuppressed(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, template.Subject)
+		return SendResult{Suppressed: 1}, nil
 	}
 
 	body := ensureUnsubscribeFooter(template.HtmlBody)
@@ -198,7 +219,14 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 
 	go func() {
 		bgCtx := context.Background()
+		suppressed := 0
 		for _, sub := range subscribers {
+			if s.suppressions != nil && s.suppressions.IsSuppressed(bgCtx, pid, sub.Email) {
+				s.logSuppressed(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, baseSubject)
+				suppressed++
+				continue
+			}
+
 			body := templateBody
 			subject := baseSubject
 
@@ -215,7 +243,7 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 
 			s.trackAndSend(bgCtx, project, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
 		}
-		log.Printf("Broadcast to %d subscribers completed for project %s", total, pid.String())
+		log.Printf("Broadcast to %d subscribers completed for project %s (%d suppressed)", total-suppressed, pid.String(), suppressed)
 	}()
 
 	return SendResult{Sent: total}, nil
@@ -234,6 +262,11 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 
 	if !project.SmtpHost.Valid || !project.SmtpUser.Valid || !project.SmtpPasswordEncrypted.Valid {
 		return errors.New("smtp not configured")
+	}
+
+	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, to) {
+		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject)
+		return ErrRecipientSuppressed
 	}
 
 	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "")
@@ -262,6 +295,11 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	template, err := s.queries.GetTemplateByID(ctx, db.GetTemplateByIDParams{ID: tid, ProjectID: pid})
 	if err != nil {
 		return errors.New("template not found")
+	}
+
+	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, to) {
+		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, template.Subject)
+		return ErrRecipientSuppressed
 	}
 
 	body := template.HtmlBody
@@ -565,6 +603,9 @@ func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID,
 	})
 	if err != nil {
 		return err
+	}
+	if s.suppressions != nil {
+		_, _ = s.suppressions.Add(ctx, pid, sub.Email, SuppressionReasonUnsubscribe, "unsubscribe link click")
 	}
 	if s.hooks != nil {
 		s.hooks.Enqueue(ctx, webhooks.Event{
