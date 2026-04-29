@@ -6,6 +6,8 @@ import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 
 interface Subscriber {
     id: string
@@ -53,8 +55,7 @@ const allSelected = computed(() => {
     return subscribers.value.length > 0 && selectedIds.value.length === subscribers.value.length
 })
 
-function toggleSelectAll(event: Event) {
-    const checked = (event.target as HTMLInputElement).checked
+function toggleSelectAll(checked: boolean) {
     if (checked) {
         selectedIds.value = subscribers.value.map(s => s.id)
     } else {
@@ -62,11 +63,22 @@ function toggleSelectAll(event: Event) {
     }
 }
 
+function toggleSelected(id: string, checked: boolean) {
+    if (checked) {
+        if (!selectedIds.value.includes(id)) selectedIds.value.push(id)
+    } else {
+        selectedIds.value = selectedIds.value.filter(s => s !== id)
+    }
+}
+
 const bulkLoading = ref(false)
+const showBulkDeleteConfirm = ref(false)
+
+function confirmBulkDelete() {
+    showBulkDeleteConfirm.value = true
+}
 
 async function handleBulkAction(action: 'delete' | 'update_status', status?: string) {
-    if (action === 'delete' && !confirm(`Are you sure you want to delete ${selectedIds.value.length} subscribers?`)) return
-    
     bulkLoading.value = true
     try {
         await api(`/projects/${props.project.id}/subscribers/bulk`, {
@@ -79,6 +91,7 @@ async function handleBulkAction(action: 'delete' | 'update_status', status?: str
         })
         toast.success(`Bulk action completed`)
         selectedIds.value = []
+        showBulkDeleteConfirm.value = false
         fetchSubscribers()
     } catch (e: any) {
         toast.error(e.message || 'Failed to perform bulk action')
@@ -293,7 +306,7 @@ onMounted(fetchSubscribers)
                     <option value="pending">Mark Pending</option>
                     <option value="unsubscribed">Mark Unsubscribed</option>
                 </select>
-                <button @click="handleBulkAction('delete')" :disabled="bulkLoading" class="text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-md px-3 py-1.5 transition cursor-pointer disabled:opacity-50">
+                <button @click="confirmBulkDelete" :disabled="bulkLoading" class="text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-md px-3 py-1.5 transition cursor-pointer disabled:opacity-50">
                     Delete
                 </button>
             </div>
@@ -306,7 +319,7 @@ onMounted(fetchSubscribers)
                 <thead>
                     <tr class="border-b border-zinc-800">
                         <th class="px-4 py-3 w-10">
-                            <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" class="appearance-none w-[18px] h-[18px] border-2 border-zinc-600 rounded bg-transparent checked:border-white relative cursor-pointer focus:outline-none transition-colors checked:after:content-[''] checked:after:absolute checked:after:inset-[3px] checked:after:bg-white checked:after:rounded-sm hover:border-zinc-400" />
+                            <AppCheckbox :modelValue="allSelected" @update:modelValue="toggleSelectAll" />
                         </th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Email</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Name</th>
@@ -318,7 +331,7 @@ onMounted(fetchSubscribers)
                 <tbody>
                     <tr v-for="sub in subscribers" :key="sub.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/50 transition" :class="{'bg-zinc-800/30': selectedIds.includes(sub.id)}">
                         <td class="px-4 py-3">
-                            <input type="checkbox" :value="sub.id" v-model="selectedIds" class="appearance-none w-[18px] h-[18px] border-2 border-zinc-600 rounded bg-transparent checked:border-white relative cursor-pointer focus:outline-none transition-colors checked:after:content-[''] checked:after:absolute checked:after:inset-[3px] checked:after:bg-white checked:after:rounded-sm hover:border-zinc-400" />
+                            <AppCheckbox :modelValue="selectedIds.includes(sub.id)" @update:modelValue="(v: boolean) => toggleSelected(sub.id, v)" />
                         </td>
                         <td class="px-4 py-3 text-sm text-white">{{ sub.email }}</td>
                         <td class="px-4 py-3 text-sm text-zinc-400">{{ sub.name || '-' }}</td>
@@ -375,20 +388,25 @@ onMounted(fetchSubscribers)
             </form>
         </AppModal>
 
-        <AppModal :show="showDeleteModal" title="Remove Subscriber" @close="showDeleteModal = false">
-            <div class="space-y-4">
-                <p class="text-zinc-400 text-sm">
-                    Are you sure you want to remove
-                    <span class="font-semibold text-white">{{ subscriberToDelete?.email }}</span>?
-                </p>
-                <div class="flex gap-3">
-                    <AppButton variant="secondary" @click="showDeleteModal = false">Cancel</AppButton>
-                    <AppButton variant="danger" :loading="deleteLoading" @click="handleDelete">
-                        {{ deleteLoading ? 'Removing...' : 'Remove' }}
-                    </AppButton>
-                </div>
-            </div>
-        </AppModal>
+        <AppConfirmModal
+            :show="showDeleteModal"
+            title="Remove subscriber"
+            :message="subscriberToDelete ? `Remove ${subscriberToDelete.email} from the list? This cannot be undone.` : ''"
+            confirmLabel="Remove"
+            danger
+            :loading="deleteLoading"
+            @confirm="handleDelete"
+            @cancel="showDeleteModal = false" />
+
+        <AppConfirmModal
+            :show="showBulkDeleteConfirm"
+            title="Delete subscribers"
+            :message="`Delete ${selectedIds.length} subscriber${selectedIds.length === 1 ? '' : 's'} from the list? This cannot be undone.`"
+            confirmLabel="Delete"
+            danger
+            :loading="bulkLoading"
+            @confirm="handleBulkAction('delete')"
+            @cancel="showBulkDeleteConfirm = false" />
 
         <AppModal :show="showImportModal" title="Import subscribers" size="lg" @close="resetImport">
             <div v-if="!importResult" class="space-y-4">
@@ -415,13 +433,8 @@ onMounted(fetchSubscribers)
 
                 <div class="space-y-2">
                     <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition">
-                        <span class="relative flex-shrink-0 mt-0.5 w-[18px] h-[18px]">
-                            <input type="checkbox" v-model="validateMX" class="peer sr-only" />
-                            <span class="absolute inset-0 rounded border-2 border-zinc-600 bg-transparent transition-colors peer-checked:border-white peer-checked:bg-white"></span>
-                            <svg v-if="validateMX" class="absolute inset-0 m-auto w-3 h-3 text-zinc-950 pointer-events-none"
-                                viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="3 8 7 12 13 4" />
-                            </svg>
+                        <span class="mt-0.5">
+                            <AppCheckbox v-model="validateMX" />
                         </span>
                         <div class="min-w-0">
                             <p class="text-sm text-white">Reject addresses without MX records</p>
@@ -429,13 +442,8 @@ onMounted(fetchSubscribers)
                         </div>
                     </label>
                     <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition">
-                        <span class="relative flex-shrink-0 mt-0.5 w-[18px] h-[18px]">
-                            <input type="checkbox" v-model="validateDisposable" class="peer sr-only" />
-                            <span class="absolute inset-0 rounded border-2 border-zinc-600 bg-transparent transition-colors peer-checked:border-white peer-checked:bg-white"></span>
-                            <svg v-if="validateDisposable" class="absolute inset-0 m-auto w-3 h-3 text-zinc-950 pointer-events-none"
-                                viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="3 8 7 12 13 4" />
-                            </svg>
+                        <span class="mt-0.5">
+                            <AppCheckbox v-model="validateDisposable" />
                         </span>
                         <div class="min-w-0">
                             <p class="text-sm text-white">Reject disposable domains</p>

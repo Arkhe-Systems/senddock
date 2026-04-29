@@ -7,6 +7,7 @@ import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 
 interface Template {
     id: string
@@ -378,21 +379,14 @@ onMounted(loadData)
             </form>
         </AppModal>
 
-        <AppModal :show="showDeleteModal" title="Delete Campaign" @close="showDeleteModal = false">
-            <div class="space-y-4">
-                <p class="text-zinc-400 text-sm">
-                    Are you sure you want to delete <span class="font-semibold text-white">{{ campaignToDelete?.name }}</span>?
-                </p>
-                <p class="text-zinc-500 text-xs">
-                    This will permanently cancel the scheduled send.
-                </p>
-                <div class="flex gap-2 justify-end mt-4">
-                    <AppButton variant="secondary" @click="showDeleteModal = false">Cancel</AppButton>
-                    <AppButton variant="danger" :loading="deleteLoading" @click="handleDelete">
-                        {{ deleteLoading ? 'Deleting...' : 'Delete Campaign' }}
-                    </AppButton>
-                </div>
-            </div>
-        </AppModal>
+        <AppConfirmModal
+            :show="showDeleteModal"
+            title="Delete campaign"
+            :message="campaignToDelete ? `Delete ${campaignToDelete.name}? This permanently cancels the scheduled send.` : ''"
+            confirmLabel="Delete"
+            danger
+            :loading="deleteLoading"
+            @confirm="handleDelete"
+            @cancel="showDeleteModal = false" />
     </div>
 </template>
