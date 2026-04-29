@@ -26,17 +26,20 @@ type ReleaseInfo struct {
 	Notes      string `json:"notes"`
 	CheckedAt  string `json:"checked_at"`
 	Available  bool   `json:"available"`
+	Enabled    bool   `json:"enabled"`
 }
 
 type ReleaseService struct {
-	cache *cache.Redis
-	http  *http.Client
+	cache          *cache.Redis
+	http           *http.Client
+	deploymentMode string
 }
 
-func NewReleaseService(redis *cache.Redis) *ReleaseService {
+func NewReleaseService(redis *cache.Redis, deploymentMode string) *ReleaseService {
 	return &ReleaseService{
-		cache: redis,
-		http:  &http.Client{Timeout: 5 * time.Second},
+		cache:          redis,
+		http:           &http.Client{Timeout: 5 * time.Second},
+		deploymentMode: deploymentMode,
 	}
 }
 
@@ -51,6 +54,11 @@ func (s *ReleaseService) GetRelease(ctx context.Context) ReleaseInfo {
 		Current:   version.Version,
 		CheckedAt: time.Now().UTC().Format(time.RFC3339),
 		Available: true,
+		Enabled:   s.deploymentMode != "cloud",
+	}
+
+	if !info.Enabled {
+		return info
 	}
 
 	release, err := s.fetchLatest(ctx)
