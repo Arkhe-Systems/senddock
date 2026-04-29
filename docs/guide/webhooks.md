@@ -6,26 +6,26 @@ Webhook delivery, signing and retries ship in the open-source Core; the **manage
 
 ## How a delivery works
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" role="img" aria-label="Webhook delivery pipeline" style="width:100%;max-width:760px;margin:1rem 0;color:var(--vp-c-text-1);">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" role="img" aria-label="Webhook delivery pipeline" style="width:100%;max-width:800px;margin:1rem 0;color:var(--vp-c-text-1);">
   <defs>
     <marker id="wf-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.7"/></marker>
   </defs>
   <g style="font-family: ui-sans-serif, system-ui, -apple-system, sans-serif">
-    <g transform="translate(20,150)"><rect x="0" y="0" width="130" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.45"/><text x="65" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Event fires</text><text x="65" y="48" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">email.sent / opened / …</text></g>
-    <line x1="152" y1="182" x2="188" y2="182" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.6" marker-end="url(#wf-a)"/>
-    <g transform="translate(190,150)"><rect x="0" y="0" width="130" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.45"/><text x="65" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Enqueue</text><text x="65" y="48" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">webhook_deliveries</text></g>
-    <line x1="322" y1="182" x2="358" y2="182" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.6" marker-end="url(#wf-a)"/>
-    <g transform="translate(360,150)"><rect x="0" y="0" width="130" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.9" stroke-width="1.5"/><text x="65" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Dispatcher</text><text x="65" y="48" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">tick every 10s</text></g>
-    <line x1="492" y1="182" x2="528" y2="182" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.6" marker-end="url(#wf-a)"/>
-    <g transform="translate(530,150)"><rect x="0" y="0" width="150" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.45"/><text x="75" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">POST + HMAC</text><text x="75" y="48" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">your endpoint</text></g>
-    <path d="M 605 150 L 605 90" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.6" fill="none" marker-end="url(#wf-a)"/>
-    <text x="618" y="125" font-size="11" fill="currentColor" fill-opacity="0.7">2xx</text>
-    <g transform="translate(540,40)"><rect x="0" y="0" width="130" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.9" stroke-width="1.6"/><text x="65" y="22" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">delivered</text><text x="65" y="38" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">terminal</text></g>
-    <path d="M 605 214 L 605 270" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#wf-a)"/>
-    <text x="618" y="245" font-size="11" fill="currentColor" fill-opacity="0.7">non-2xx</text>
-    <g transform="translate(540,272)"><rect x="0" y="0" width="130" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.45" stroke-dasharray="5 4"/><text x="65" y="22" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">retry</text><text x="65" y="38" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">backoff 30s → 2h</text></g>
-    <path d="M 540 295 L 255 295 L 255 215" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#wf-a)"/>
-    <text x="397" y="316" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">attempts &lt; 5 → re-enqueue · attempts ≥ 5 → failed</text>
+    <g transform="translate(20,150)"><rect x="0" y="0" width="150" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.45"/><text x="75" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Event fires</text><text x="75" y="48" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.6">email · subscriber</text></g>
+    <line x1="172" y1="182" x2="208" y2="182" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.6" marker-end="url(#wf-a)"/>
+    <g transform="translate(210,150)"><rect x="0" y="0" width="150" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.45"/><text x="75" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Enqueue</text><text x="75" y="48" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.6">webhook_deliveries</text></g>
+    <line x1="362" y1="182" x2="398" y2="182" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.6" marker-end="url(#wf-a)"/>
+    <g transform="translate(400,150)"><rect x="0" y="0" width="150" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.9" stroke-width="1.5"/><text x="75" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Dispatcher</text><text x="75" y="48" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.6">tick every 10s</text></g>
+    <line x1="552" y1="182" x2="588" y2="182" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.6" marker-end="url(#wf-a)"/>
+    <g transform="translate(590,150)"><rect x="0" y="0" width="160" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.45"/><text x="80" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">POST + HMAC</text><text x="80" y="48" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.6">your endpoint</text></g>
+    <path d="M 670 150 L 670 90" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.6" fill="none" marker-end="url(#wf-a)"/>
+    <text x="684" y="125" font-size="11" fill="currentColor" fill-opacity="0.75">2xx</text>
+    <g transform="translate(605,40)"><rect x="0" y="0" width="130" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.9" stroke-width="1.6"/><text x="65" y="22" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">delivered</text><text x="65" y="38" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">terminal</text></g>
+    <path d="M 670 214 L 670 270" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#wf-a)"/>
+    <text x="684" y="245" font-size="11" fill="currentColor" fill-opacity="0.65">non-2xx</text>
+    <g transform="translate(605,272)"><rect x="0" y="0" width="130" height="46" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.45" stroke-dasharray="5 4"/><text x="65" y="22" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">retry</text><text x="65" y="38" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">backoff 30s → 2h</text></g>
+    <path d="M 605 295 L 285 295 L 285 215" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#wf-a)"/>
+    <text x="445" y="287" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.65">loop back if attempts &lt; 5 · otherwise marked failed</text>
   </g>
 </svg>
 
