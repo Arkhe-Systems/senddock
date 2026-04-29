@@ -293,7 +293,7 @@ onMounted(load)
                             class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition">
                             <input type="checkbox" :checked="newEvents.includes(ev.value)"
                                 @change="toggleEvent(ev.value)"
-                                class="mt-0.5 w-4 h-4 rounded bg-zinc-950 border-zinc-700 text-white focus:ring-0 focus:ring-offset-0 cursor-pointer" />
+                                class="mt-0.5 appearance-none w-[18px] h-[18px] border-2 border-zinc-600 rounded bg-transparent checked:border-white relative cursor-pointer focus:outline-none transition-colors checked:after:content-[''] checked:after:absolute checked:after:inset-[3px] checked:after:bg-white checked:after:rounded-sm hover:border-zinc-400" />
                             <div class="min-w-0">
                                 <p class="text-sm text-white font-mono">{{ ev.value }}</p>
                                 <p class="text-xs text-zinc-500 mt-0.5">{{ ev.description }}</p>
