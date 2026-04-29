@@ -64,7 +64,12 @@ func (h *SubscriberHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.subscriberService.BulkImport(r.Context(), projectID, subscribers)
+	opts := service.ImportOptions{
+		ValidateMX:         queryBool(r, "validate_mx", true),
+		ValidateDisposable: queryBool(r, "validate_disposable", true),
+	}
+
+	result, err := h.subscriberService.BulkImport(r.Context(), projectID, subscribers, opts)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -274,4 +279,16 @@ func (h *SubscriberHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "success"})
+}
+
+func queryBool(r *http.Request, key string, fallback bool) bool {
+	v := r.URL.Query().Get(key)
+	if v == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(v)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
