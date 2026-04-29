@@ -11,6 +11,7 @@ import (
 
 type ProjectHandler struct {
 	projectService *service.ProjectService
+	Audit          *service.AuditService
 }
 
 func NewProjectHandler(projectService *service.ProjectService) *ProjectHandler {
@@ -48,6 +49,10 @@ func (h *ProjectHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.Audit != nil {
+		h.Audit.LogFromRequest(r, project.ID.String(), userID, "project.create", "project", project.ID.String(), map[string]any{"name": project.Name})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response.FromProject(project))
@@ -83,6 +88,10 @@ func (h *ProjectHandler) Update(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
 		return
+	}
+
+	if h.Audit != nil {
+		h.Audit.LogFromRequest(r, projectID, userID, "project.update", "project", projectID, map[string]any{"name": project.Name})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -156,6 +165,10 @@ func (h *ProjectHandler) UpdateSMTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.Audit != nil {
+		h.Audit.LogFromRequest(r, projectID, userID, "smtp.update", "project", projectID, map[string]any{"smtp_host": req.SmtpHost, "smtp_user": req.SmtpUser, "from_email": req.FromEmail})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response.FromProject(project))
 }
@@ -170,6 +183,10 @@ func (h *ProjectHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
 		return
+	}
+
+	if h.Audit != nil {
+		h.Audit.LogFromRequest(r, projectID, userID, "project.delete", "project", projectID, nil)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

@@ -12,6 +12,7 @@ import (
 type APIKeyHandler struct {
 	apiKeyService  *service.APIKeyService
 	projectService *service.ProjectService
+	Audit          *service.AuditService
 }
 
 func NewAPIKeyHandler(apiKeyService *service.APIKeyService, projectService *service.ProjectService) *APIKeyHandler {
@@ -64,6 +65,11 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.Audit != nil {
+		userID := r.Context().Value(auth.UserIDKey).(string)
+		h.Audit.LogFromRequest(r, projectID, userID, "api_key.create", "api_key", result.APIKey.ID.String(), map[string]any{"name": result.APIKey.Name})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -110,6 +116,11 @@ func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(errorResponse{Error: "api key not found"})
 		return
+	}
+
+	if h.Audit != nil {
+		userID := r.Context().Value(auth.UserIDKey).(string)
+		h.Audit.LogFromRequest(r, projectID, userID, "api_key.revoke", "api_key", keyID, nil)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

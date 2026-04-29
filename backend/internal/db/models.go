@@ -23,6 +23,19 @@ type ApiKey struct {
 	CreatedAt  time.Time
 }
 
+type AuditLog struct {
+	ID         uuid.UUID
+	ProjectID  uuid.NullUUID
+	UserID     uuid.NullUUID
+	Action     string
+	TargetType sql.NullString
+	TargetID   sql.NullString
+	Metadata   json.RawMessage
+	IpAddress  pqtype.Inet
+	UserAgent  sql.NullString
+	CreatedAt  time.Time
+}
+
 type Campaign struct {
 	ID          uuid.UUID
 	ProjectID   uuid.UUID

@@ -28,6 +28,7 @@ type EmailHandler struct {
 	emailService   *service.EmailService
 	projectService *service.ProjectService
 	cache          *cache.Redis
+	Audit          *service.AuditService
 }
 
 func NewEmailHandler(emailService *service.EmailService, projectService *service.ProjectService, redis *cache.Redis) *EmailHandler {
@@ -206,6 +207,11 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return
+	}
+
+	if h.Audit != nil {
+		userID, _ := r.Context().Value(auth.UserIDKey).(string)
+		h.Audit.LogFromRequest(r, projectID, userID, "broadcast.send", "template", req.TemplateID, map[string]any{"recipients": result.Sent, "subject_override": req.Subject})
 	}
 
 	w.Header().Set("Content-Type", "application/json")

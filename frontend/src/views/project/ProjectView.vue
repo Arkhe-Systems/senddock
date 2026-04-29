@@ -36,6 +36,7 @@ const navItems = [
 const proItems = [
     { name: 'Analytics', route: 'project-analytics' },
     { name: 'Webhooks', route: 'project-webhooks' },
+    { name: 'Audit log', route: 'project-audit-log' },
 ]
 
 onMounted(loadProject)
