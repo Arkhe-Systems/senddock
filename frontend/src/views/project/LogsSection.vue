@@ -75,6 +75,7 @@ onMounted(fetchLogs)
                     <option value="">All</option>
                     <option value="sent">Sent</option>
                     <option value="failed">Failed</option>
+                    <option value="bounced">Bounced</option>
                     <option value="suppressed">Suppressed</option>
                 </select>
             </div>
@@ -116,6 +117,7 @@ onMounted(fetchLogs)
                                     'text-xs px-2 py-1 rounded-full',
                                     log.status === 'sent' && 'bg-green-500/10 text-green-400',
                                     log.status === 'failed' && 'bg-red-500/10 text-red-400',
+                                    log.status === 'bounced' && 'bg-orange-500/10 text-orange-400',
                                     log.status === 'suppressed' && 'bg-zinc-500/10 text-zinc-400',
                                 ]">
                                     {{ log.status }}
@@ -126,6 +128,11 @@ onMounted(fetchLogs)
                         <tr v-if="log.status === 'failed' && log.error">
                             <td colspan="4" class="px-4 py-2 bg-red-500/5">
                                 <p class="text-xs text-red-400">{{ log.error }}</p>
+                            </td>
+                        </tr>
+                        <tr v-if="log.status === 'bounced' && log.error">
+                            <td colspan="4" class="px-4 py-2 bg-orange-500/5">
+                                <p class="text-xs text-orange-400">{{ log.error }}</p>
                             </td>
                         </tr>
                         <tr v-if="log.status === 'suppressed' && log.error">

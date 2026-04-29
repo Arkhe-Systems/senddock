@@ -33,6 +33,7 @@ interface Delivery {
 const ALL_EVENTS = [
     { value: 'email.sent', label: 'Email sent', description: 'Fired when an email is successfully delivered to the SMTP relay' },
     { value: 'email.failed', label: 'Email failed', description: 'Fired when sending an email returns an error' },
+    { value: 'email.bounced', label: 'Email bounced', description: 'Fired when the SMTP relay rejects a recipient address with a 5xx code' },
     { value: 'email.opened', label: 'Email opened', description: 'Fired the first time a recipient opens an email' },
     { value: 'email.clicked', label: 'Email clicked', description: 'Fired the first time a recipient clicks a tracked link' },
     { value: 'subscriber.created', label: 'Subscriber created', description: 'Fired when a new subscriber is added' },

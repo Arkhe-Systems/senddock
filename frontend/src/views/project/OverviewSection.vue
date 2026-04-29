@@ -203,6 +203,7 @@ onMounted(loadData)
                                         'text-xs px-2 py-1 rounded-full',
                                         log.status === 'sent' && 'bg-green-500/10 text-green-400',
                                         log.status === 'failed' && 'bg-red-500/10 text-red-400',
+                                        log.status === 'bounced' && 'bg-orange-500/10 text-orange-400',
                                         log.status === 'suppressed' && 'bg-zinc-500/10 text-zinc-400',
                                     ]">
                                         {{ log.status }}

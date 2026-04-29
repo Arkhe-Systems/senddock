@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"net/smtp"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"time"
@@ -95,6 +96,29 @@ type SendResult struct {
 }
 
 var ErrRecipientSuppressed = errors.New("recipient is on the project suppression list")
+
+type BounceError struct {
+	Code    int
+	Message string
+}
+
+func (e *BounceError) Error() string {
+	return fmt.Sprintf("smtp bounce %d: %s", e.Code, e.Message)
+}
+
+func classifyBounce(err error) *BounceError {
+	if err == nil {
+		return nil
+	}
+	var protoErr *textproto.Error
+	if !errors.As(err, &protoErr) {
+		return nil
+	}
+	if protoErr.Code < 500 || protoErr.Code >= 600 {
+		return nil
+	}
+	return &BounceError{Code: protoErr.Code, Message: protoErr.Msg}
+}
 
 func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject string) {
 	_, _ = s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
@@ -396,6 +420,7 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 	total, _ := s.queries.CountEmailLogsByProject(ctx, pid)
 	sent, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "sent"})
 	failed, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "failed"})
+	bounced, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "bounced"})
 	suppressed, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "suppressed"})
 	opened, _ := s.queries.CountEmailLogsOpened(ctx, pid)
 
@@ -403,6 +428,7 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 		"total":      total,
 		"sent":       sent,
 		"failed":     failed,
+		"bounced":    bounced,
 		"suppressed": suppressed,
 		"opened":     opened,
 	}
@@ -424,16 +450,27 @@ func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subs
 	return logEntry.ID
 }
 
-func (s *EmailService) markLogFailed(ctx context.Context, projectID, logID uuid.UUID, sendErr error) {
-	if sendErr == nil || logID == uuid.Nil {
+func (s *EmailService) markLogStatus(ctx context.Context, projectID, logID uuid.UUID, status string, sendErr error) {
+	if logID == uuid.Nil {
 		return
+	}
+	errStr := sql.NullString{}
+	if sendErr != nil {
+		errStr = sql.NullString{String: sendErr.Error(), Valid: true}
 	}
 	s.queries.UpdateEmailLogStatus(ctx, db.UpdateEmailLogStatusParams{
 		ID:     logID,
-		Status: "failed",
-		Error:  sql.NullString{String: sendErr.Error(), Valid: true},
+		Status: status,
+		Error:  errStr,
 	})
 	s.cache.Delete(ctx, "stats:"+projectID.String())
+}
+
+func (s *EmailService) markLogFailed(ctx context.Context, projectID, logID uuid.UUID, sendErr error) {
+	if sendErr == nil {
+		return
+	}
+	s.markLogStatus(ctx, projectID, logID, "failed", sendErr)
 }
 
 func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string) error {
@@ -441,6 +478,18 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 	body = s.injectTrackingPixel(body, logID)
 	body = s.rewriteLinksForTracking(body, logID)
 	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
+
+	var bounce *BounceError
+	if errors.As(sendErr, &bounce) {
+		s.markLogStatus(ctx, projectID, logID, "bounced", sendErr)
+		if s.suppressions != nil {
+			source := fmt.Sprintf("smtp %d during rcpt: %s", bounce.Code, bounce.Message)
+			_, _ = s.suppressions.Add(ctx, projectID, to, SuppressionReasonBounce, source)
+		}
+		s.dispatchBounceEvent(ctx, projectID, logID, to, subject, bounce)
+		return sendErr
+	}
+
 	if sendErr != nil {
 		s.markLogFailed(ctx, projectID, logID, sendErr)
 		s.dispatchEmail(ctx, "email.failed", projectID, logID, to, subject, sendErr.Error())
@@ -448,6 +497,24 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 		s.dispatchEmail(ctx, "email.sent", projectID, logID, to, subject, "")
 	}
 	return sendErr
+}
+
+func (s *EmailService) dispatchBounceEvent(ctx context.Context, projectID, logID uuid.UUID, to, subject string, bounce *BounceError) {
+	if s.hooks == nil {
+		return
+	}
+	s.hooks.Enqueue(ctx, webhooks.Event{
+		Type:      "email.bounced",
+		ProjectID: projectID,
+		Data: map[string]any{
+			"log_id":     logID.String(),
+			"project_id": projectID.String(),
+			"to_email":   to,
+			"subject":    subject,
+			"smtp_code":  bounce.Code,
+			"reason":     bounce.Message,
+		},
+	})
 }
 
 func (s *EmailService) dispatchEmail(ctx context.Context, eventType string, projectID, logID uuid.UUID, to, subject, errMsg string) {
@@ -754,6 +821,9 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 	}
 
 	if err = client.Rcpt(to); err != nil {
+		if be := classifyBounce(err); be != nil {
+			return be
+		}
 		return fmt.Errorf("smtp rcpt to failed: %w", err)
 	}
 
