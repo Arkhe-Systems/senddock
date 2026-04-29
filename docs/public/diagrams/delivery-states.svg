@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 280" role="img" aria-label="Webhook delivery state machine: pending becomes inflight when claimed, inflight transitions to delivered on 2xx, back to pending on retry, or to failed on 5 attempts or inactive webhook">
   <defs>
     <marker id="ds-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.55"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" class="arrow-head"/>
     </marker>
     <marker id="ds-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/>
@@ -14,15 +14,22 @@
     </marker>
   </defs>
   <style>
-    .state { fill: none; stroke: currentColor; stroke-opacity: 0.5; }
-    .state-final { fill: none; stroke-width: 2; }
-    .label { font: 600 13px ui-sans-serif, system-ui, sans-serif; fill: currentColor; }
+    .arrow-head { fill: #71717a; }
+    .state { fill: none; stroke: #71717a; }
+    .label { font: 600 13px ui-sans-serif, system-ui, sans-serif; fill: #18181b; }
     .pill { font: 600 10px ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
-    .edge-label { font: 11px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.7; }
-    .arrow { stroke: currentColor; stroke-opacity: 0.55; fill: none; stroke-width: 1.5; }
+    .edge-label { font: 11px ui-sans-serif, system-ui, sans-serif; fill: #52525b; }
+    .arrow { stroke: #71717a; fill: none; stroke-width: 1.5; }
     .arrow-g { stroke: #10b981; fill: none; stroke-width: 1.5; }
     .arrow-a { stroke: #f59e0b; fill: none; stroke-width: 1.5; stroke-dasharray: 4 3; }
     .arrow-r { stroke: #ef4444; fill: none; stroke-width: 1.5; }
+    @media (prefers-color-scheme: dark) {
+      .arrow-head { fill: #a1a1aa; }
+      .state { stroke: #a1a1aa; }
+      .label { fill: #fafafa; }
+      .edge-label { fill: #a1a1aa; }
+      .arrow { stroke: #a1a1aa; }
+    }
   </style>
 
   <g transform="translate(40,108)">
@@ -44,9 +51,9 @@
   <text class="edge-label" x="475" y="92" text-anchor="middle" fill="#10b981">2xx response</text>
 
   <g transform="translate(580,40)">
-    <rect class="state state-final" x="0" y="0" width="130" height="60" rx="30" stroke="#10b981" stroke-opacity="0.7"/>
+    <rect x="0" y="0" width="130" height="60" rx="30" fill="none" stroke="#10b981" stroke-width="2"/>
     <text class="label" x="65" y="28" text-anchor="middle" fill="#10b981">delivered</text>
-    <text class="pill" x="65" y="44" text-anchor="middle" fill="#10b981" fill-opacity="0.7">terminal</text>
+    <text class="pill" x="65" y="44" text-anchor="middle" fill="#10b981">terminal</text>
   </g>
 
   <path class="arrow-a" d="M 290 168 C 200 220 130 220 105 168" marker-end="url(#ds-aa)"/>
@@ -56,8 +63,8 @@
   <text class="edge-label" x="475" y="172" text-anchor="middle" fill="#ef4444">5 attempts · or webhook inactive</text>
 
   <g transform="translate(580,180)">
-    <rect class="state state-final" x="0" y="0" width="130" height="60" rx="30" stroke="#ef4444" stroke-opacity="0.7"/>
+    <rect x="0" y="0" width="130" height="60" rx="30" fill="none" stroke="#ef4444" stroke-width="2"/>
     <text class="label" x="65" y="28" text-anchor="middle" fill="#ef4444">failed</text>
-    <text class="pill" x="65" y="44" text-anchor="middle" fill="#ef4444" fill-opacity="0.7">terminal</text>
+    <text class="pill" x="65" y="44" text-anchor="middle" fill="#ef4444">terminal</text>
   </g>
 </svg>

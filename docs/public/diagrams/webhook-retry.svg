@@ -1,11 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 200" role="img" aria-label="Webhook retry backoff timeline: attempts at 0s, 30s, 2m30s, 12m30s and 42m30s, with the fifth failure marking the delivery as failed">
   <style>
-    .axis { stroke: currentColor; stroke-opacity: 0.35; stroke-width: 1.5; }
-    .tick { stroke: currentColor; stroke-opacity: 0.55; stroke-width: 1.5; }
-    .label { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: currentColor; }
-    .sub { font: 11px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.55; }
-    .delta { font: 600 10px ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; fill: currentColor; fill-opacity: 0.7; }
-    .dot { fill: currentColor; }
+    .axis { stroke: #71717a; stroke-width: 1.5; }
+    .tick { stroke: #52525b; stroke-width: 1.5; }
+    .label { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: #18181b; }
+    .sub { font: 11px ui-sans-serif, system-ui, sans-serif; fill: #71717a; }
+    .delta { font: 600 10px ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; fill: #52525b; }
+    .dot { fill: #52525b; }
+    @media (prefers-color-scheme: dark) {
+      .axis { stroke: #52525b; }
+      .tick { stroke: #a1a1aa; }
+      .label { fill: #fafafa; }
+      .sub { fill: #a1a1aa; }
+      .delta { fill: #a1a1aa; }
+      .dot { fill: #a1a1aa; }
+    }
   </style>
 
   <line class="axis" x1="40" y1="100" x2="720" y2="100"/>
@@ -53,9 +61,9 @@
     <line x1="710" y1="92" x2="710" y2="108" stroke="#ef4444" stroke-width="1.5"/>
     <circle cx="710" cy="100" r="5" fill="#ef4444"/>
     <text x="710" y="80" text-anchor="middle" fill="#ef4444" font-family="ui-sans-serif, system-ui" font-size="11" font-weight="600" letter-spacing="0.05em">FAIL</text>
-    <text class="sub" x="710" y="130" text-anchor="middle" fill="#ef4444" fill-opacity="0.8">~2h 12m</text>
+    <text x="710" y="130" text-anchor="middle" fill="#ef4444" font-family="ui-sans-serif, system-ui" font-size="11">~2h 12m</text>
   </g>
-  <text class="delta" x="675" y="158" text-anchor="middle" fill="#f59e0b" fill-opacity="0.85">+2h</text>
+  <text class="delta" x="675" y="158" text-anchor="middle" fill="#f59e0b">+2h</text>
 
   <text class="sub" x="380" y="190" text-anchor="middle">5 attempts max — terminal &quot;failed&quot; if all return non-2xx</text>
 </svg>
