@@ -43,6 +43,7 @@ type App struct {
 	webhooks     *webhooks.Service
 	suppressions *service.SuppressionService
 	audit        *service.AuditService
+	bouncePoller *service.BounceIMAPPoller
 
 	server *http.Server
 }
@@ -87,6 +88,7 @@ func New(cfg config.Config) (*App, error) {
 	a.worker = service.NewCampaignWorker(queries, emailService)
 	a.suppressions = suppressionService
 	a.audit = service.NewAuditService(queries)
+	a.bouncePoller = service.NewBounceIMAPPoller(queries, suppressionService, cfg.JWTSecret)
 
 	a.registerCoreRoutes(emailService)
 	a.serveFrontend()
@@ -113,6 +115,7 @@ func (a *App) WithAPIAuth(h http.Handler) http.Handler {
 func (a *App) Run(ctx context.Context) error {
 	a.worker.Start()
 	a.webhooks.Start(ctx)
+	a.bouncePoller.Start(ctx)
 
 	wrapped := middleware.Security(
 		middleware.LimitBody(
@@ -237,6 +240,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("PUT /api/v1/projects/{id}/smtp", authMW(http.HandlerFunc(projectHandler.UpdateSMTP)))
 	mux.Handle("GET /api/v1/projects/{id}/bounce-webhook", authMW(http.HandlerFunc(projectHandler.GetBounceWebhook)))
 	mux.Handle("POST /api/v1/projects/{id}/bounce-webhook/rotate", authMW(http.HandlerFunc(projectHandler.RotateBounceToken)))
+	mux.Handle("GET /api/v1/projects/{id}/bounce-imap", authMW(http.HandlerFunc(projectHandler.GetBounceIMAP)))
+	mux.Handle("PUT /api/v1/projects/{id}/bounce-imap", authMW(http.HandlerFunc(projectHandler.UpdateBounceIMAP)))
 
 	bounceWebhookHandler := handler.NewBounceWebhookHandler(queries, a.suppressions)
 	mux.HandleFunc("POST /webhooks/bounces/{projectId}", bounceWebhookHandler.Receive)
