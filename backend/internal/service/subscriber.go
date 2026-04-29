@@ -6,15 +6,17 @@ import (
 	"fmt"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/google/uuid"
 )
 
 type SubscriberService struct {
 	queries *db.Queries
+	hooks   WebhookDispatcher
 }
 
-func NewSubscriberService(queries *db.Queries) *SubscriberService {
-	return &SubscriberService{queries: queries}
+func NewSubscriberService(queries *db.Queries, hooks WebhookDispatcher) *SubscriberService {
+	return &SubscriberService{queries: queries, hooks: hooks}
 }
 
 func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, status string) (db.Subscriber, error) {
@@ -27,11 +29,34 @@ func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, 
 		status = "active"
 	}
 
-	return s.queries.CreateSubscriber(ctx, db.CreateSubscriberParams{
+	sub, err := s.queries.CreateSubscriber(ctx, db.CreateSubscriberParams{
 		ProjectID: pid,
 		Email:     email,
 		Name:      name,
 		Status:    status,
+	})
+	if err != nil {
+		return sub, err
+	}
+
+	s.dispatch(ctx, "subscriber.created", sub)
+	return sub, nil
+}
+
+func (s *SubscriberService) dispatch(ctx context.Context, eventType string, sub db.Subscriber) {
+	if s.hooks == nil {
+		return
+	}
+	s.hooks.Enqueue(ctx, webhooks.Event{
+		Type:      eventType,
+		ProjectID: sub.ProjectID,
+		Data: map[string]any{
+			"subscriber_id": sub.ID.String(),
+			"project_id":    sub.ProjectID.String(),
+			"email":         sub.Email,
+			"name":          sub.Name,
+			"status":        sub.Status,
+		},
 	})
 }
 
@@ -122,6 +147,9 @@ func (s *SubscriberService) UpdateStatus(ctx context.Context, subscriberID, proj
 	})
 	if err != nil {
 		return db.Subscriber{}, fmt.Errorf("update failed for %s in project %s: %w", subscriberID, projectID, err)
+	}
+	if status == "unsubscribed" {
+		s.dispatch(ctx, "subscriber.unsubscribed", sub)
 	}
 	return sub, nil
 }
