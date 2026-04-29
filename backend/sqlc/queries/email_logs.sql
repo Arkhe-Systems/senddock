@@ -31,13 +31,13 @@ SELECT COUNT(*) FROM email_logs WHERE project_id = $1;
 -- name: CountEmailLogsByStatus :one
 SELECT COUNT(*) FROM email_logs WHERE project_id = $1 AND status = $2;
 
--- name: MarkEmailOpened :exec
+-- name: MarkEmailOpened :execrows
 UPDATE email_logs SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL;
 
 -- name: CountEmailLogsOpened :one
 SELECT COUNT(*) FROM email_logs WHERE project_id = $1 AND opened_at IS NOT NULL;
 
--- name: MarkEmailClicked :exec
+-- name: MarkEmailClicked :execrows
 UPDATE email_logs SET clicked_at = NOW() WHERE id = $1 AND clicked_at IS NULL;
 
 -- name: CountEmailLogsClicked :one
