@@ -601,10 +601,14 @@ func (s *EmailService) TestSMTP(ctx context.Context, projectID string) error {
 		fromEmail = project.FromEmail.String
 	}
 
-	return s.sendSMTP(project, fromEmail, "SendDock SMTP Test", "<h2>SMTP is working!</h2><p>Your SendDock SMTP configuration is correct.</p>", "")
+	return s.sendSMTPWithTimeouts(project, fromEmail, "SendDock SMTP Test", "<h2>SMTP is working!</h2><p>Your SendDock SMTP configuration is correct.</p>", "", smtpTestConnectTimeout, smtpTestSessionTimeout)
 }
 
 func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody, unsubscribeURL string) error {
+	return s.sendSMTPWithTimeouts(project, to, subject, htmlBody, unsubscribeURL, smtpConnectTimeout, smtpSessionTimeout)
+}
+
+func (s *EmailService) sendSMTPWithTimeouts(project db.Project, to, subject, htmlBody, unsubscribeURL string, connectTimeout, sessionTimeout time.Duration) error {
 	host := project.SmtpHost.String
 	port := project.SmtpPort.Int32
 	user := project.SmtpUser.String
@@ -635,18 +639,21 @@ func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody, unsub
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	return deliverSMTP(host, addr, user, pass, fromEmail, to, []byte(msg), port == 465)
+	return deliverSMTP(host, addr, user, pass, fromEmail, to, []byte(msg), port == 465, connectTimeout, sessionTimeout)
 }
 
 const (
 	smtpConnectTimeout = 10 * time.Second
 	smtpSessionTimeout = 30 * time.Second
+
+	smtpTestConnectTimeout = 5 * time.Second
+	smtpTestSessionTimeout = 10 * time.Second
 )
 
-func wrapDialError(addr string, err error) error {
+func wrapDialError(addr string, connectTimeout time.Duration, err error) error {
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
-		return fmt.Errorf("could not reach SMTP server at %s within %s. The host or port may be wrong, or your network is blocking outbound SMTP (residential ISPs often block ports 25/465/587). Try from a cloud server or use a local SMTP catcher like Mailpit", addr, smtpConnectTimeout)
+		return fmt.Errorf("could not reach SMTP server at %s within %s. The host or port may be wrong, or your network is blocking outbound SMTP (residential ISPs often block ports 25/465/587). Try from a cloud server or use a local SMTP catcher like Mailpit", addr, connectTimeout)
 	}
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
@@ -660,9 +667,9 @@ func wrapDialError(addr string, err error) error {
 	return fmt.Errorf("smtp connection failed: %w", err)
 }
 
-func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool) error {
+func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool, connectTimeout, sessionTimeout time.Duration) error {
 	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
-	dialer := &net.Dialer{Timeout: smtpConnectTimeout}
+	dialer := &net.Dialer{Timeout: connectTimeout}
 
 	var conn net.Conn
 	var err error
@@ -672,11 +679,11 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 		conn, err = dialer.Dial("tcp", addr)
 	}
 	if err != nil {
-		return wrapDialError(addr, err)
+		return wrapDialError(addr, connectTimeout, err)
 	}
 	defer conn.Close()
 
-	if err := conn.SetDeadline(time.Now().Add(smtpSessionTimeout)); err != nil {
+	if err := conn.SetDeadline(time.Now().Add(sessionTimeout)); err != nil {
 		return fmt.Errorf("smtp set deadline failed: %w", err)
 	}
 
