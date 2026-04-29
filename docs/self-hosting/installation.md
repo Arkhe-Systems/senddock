@@ -4,23 +4,7 @@ SendDock ships as a single Docker image: `ghcr.io/arkhe-systems/senddock`. Three
 
 ## What gets deployed
 
-```mermaid
-flowchart LR
-    R(("Recipients<br/>(opens, clicks,<br/>unsubscribes)"))
-    P[Reverse proxy<br/>HTTPS, your domain]
-    S[senddock<br/>:8080<br/>Go API + Vue SPA]
-    DB[(PostgreSQL 17<br/>pgdata volume)]
-    RD[(Redis 7<br/>redisdata volume)]
-    SMTP[Your SMTP relay<br/>SES, Mailgun, Postmark…]
-    HOOK[Your webhook<br/>endpoints]
-
-    R -- /t/<br/>/c/<br/>/unsubscribe/ --> P
-    P --> S
-    S --> DB
-    S --> RD
-    S --> SMTP
-    S -. POST signed payloads .-> HOOK
-```
+<img src="/diagrams/architecture.svg" alt="SendDock self-hosted architecture overview" style="width:100%;max-width:760px;margin:1rem 0;" />
 
 A single Docker container running the Go binary serves both the API and the Vue SPA. PostgreSQL holds all your data; Redis caches the GitHub releases response and powers per-project rate limits. Your own SMTP relay handles outbound mail — SendDock never proxies your sends.
 

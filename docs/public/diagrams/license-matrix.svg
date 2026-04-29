@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" role="img" aria-label="Pro license decision matrix: in self-hosted mode an empty key unlocks Pro locally for development; a valid key unlocks Pro after Lemon Squeezy validation. In cloud mode an empty key keeps Pro locked on the free tier; a valid key unlocks Pro.">
+  <defs>
+    <marker id="lm-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.55"/>
+    </marker>
+    <marker id="lm-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/>
+    </marker>
+    <marker id="lm-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill: none; stroke: currentColor; stroke-opacity: 0.4; }
+    .start { fill: none; stroke: currentColor; stroke-opacity: 0.7; stroke-width: 1.6; }
+    .label { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: currentColor; }
+    .sub { font: 11px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.55; }
+    .pill { font: 600 10px ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; }
+    .arrow { stroke: currentColor; stroke-opacity: 0.55; fill: none; stroke-width: 1.5; }
+    .edge { font: 11px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.7; }
+  </style>
+
+  <g transform="translate(310,16)">
+    <rect class="start" x="0" y="0" width="160" height="50" rx="25"/>
+    <text class="label" x="80" y="22" text-anchor="middle">DEPLOYMENT_MODE</text>
+    <text class="sub" x="80" y="38" text-anchor="middle">self-hosted · cloud</text>
+  </g>
+
+  <path class="arrow" d="M 360 66 L 200 110" marker-end="url(#lm-a)"/>
+  <text class="edge" x="260" y="86" text-anchor="middle">self-hosted</text>
+
+  <path class="arrow" d="M 420 66 L 580 110" marker-end="url(#lm-a)"/>
+  <text class="edge" x="520" y="86" text-anchor="middle">cloud</text>
+
+  <g transform="translate(110,116)">
+    <rect class="box" x="0" y="0" width="180" height="50" rx="10"/>
+    <text class="label" x="90" y="22" text-anchor="middle">SENDDOCK_LICENSE_KEY?</text>
+    <text class="sub" x="90" y="38" text-anchor="middle">empty · valid</text>
+  </g>
+
+  <g transform="translate(490,116)">
+    <rect class="box" x="0" y="0" width="180" height="50" rx="10"/>
+    <text class="label" x="90" y="22" text-anchor="middle">SENDDOCK_LICENSE_KEY?</text>
+    <text class="sub" x="90" y="38" text-anchor="middle">empty · valid</text>
+  </g>
+
+  <path class="arrow" d="M 150 166 L 80 220" marker-end="url(#lm-ag)" stroke="#10b981"/>
+  <text class="edge" x="92" y="190" text-anchor="middle" fill="#10b981">empty</text>
+
+  <path class="arrow" d="M 250 166 L 320 220" marker-end="url(#lm-ag)" stroke="#10b981"/>
+  <text class="edge" x="305" y="190" text-anchor="middle" fill="#10b981">valid</text>
+
+  <path class="arrow" d="M 530 166 L 460 220" marker-end="url(#lm-ar)" stroke="#ef4444"/>
+  <text class="edge" x="472" y="190" text-anchor="middle" fill="#ef4444">empty</text>
+
+  <path class="arrow" d="M 630 166 L 700 220" marker-end="url(#lm-ag)" stroke="#10b981"/>
+  <text class="edge" x="685" y="190" text-anchor="middle" fill="#10b981">valid</text>
+
+  <g transform="translate(20,224)">
+    <rect class="box" x="0" y="0" width="120" height="60" rx="10" stroke="#10b981" stroke-opacity="0.6"/>
+    <text class="label" x="60" y="26" text-anchor="middle" fill="#10b981">Unlocked</text>
+    <text class="pill" x="60" y="46" text-anchor="middle" fill="#10b981" fill-opacity="0.7">local dev</text>
+  </g>
+
+  <g transform="translate(260,224)">
+    <rect class="box" x="0" y="0" width="120" height="60" rx="10" stroke="#10b981" stroke-opacity="0.6"/>
+    <text class="label" x="60" y="26" text-anchor="middle" fill="#10b981">Unlocked</text>
+    <text class="pill" x="60" y="46" text-anchor="middle" fill="#10b981" fill-opacity="0.7">licensed</text>
+  </g>
+
+  <g transform="translate(400,224)">
+    <rect class="box" x="0" y="0" width="120" height="60" rx="10" stroke="#ef4444" stroke-opacity="0.6"/>
+    <text class="label" x="60" y="26" text-anchor="middle" fill="#ef4444">Locked</text>
+    <text class="pill" x="60" y="46" text-anchor="middle" fill="#ef4444" fill-opacity="0.7">free tier</text>
+  </g>
+
+  <g transform="translate(640,224)">
+    <rect class="box" x="0" y="0" width="120" height="60" rx="10" stroke="#10b981" stroke-opacity="0.6"/>
+    <text class="label" x="60" y="26" text-anchor="middle" fill="#10b981">Unlocked</text>
+    <text class="pill" x="60" y="46" text-anchor="middle" fill="#10b981" fill-opacity="0.7">licensed</text>
+  </g>
+
+  <text class="sub" x="380" y="306" text-anchor="middle">Lemon Squeezy validates the key on startup and re-validates periodically</text>
+</svg>
