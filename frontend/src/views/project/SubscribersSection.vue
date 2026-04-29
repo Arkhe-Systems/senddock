@@ -27,6 +27,23 @@ const newEmail = ref('')
 const newName = ref('')
 const addLoading = ref(false)
 
+const showImportModal = ref(false)
+const importText = ref('')
+const importLoading = ref(false)
+const validateMX = ref(true)
+const validateDisposable = ref(true)
+
+interface RejectedRow { email: string; name: string; reason: string }
+interface ImportResult {
+    imported: number
+    duplicates: number
+    syntax_invalid: number
+    no_mx: number
+    disposable: number
+    rejected: RejectedRow[]
+}
+const importResult = ref<ImportResult | null>(null)
+
 const page = ref(0)
 const limit = 50
 
@@ -150,6 +167,80 @@ async function handleDelete() {
     }
 }
 
+function parseImportText(text: string): { email: string; name: string }[] {
+    const rows: { email: string; name: string }[] = []
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+    if (lines.length === 0) return rows
+
+    let startIdx = 0
+    const first = lines[0]!.toLowerCase()
+    if (first.startsWith('email,') || first === 'email' || first.startsWith('email ')) {
+        startIdx = 1
+    }
+
+    for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i]!
+        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''))
+        const email = parts[0] ?? ''
+        const name = parts[1] ?? ''
+        if (email) rows.push({ email, name })
+    }
+    return rows
+}
+
+async function handleImport() {
+    const rows = parseImportText(importText.value)
+    if (rows.length === 0) {
+        toast.error('Paste at least one email')
+        return
+    }
+    importLoading.value = true
+    importResult.value = null
+    try {
+        const params = new URLSearchParams({
+            validate_mx: String(validateMX.value),
+            validate_disposable: String(validateDisposable.value),
+        })
+        const res = await api<ImportResult>(
+            `/projects/${props.project.id}/subscribers/import?${params.toString()}`,
+            { method: 'POST', body: rows },
+        )
+        importResult.value = res
+        if (res.imported > 0) {
+            toast.success(`${res.imported} imported`)
+            fetchSubscribers()
+        } else {
+            toast.error('No subscribers were imported')
+        }
+    } catch (e: any) {
+        toast.error(e.message || 'Import failed')
+    } finally {
+        importLoading.value = false
+    }
+}
+
+function downloadRejected() {
+    if (!importResult.value || importResult.value.rejected.length === 0) return
+    const header = 'email,name,reason\n'
+    const body = importResult.value.rejected.map(r => {
+        const safe = (s: string) => `"${s.replace(/"/g, '""')}"`
+        return `${safe(r.email)},${safe(r.name)},${r.reason}`
+    }).join('\n')
+    const blob = new Blob([header + body], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `rejected-subscribers-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+}
+
+function resetImport() {
+    importText.value = ''
+    importResult.value = null
+    showImportModal.value = false
+}
+
 onMounted(fetchSubscribers)
 </script>
 
@@ -160,7 +251,10 @@ onMounted(fetchSubscribers)
                 <h1 class="text-2xl font-bold text-white">Subscribers</h1>
                 <p class="text-sm text-zinc-500 mt-1">{{ total }} total</p>
             </div>
-            <AppButton @click="showAddModal = true" class="w-auto! px-4">+ Add Subscriber</AppButton>
+            <div class="flex items-center gap-2">
+                <AppButton variant="ghost" size="sm" @click="showImportModal = true">Import CSV</AppButton>
+                <AppButton size="sm" @click="showAddModal = true">+ Add Subscriber</AppButton>
+            </div>
         </div>
 
         <div v-if="selectedIds.length > 0" class="bg-zinc-800 border border-zinc-700 rounded-lg p-3 mb-6 flex items-center justify-between shadow-lg">
@@ -266,6 +360,111 @@ onMounted(fetchSubscribers)
                         {{ deleteLoading ? 'Removing...' : 'Remove' }}
                     </AppButton>
                 </div>
+            </div>
+        </AppModal>
+
+        <AppModal :show="showImportModal" title="Import subscribers" @close="resetImport">
+            <div v-if="!importResult" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-1">Paste CSV (email, name)</label>
+                    <textarea v-model="importText" rows="8" placeholder="email,name&#10;ada@example.com,Ada Lovelace&#10;alan@example.com,Alan Turing"
+                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition resize-y" />
+                    <p class="text-xs text-zinc-500 mt-1">First line can be a header (<code class="text-zinc-400">email,name</code>). Name column is optional.</p>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition">
+                        <span class="relative flex-shrink-0 mt-0.5 w-[18px] h-[18px]">
+                            <input type="checkbox" v-model="validateMX" class="peer sr-only" />
+                            <span class="absolute inset-0 rounded border-2 border-zinc-600 bg-transparent transition-colors peer-checked:border-white peer-checked:bg-white"></span>
+                            <svg v-if="validateMX" class="absolute inset-0 m-auto w-3 h-3 text-zinc-950 pointer-events-none"
+                                viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 8 7 12 13 4" />
+                            </svg>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm text-white">Reject addresses without MX records</p>
+                            <p class="text-xs text-zinc-500 mt-0.5">DNS lookup per unique domain. Skips dead inboxes that would bounce on first send.</p>
+                        </div>
+                    </label>
+                    <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition">
+                        <span class="relative flex-shrink-0 mt-0.5 w-[18px] h-[18px]">
+                            <input type="checkbox" v-model="validateDisposable" class="peer sr-only" />
+                            <span class="absolute inset-0 rounded border-2 border-zinc-600 bg-transparent transition-colors peer-checked:border-white peer-checked:bg-white"></span>
+                            <svg v-if="validateDisposable" class="absolute inset-0 m-auto w-3 h-3 text-zinc-950 pointer-events-none"
+                                viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 8 7 12 13 4" />
+                            </svg>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm text-white">Reject disposable domains</p>
+                            <p class="text-xs text-zinc-500 mt-0.5">Blocks Mailinator, 10MinuteMail, YopMail and similar single-use mailbox services.</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <AppButton type="button" variant="ghost" size="sm" class="flex-1" @click="resetImport">Cancel</AppButton>
+                    <AppButton size="sm" :loading="importLoading" :disabled="importLoading" class="flex-1" @click="handleImport">
+                        {{ importLoading ? 'Importing...' : 'Import' }}
+                    </AppButton>
+                </div>
+            </div>
+
+            <div v-else class="space-y-4">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                        <p class="text-[11px] text-emerald-400/80 uppercase tracking-wide">Imported</p>
+                        <p class="text-2xl font-bold text-emerald-300 tabular-nums">{{ importResult.imported }}</p>
+                    </div>
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Duplicates</p>
+                        <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.duplicates }}</p>
+                    </div>
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Bad syntax</p>
+                        <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.syntax_invalid }}</p>
+                    </div>
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">No MX</p>
+                        <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.no_mx }}</p>
+                    </div>
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Disposable</p>
+                        <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.disposable }}</p>
+                    </div>
+                </div>
+
+                <div v-if="importResult.rejected.length > 0">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-medium text-white">{{ importResult.rejected.length }} rejected</p>
+                        <button @click="downloadRejected"
+                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer">
+                            Download CSV
+                        </button>
+                    </div>
+                    <div class="bg-zinc-950 border border-zinc-800 rounded-lg max-h-56 overflow-auto">
+                        <table class="w-full text-xs">
+                            <thead class="sticky top-0 bg-zinc-900 border-b border-zinc-800">
+                                <tr>
+                                    <th class="text-left px-3 py-2 font-medium text-zinc-400">Email</th>
+                                    <th class="text-left px-3 py-2 font-medium text-zinc-400">Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="row in importResult.rejected.slice(0, 100)" :key="row.email" class="border-b border-zinc-800/50 last:border-0">
+                                    <td class="px-3 py-1.5 font-mono text-zinc-300 truncate max-w-xs">{{ row.email }}</td>
+                                    <td class="px-3 py-1.5 text-zinc-500">{{ row.reason }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p v-if="importResult.rejected.length > 100" class="text-xs text-zinc-500 mt-1">
+                        Showing first 100. Download CSV for the full list.
+                    </p>
+                </div>
+
+                <AppButton @click="resetImport">Done</AppButton>
             </div>
         </AppModal>
     </div>

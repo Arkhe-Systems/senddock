@@ -165,7 +165,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	projectService := service.NewProjectService(queries, cfg.JWTSecret)
 	projectHandler := handler.NewProjectHandler(projectService)
 
-	subscriberService := service.NewSubscriberService(queries, a.webhooks)
+	emailValidator := service.NewEmailValidator()
+	subscriberService := service.NewSubscriberService(queries, a.webhooks, emailValidator)
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
 
 	templateService := service.NewTemplateService(queries)
