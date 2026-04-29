@@ -49,6 +49,13 @@ export default defineConfig({
           ],
         },
         {
+          text: 'Pro Features',
+          items: [
+            { text: 'Analytics', link: '/guide/analytics' },
+            { text: 'Webhooks', link: '/guide/webhooks' },
+          ],
+        },
+        {
           text: 'Configuration',
           items: [
             { text: 'SMTP Setup', link: '/guide/smtp' },
@@ -67,6 +74,13 @@ export default defineConfig({
             { text: 'Email Sending', link: '/api/sending' },
             { text: 'Campaigns', link: '/api/campaigns' },
             { text: 'API Keys', link: '/api/api-keys' },
+          ],
+        },
+        {
+          text: 'Pro API',
+          items: [
+            { text: 'Analytics', link: '/api/analytics' },
+            { text: 'Webhooks', link: '/api/webhooks' },
           ],
         },
       ],

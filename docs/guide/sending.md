@@ -144,6 +144,33 @@ SendDock automatically injects a 1x1 transparent tracking pixel into emails sent
 
 Open tracking is automatic and requires no configuration.
 
+## Click Tracking
+
+For every link in an outgoing email, SendDock rewrites the `href` to point through a redirect endpoint hosted at the same instance:
+
+```
+GET /c/{logId}/{base64url(URL)}.{token}
+```
+
+When the recipient clicks the link, the redirect endpoint:
+
+1. Verifies the token (HMAC of `<logId>.<URL>` using `JWT_SECRET`) — tampered or guessed links return 400.
+2. Records the click — first click sets `clicked_at` on the email log; every click writes a row to `email_clicks` with the URL, user agent, and IP, which feeds the **Top clicked links** chart in [Analytics](/guide/analytics).
+3. Issues a `302 Found` to the original URL.
+
+Properties worth knowing:
+
+- **No subscriber required**. Transactional sends (`/send` to a raw email, `/send/batch`) get tracked clicks too, not just broadcasts.
+- **Tokens are unguessable**. Recipients can't fabricate a tracking link by knowing a `logId` — the HMAC is over the full URL plus the log ID.
+- **The redirect is fast**. The DB write is best-effort; the redirect happens whether or not it lands. A failed write does not block the recipient from reaching their destination.
+- **Only the first click counts** for the `email.clicked` webhook event and for the `clicked_at` log column. The `email_clicks` table records every click for analytics.
+
+Click tracking is enabled by default for all outgoing emails. There is no opt-out at the project level today — links built directly with `https://...` in HTML get rewritten before send.
+
+::: tip Plain-text URLs in HTML
+Click tracking only rewrites links inside `<a href="…">` tags. URLs pasted as plain text (`Click here: https://example.com/x`) are left alone — most email clients auto-link them, but those auto-links are untracked. Always wrap a link you want measured in an explicit anchor.
+:::
+
 ## Sending from the UI
 
 From the project **Overview**, click **Send Email** to:
