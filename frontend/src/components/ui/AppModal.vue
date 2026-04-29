@@ -1,14 +1,24 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch, computed } from 'vue'
 
 const props = defineProps<{
     title?: string,
-    show?: boolean
+    show?: boolean,
+    size?: 'sm' | 'md' | 'lg' | 'xl',
 }>()
 
 const emit = defineEmits<{
     close: []
 }>()
+
+const widthClass = computed(() => {
+    switch (props.size) {
+        case 'sm': return 'max-w-sm'
+        case 'lg': return 'max-w-2xl'
+        case 'xl': return 'max-w-4xl'
+        default: return 'max-w-md'
+    }
+})
 
 function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape' && props.show) emit('close')
@@ -23,7 +33,7 @@ watch(() => props.show, (v) => {
 </script>
 <template>
     <div v-if="show" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div :class="['bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-h-[90vh] flex flex-col', widthClass]">
             <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
                 <h2 class="text-base font-semibold text-white">{{ title }}</h2>
                 <button @click="emit('close')" type="button" aria-label="Close"
