@@ -20,6 +20,7 @@
     "codemirror": "^6.0.2",
     "grapesjs": "^0.22.15",
     "grapesjs-preset-newsletter": "^1.0.2",
+    "marked": "^18.0.2",
     "pinia": "^3.0.4",
     "vue": "^3.5.29",
     "vue-codemirror": "^6.1.1",
