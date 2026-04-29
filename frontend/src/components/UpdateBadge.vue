@@ -29,6 +29,13 @@ const renderedNotes = computed(() => {
     return marked.parse(release.value.notes) as string
 })
 
+const modalTitle = computed(() => {
+    if (!release.value) return ''
+    return release.value.outdated
+        ? 'Update available'
+        : `What's in v${release.value.current}`
+})
+
 onMounted(async () => {
     try {
         release.value = await api<ReleaseInfo>('/version')
@@ -53,11 +60,14 @@ async function copyCommand() {
             </span>
             Update available · v{{ release.latest }}
         </button>
-        <span v-else class="text-xs text-zinc-500 font-mono">v{{ release.current }}</span>
+        <button v-else @click="showModal = true"
+            class="flex items-center gap-1.5 px-2 py-1 text-xs font-mono text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-md transition cursor-pointer">
+            v{{ release.current }}
+        </button>
 
-        <AppModal :show="showModal" title="Update available" @close="showModal = false">
+        <AppModal :show="showModal" :title="modalTitle" @close="showModal = false">
             <div class="space-y-5">
-                <div class="flex items-center gap-3">
+                <div v-if="release.outdated" class="flex items-center gap-3">
                     <div class="px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg">
                         <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Current</p>
                         <p class="text-sm text-white font-mono">v{{ release.current }}</p>
@@ -69,7 +79,7 @@ async function copyCommand() {
                     </div>
                 </div>
 
-                <div>
+                <div v-if="release.outdated">
                     <p class="text-sm font-medium text-white mb-2">Run this from the SendDock folder on your host:</p>
                     <div class="flex items-center gap-2">
                         <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white font-mono select-all">{{ updateCommand }}</code>
@@ -84,8 +94,8 @@ async function copyCommand() {
                 </div>
 
                 <div v-if="renderedNotes">
-                    <p class="text-sm font-medium text-white mb-2">Release notes</p>
-                    <div class="release-notes text-sm text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-lg p-4 max-h-72 overflow-auto" v-html="renderedNotes" />
+                    <p v-if="release.outdated" class="text-sm font-medium text-white mb-2">Release notes</p>
+                    <div class="release-notes text-sm text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-lg p-4 max-h-96 overflow-auto" v-html="renderedNotes" />
                 </div>
 
                 <div class="flex justify-between items-center text-xs">
