@@ -6,6 +6,8 @@ import type { Project } from '@/stores/projects'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 
 interface Webhook {
     id: string
@@ -133,13 +135,21 @@ async function toggleActive(hook: Webhook) {
     }
 }
 
-async function deleteHook(hook: Webhook) {
-    if (!confirm(`Delete webhook for ${hook.url}? This cannot be undone.`)) return
+const hookToDelete = ref<Webhook | null>(null)
+
+function confirmDeleteHook(hook: Webhook) {
+    hookToDelete.value = hook
+}
+
+async function deleteHook() {
+    const hook = hookToDelete.value
+    if (!hook) return
     deletingId.value = hook.id
     try {
         await api(`/projects/${props.project.id}/webhooks/${hook.id}`, { method: 'DELETE' })
         webhooks.value = webhooks.value.filter(w => w.id !== hook.id)
         toast.success('Webhook deleted')
+        hookToDelete.value = null
     } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Failed to delete webhook')
     } finally {
@@ -272,7 +282,7 @@ onMounted(load)
                             class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                             {{ hook.active ? 'Pause' : 'Resume' }}
                         </button>
-                        <button @click="deleteHook(hook)" :disabled="deletingId === hook.id"
+                        <button @click="confirmDeleteHook(hook)" :disabled="deletingId === hook.id"
                             class="px-3 py-1.5 text-xs text-red-400 border border-red-900/50 rounded-md hover:bg-red-950/40 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                             Delete
                         </button>
@@ -290,17 +300,9 @@ onMounted(load)
                     <label class="block text-sm font-medium text-zinc-300 mb-2">Events</label>
                     <div class="space-y-2">
                         <label v-for="ev in ALL_EVENTS" :key="ev.value"
-                            class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition group">
-                            <span class="relative flex-shrink-0 mt-0.5 w-[18px] h-[18px]">
-                                <input type="checkbox" :checked="newEvents.includes(ev.value)"
-                                    @change="toggleEvent(ev.value)"
-                                    class="peer sr-only" />
-                                <span class="absolute inset-0 rounded border-2 border-zinc-600 bg-transparent transition-colors peer-checked:border-white peer-checked:bg-white group-hover:border-zinc-400"></span>
-                                <svg v-if="newEvents.includes(ev.value)"
-                                    class="absolute inset-0 m-auto w-3 h-3 text-zinc-950 pointer-events-none"
-                                    viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="3 8 7 12 13 4" />
-                                </svg>
+                            class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition">
+                            <span class="mt-0.5">
+                                <AppCheckbox :modelValue="newEvents.includes(ev.value)" @update:modelValue="toggleEvent(ev.value)" />
                             </span>
                             <div class="min-w-0">
                                 <p class="text-sm text-white font-mono">{{ ev.value }}</p>
@@ -388,5 +390,15 @@ onMounted(load)
                 </ul>
             </div>
         </AppModal>
+
+        <AppConfirmModal
+            :show="!!hookToDelete"
+            title="Delete webhook"
+            :message="hookToDelete ? `Delete the webhook for ${hookToDelete.url}? This cannot be undone.` : ''"
+            confirmLabel="Delete"
+            danger
+            :loading="deletingId !== null"
+            @confirm="deleteHook"
+            @cancel="hookToDelete = null" />
     </div>
 </template>
