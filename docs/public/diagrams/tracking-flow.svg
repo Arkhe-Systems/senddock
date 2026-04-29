@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-label="Tracking flow: send API rewrites links and injects pixel, SMTP delivers email, recipient loads pixel and clicks tracked links, both events land in email_logs and email_clicks">
   <defs>
     <marker id="tf-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.55"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" class="arrow-head"/>
     </marker>
     <marker id="tf-as" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#0ea5e9"/>
@@ -11,14 +11,24 @@
     </marker>
   </defs>
   <style>
-    .lane { fill: none; stroke: currentColor; stroke-opacity: 0.2; stroke-dasharray: 4 4; }
-    .actor { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: currentColor; letter-spacing: 0.04em; text-transform: uppercase; }
-    .label { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: currentColor; }
-    .sub { font: 11px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.55; }
-    .arrow { stroke: currentColor; stroke-opacity: 0.6; fill: none; stroke-width: 1.5; }
+    .arrow-head { fill: #71717a; }
+    .lane { fill: none; stroke: #d4d4d8; stroke-dasharray: 4 4; }
+    .actor { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: #18181b; letter-spacing: 0.04em; text-transform: uppercase; }
+    .label { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: #18181b; }
+    .sub { font: 11px ui-sans-serif, system-ui, sans-serif; fill: #71717a; }
+    .arrow { stroke: #71717a; fill: none; stroke-width: 1.5; }
     .arrow-pixel { stroke: #0ea5e9; fill: none; stroke-width: 1.5; }
     .arrow-click { stroke: #a855f7; fill: none; stroke-width: 1.5; }
-    .step { font: 600 10px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.5; }
+    .step { font: 600 10px ui-sans-serif, system-ui, sans-serif; fill: #a1a1aa; }
+    @media (prefers-color-scheme: dark) {
+      .arrow-head { fill: #a1a1aa; }
+      .lane { stroke: #3f3f46; }
+      .actor { fill: #fafafa; }
+      .label { fill: #fafafa; }
+      .sub { fill: #a1a1aa; }
+      .arrow { stroke: #a1a1aa; }
+      .step { fill: #71717a; }
+    }
   </style>
 
   <g>
@@ -37,8 +47,8 @@
     <text class="step" x="20" y="0">1</text>
     <text class="label" x="80" y="0" text-anchor="middle">rewrite &lt;a href&gt;, inject pixel</text>
     <path class="arrow" d="M 80 16 C 80 30 80 30 80 40"/>
-    <circle cx="80" cy="16" r="3" fill="currentColor" opacity="0.6"/>
-    <circle cx="80" cy="40" r="3" fill="currentColor" opacity="0.6"/>
+    <circle cx="80" cy="16" r="3" fill="#71717a"/>
+    <circle cx="80" cy="40" r="3" fill="#71717a"/>
   </g>
 
   <g transform="translate(0,140)">
