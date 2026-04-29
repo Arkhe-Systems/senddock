@@ -146,10 +146,10 @@ GET /api/v1/projects/{id}/webhooks/{webhookId}/deliveries?limit=50
     <line x1="382" y1="170" x2="452" y2="170" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ds-a)"/>
     <text x="417" y="160" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.7">2xx response</text>
     <g transform="translate(460,140)"><rect x="0" y="0" width="160" height="60" rx="30" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="2"/><text x="80" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">delivered</text><text x="80" y="48" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">terminal</text></g>
-    <line x1="310" y1="200" x2="310" y2="254" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ds-a)"/>
-    <text x="324" y="220" font-size="11" fill="currentColor" fill-opacity="0.7">5 attempts</text>
-    <text x="324" y="238" font-size="11" fill="currentColor" fill-opacity="0.6">or webhook inactive</text>
-    <g transform="translate(240,260)"><rect x="0" y="0" width="140" height="60" rx="30" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="2"/><text x="70" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">failed</text><text x="70" y="48" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">terminal</text></g>
+    <path d="M 310 200 L 310 290 L 452 290" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#ds-a)"/>
+    <text x="324" y="226" font-size="11" fill="currentColor" fill-opacity="0.7">5 attempts</text>
+    <text x="324" y="244" font-size="11" fill="currentColor" fill-opacity="0.6">or webhook inactive</text>
+    <g transform="translate(460,260)"><rect x="0" y="0" width="160" height="60" rx="30" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="2"/><text x="80" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">failed</text><text x="80" y="48" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">terminal</text></g>
     <path d="M 240 200 C 240 252, 170 252, 170 200" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#ds-a)"/>
     <text x="205" y="276" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.65">non-2xx · attempts &lt; 5</text>
   </g>
