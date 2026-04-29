@@ -29,7 +29,7 @@ make migrate
 
 ## Redis
 
-Redis is used for job queues and caching (planned features). Port `6380` by default.
+Redis is used for per-project rate limiting on `/send`, `/send/batch` and `/broadcast`, and for caching the GitHub releases response that powers the "update available" badge in the dashboard. Port `6380` by default. Self-hosted instances exposed to the internet should run Redis even if you don't think you need it for caching, specifically so the rate limits stay enforced.
 
 ## Security Checklist
 
