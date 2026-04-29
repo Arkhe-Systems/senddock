@@ -55,7 +55,7 @@ Use double curly braces to insert dynamic content:
 | `{{name}}` | Subscriber's name |
 | `{{email}}` | Subscriber's email |
 | `{{subscriber_id}}` | Subscriber's UUID |
-| `{{unsubscribe_url}}` | Unsubscribe link (planned) |
+| `{{unsubscribe_url}}` | Per-recipient unsubscribe link, signed with HMAC |
 
 Variables are replaced per subscriber when sending.
 

@@ -16,15 +16,15 @@ hero:
       link: /api/authentication
 features:
   - title: Self-Hostable
-    details: One command to deploy. Your data never leaves your servers.
+    details: One command to deploy with Docker. Your data never leaves your servers.
   - title: API-First
-    details: Every feature available via REST API with API key authentication.
-  - title: Visual Email Builder
-    details: Drag-and-drop editor with GrapeJS or write raw HTML with CodeMirror.
-  - title: No Per-Email Pricing
-    details: Connect your own SMTP and send unlimited emails.
-  - title: Campaigns
-    details: Schedule email campaigns to broadcast templates to all subscribers at a set time.
-  - title: Open Tracking
-    details: Automatic tracking pixel injection to see who opens your emails.
+    details: Every feature available via REST API. Cookie auth for the dashboard, API keys for everything else.
+  - title: Bring Your Own SMTP
+    details: Connect Mailgun, SES, Postmark, your VPS, anything that speaks SMTP. No per-email markup.
+  - title: Open + Click Tracking
+    details: Pixel-based opens and HMAC-signed click redirects, on by default for every send.
+  - title: Webhooks
+    details: Six event types with HMAC-SHA256 signing and exponential-backoff retries. Built into Core, manageable from the Pro UI.
+  - title: Pro Analytics
+    details: Funnel, opens-over-time, top templates, top clicked links and trend pills against the previous period — all from a single endpoint.
 ---

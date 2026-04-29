@@ -93,6 +93,7 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | POST | `/api/v1/projects/{id}/subscribers` | Add subscriber |
 | GET | `/api/v1/projects/{id}/subscribers` | List subscribers |
 | POST | `/api/v1/projects/{id}/subscribers/import` | Bulk import subscribers |
+| POST | `/api/v1/projects/{id}/subscribers/bulk` | Bulk action (update status / delete) |
 | PATCH | `/api/v1/projects/{id}/subscribers/{subscriberId}` | Update status |
 | DELETE | `/api/v1/projects/{id}/subscribers/{subscriberId}` | Remove subscriber |
 
@@ -165,6 +166,25 @@ Gated by a valid `SENDDOCK_LICENSE_KEY` (or self-hosted with empty key for local
 | GET | `/api/v1/projects/{id}/webhooks/{webhookId}/deliveries` | List recent delivery attempts |
 
 API key auth uses `Authorization: Bearer sk_...` header.
+
+## Core vs Pro
+
+SendDock is open-core: the open-source binary you can self-host today is fully usable on its own. A license key unlocks an extra dashboard and management surface for teams that want it.
+
+**Core (AGPL, free, in this repo)**
+- Project, subscriber, template, API key, campaign and SMTP management
+- Transactional sends, broadcasts, batch sends, scheduled campaigns
+- Open tracking, click tracking, one-click unsubscribe (RFC 8058)
+- Webhook **dispatcher** with HMAC signing and retries — webhooks created on a Pro instance keep firing here
+- Per-project rate limits (Redis-backed), encrypted SMTP credentials, JWT auth
+- Update-available notice in the dashboard polled from GitHub releases
+
+**Pro (private, license-gated)**
+- Analytics dashboard with funnel, opens-over-time, top templates, top clicked links, insights and trend pills against the previous period
+- Webhooks management UI and REST API (CRUD, pause/resume, deliveries history)
+- Future: team members + roles, SMTP failover, SSO/LDAP, white-label
+
+In **self-hosted** mode an empty `SENDDOCK_LICENSE_KEY` unlocks Pro locally for development. In **cloud** mode it stays locked until a real key is set. See [docs/self-hosting/configuration.md](docs/self-hosting/configuration.md) for the full matrix.
 
 ## Environment Variables
 
