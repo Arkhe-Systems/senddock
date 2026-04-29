@@ -38,11 +38,14 @@ SendDock is a monorepo with three components:
 | API keys | Yes | Yes |
 | Email logs | Yes | Yes |
 | Open tracking | Yes | Yes |
+| Click tracking | Yes | Yes |
+| One-click unsubscribe | Yes | Yes |
 | Scheduled campaigns | Yes | Yes |
+| Webhook dispatcher | Yes | Yes |
+| Webhook management UI/API | No | Yes |
+| Analytics | Basic stats endpoint | Full dashboard with charts and trends |
 | SMTP per project | 1 | Multiple + failover |
 | Team members | 1 admin | Unlimited + roles |
-| Analytics | Sent/Failed | Opens, clicks, bounces |
-| Webhooks | No | Yes |
 | SSO/LDAP | No | Yes |
 | White-label | No | Yes |
 

@@ -75,6 +75,11 @@ const router = createRouter({
           component: () => import('@/views/project/AnalyticsSection.vue'),
         },
         {
+          path: 'webhooks',
+          name: 'project-webhooks',
+          component: () => import('@/views/project/WebhooksSection.vue'),
+        },
+        {
           path: 'settings',
           name: 'project-settings',
           component: () => import('@/views/project/SettingsSection.vue'),

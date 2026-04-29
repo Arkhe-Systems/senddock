@@ -21,6 +21,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/google/uuid"
 	premailer "github.com/vanng822/go-premailer/premailer"
 )
@@ -55,15 +56,20 @@ func ensureUnsubscribeFooter(body string) string {
 	return body + unsubscribeFooter
 }
 
+type WebhookDispatcher interface {
+	Enqueue(ctx context.Context, event webhooks.Event)
+}
+
 type EmailService struct {
 	queries   *db.Queries
 	publicURL string
 	encSecret string
 	cache     *cache.Redis
+	hooks     WebhookDispatcher
 }
 
-func NewEmailService(queries *db.Queries, publicURL, encSecret string, redis *cache.Redis) *EmailService {
-	return &EmailService{queries: queries, publicURL: publicURL, encSecret: encSecret, cache: redis}
+func NewEmailService(queries *db.Queries, publicURL, encSecret string, redis *cache.Redis, hooks WebhookDispatcher) *EmailService {
+	return &EmailService{queries: queries, publicURL: publicURL, encSecret: encSecret, cache: redis, hooks: hooks}
 }
 
 func (s *EmailService) signUnsub(projectID, subscriberID string) string {
@@ -395,8 +401,33 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 	body = s.injectTrackingPixel(body, logID)
 	body = s.rewriteLinksForTracking(body, logID)
 	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
-	s.markLogFailed(ctx, projectID, logID, sendErr)
+	if sendErr != nil {
+		s.markLogFailed(ctx, projectID, logID, sendErr)
+		s.dispatchEmail(ctx, "email.failed", projectID, logID, to, subject, sendErr.Error())
+	} else {
+		s.dispatchEmail(ctx, "email.sent", projectID, logID, to, subject, "")
+	}
 	return sendErr
+}
+
+func (s *EmailService) dispatchEmail(ctx context.Context, eventType string, projectID, logID uuid.UUID, to, subject, errMsg string) {
+	if s.hooks == nil {
+		return
+	}
+	data := map[string]any{
+		"log_id":     logID.String(),
+		"project_id": projectID.String(),
+		"to_email":   to,
+		"subject":    subject,
+	}
+	if errMsg != "" {
+		data["error"] = errMsg
+	}
+	s.hooks.Enqueue(ctx, webhooks.Event{
+		Type:      eventType,
+		ProjectID: projectID,
+		Data:      data,
+	})
 }
 
 func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string {
@@ -526,13 +557,28 @@ func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID,
 		return errors.New("invalid project id")
 	}
 
-	_, err = s.queries.UpdateSubscriberStatus(ctx, db.UpdateSubscriberStatusParams{
+	sub, err := s.queries.UpdateSubscriberStatus(ctx, db.UpdateSubscriberStatusParams{
 		ID:        sid,
 		ProjectID: pid,
 		Status:    "unsubscribed",
 		Column4:   "unsubscribed",
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if s.hooks != nil {
+		s.hooks.Enqueue(ctx, webhooks.Event{
+			Type:      "subscriber.unsubscribed",
+			ProjectID: pid,
+			Data: map[string]any{
+				"subscriber_id": sub.ID.String(),
+				"project_id":    pid.String(),
+				"email":         sub.Email,
+				"name":          sub.Name,
+			},
+		})
+	}
+	return nil
 }
 
 func (s *EmailService) TestSMTP(ctx context.Context, projectID string) error {
@@ -555,10 +601,14 @@ func (s *EmailService) TestSMTP(ctx context.Context, projectID string) error {
 		fromEmail = project.FromEmail.String
 	}
 
-	return s.sendSMTP(project, fromEmail, "SendDock SMTP Test", "<h2>SMTP is working!</h2><p>Your SendDock SMTP configuration is correct.</p>", "")
+	return s.sendSMTPWithTimeouts(project, fromEmail, "SendDock SMTP Test", "<h2>SMTP is working!</h2><p>Your SendDock SMTP configuration is correct.</p>", "", smtpTestConnectTimeout, smtpTestSessionTimeout)
 }
 
 func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody, unsubscribeURL string) error {
+	return s.sendSMTPWithTimeouts(project, to, subject, htmlBody, unsubscribeURL, smtpConnectTimeout, smtpSessionTimeout)
+}
+
+func (s *EmailService) sendSMTPWithTimeouts(project db.Project, to, subject, htmlBody, unsubscribeURL string, connectTimeout, sessionTimeout time.Duration) error {
 	host := project.SmtpHost.String
 	port := project.SmtpPort.Int32
 	user := project.SmtpUser.String
@@ -589,18 +639,21 @@ func (s *EmailService) sendSMTP(project db.Project, to, subject, htmlBody, unsub
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	return deliverSMTP(host, addr, user, pass, fromEmail, to, []byte(msg), port == 465)
+	return deliverSMTP(host, addr, user, pass, fromEmail, to, []byte(msg), port == 465, connectTimeout, sessionTimeout)
 }
 
 const (
 	smtpConnectTimeout = 10 * time.Second
 	smtpSessionTimeout = 30 * time.Second
+
+	smtpTestConnectTimeout = 5 * time.Second
+	smtpTestSessionTimeout = 10 * time.Second
 )
 
-func wrapDialError(addr string, err error) error {
+func wrapDialError(addr string, connectTimeout time.Duration, err error) error {
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
-		return fmt.Errorf("could not reach SMTP server at %s within %s. The host or port may be wrong, or your network is blocking outbound SMTP (residential ISPs often block ports 25/465/587). Try from a cloud server or use a local SMTP catcher like Mailpit", addr, smtpConnectTimeout)
+		return fmt.Errorf("could not reach SMTP server at %s within %s. The host or port may be wrong, or your network is blocking outbound SMTP (residential ISPs often block ports 25/465/587). Try from a cloud server or use a local SMTP catcher like Mailpit", addr, connectTimeout)
 	}
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
@@ -614,9 +667,9 @@ func wrapDialError(addr string, err error) error {
 	return fmt.Errorf("smtp connection failed: %w", err)
 }
 
-func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool) error {
+func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool, connectTimeout, sessionTimeout time.Duration) error {
 	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
-	dialer := &net.Dialer{Timeout: smtpConnectTimeout}
+	dialer := &net.Dialer{Timeout: connectTimeout}
 
 	var conn net.Conn
 	var err error
@@ -626,11 +679,11 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 		conn, err = dialer.Dial("tcp", addr)
 	}
 	if err != nil {
-		return wrapDialError(addr, err)
+		return wrapDialError(addr, connectTimeout, err)
 	}
 	defer conn.Close()
 
-	if err := conn.SetDeadline(time.Now().Add(smtpSessionTimeout)); err != nil {
+	if err := conn.SetDeadline(time.Now().Add(sessionTimeout)); err != nil {
 		return fmt.Errorf("smtp set deadline failed: %w", err)
 	}
 

@@ -67,20 +67,20 @@
 - [ ] Account lockout after failed attempts
 
 ## Phase 6: Tracking & Analytics
-- [x] Open tracking (pixel injection) — PRO
-- [ ] Click tracking (link rewriting) — PRO
-- [x] Unsubscribe handling (one-click + link)
+- [x] Open tracking (pixel injection) — Core
+- [x] Click tracking (link rewriting + HMAC redirect) — Core
+- [x] Unsubscribe handling (one-click + confirmation page, RFC 8058)
 - [x] Analytics table + migration
 - [x] Analytics endpoints (sent, failed, opened, clicked) — PRO
 - [x] Logs table + migration
 - [x] System logs endpoint
-- [ ] Analytics dashboard UI with charts
+- [x] Analytics dashboard UI with charts — PRO
 
 ## Phase 7: API Keys & Security
 - [x] API keys table + migration
 - [x] API key generation (public pk_ / secret sdk_)
 - [x] API key authentication middleware
-- [ ] API key rate limiting
+- [x] Per-project rate limiting on `/send`, `/send/batch` and `/broadcast` (Redis-backed)
 - [ ] Request logging
 - [x] API keys management UI
 
@@ -90,16 +90,19 @@
 - [ ] Plan upgrade/downgrade logic
 - [ ] Coupon/discount support (handled by Lemon Squeezy)
 - [ ] Monthly usage reset cron job
-- [ ] Deployment mode config (cloud vs self-hosted)
-- [ ] Feature gating based on plan
+- [x] Deployment mode config (cloud vs self-hosted)
+- [x] Feature gating based on plan (license validator + paywall states in UI)
+- [x] License key activation/validation against Lemon Squeezy
 - [ ] Billing page UI
 
-## Phase 9: Webhooks — PRO
-- [ ] Webhook configuration per project
-- [ ] Webhook worker (async delivery with asynq)
-- [ ] Webhook retry logic with exponential backoff
-- [ ] Webhook signature verification (HMAC)
-- [ ] Webhook event types (sent, delivered, bounced, opened, clicked)
+## Phase 9: Webhooks
+- [x] Webhook configuration per project — Pro UI/API, Core dispatcher
+- [x] Webhook dispatcher (FOR UPDATE SKIP LOCKED, batch claim) — Core
+- [x] Webhook retry logic with exponential backoff (30s → 2h, 5 attempts) — Core
+- [x] Webhook signature verification (HMAC-SHA256, `X-SendDock-Signature: t=<ts>,v1=<hex>`) — Core
+- [x] Webhook event types (email.sent/failed/opened/clicked, subscriber.created/unsubscribed) — Core
+- [x] Webhooks management UI — PRO
+- [x] Per-webhook deliveries view — PRO
 
 ## Phase 10: Team Members — PRO
 - [ ] Team members table + migration

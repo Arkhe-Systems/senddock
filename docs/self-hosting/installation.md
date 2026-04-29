@@ -2,6 +2,33 @@
 
 SendDock ships as a single Docker image: `ghcr.io/arkhe-systems/senddock`. Three install paths are supported, in order of preference.
 
+## What gets deployed
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-label="SendDock self-hosted architecture" style="width:100%;max-width:760px;margin:1rem 0;color:var(--vp-c-text-1);">
+  <defs>
+    <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.7"/></marker>
+  </defs>
+  <g style="font-family: ui-sans-serif, system-ui, sans-serif">
+    <g transform="translate(20,50)"><rect x="0" y="0" width="160" height="80" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="5 4"/><text x="80" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Recipients</text><text x="80" y="54" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">opens · clicks</text><text x="80" y="68" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">unsubscribes</text></g>
+    <line x1="180" y1="90" x2="228" y2="90" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ar-a)"/>
+    <g transform="translate(230,50)"><rect x="0" y="0" width="170" height="80" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5"/><text x="85" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Reverse proxy</text><text x="85" y="48" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">HTTPS · your domain</text><text x="85" y="66" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.05em" text-transform="uppercase" fill="currentColor" fill-opacity="0.5">caddy · nginx · traefik</text></g>
+    <line x1="400" y1="90" x2="448" y2="90" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ar-a)"/>
+    <g transform="translate(450,40)"><rect x="0" y="0" width="290" height="100" rx="12" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="145" y="28" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">senddock</text><text x="145" y="46" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">single Docker container · :8080</text><text x="145" y="78" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.05em" text-transform="uppercase" fill="currentColor" fill-opacity="0.5">go api + vue spa + dispatcher</text></g>
+    <line x1="540" y1="140" x2="540" y2="198" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ar-a)"/>
+    <line x1="650" y1="140" x2="650" y2="198" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ar-a)"/>
+    <g transform="translate(478,200)"><rect x="0" y="0" width="124" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5"/><text x="62" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">PostgreSQL 17</text><text x="62" y="46" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">pgdata volume</text></g>
+    <g transform="translate(588,200)"><rect x="0" y="0" width="124" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5"/><text x="62" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Redis 7</text><text x="62" y="46" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">redisdata volume</text></g>
+    <line x1="595" y1="140" x2="595" y2="288" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar-a)"/>
+    <text x="608" y="180" font-size="11" fill="currentColor" fill-opacity="0.55">SMTP submit</text>
+    <g transform="translate(510,300)"><rect x="0" y="0" width="170" height="60" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="5 4"/><text x="85" y="26" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Your SMTP relay</text><text x="85" y="44" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">SES · Mailgun · Postmark</text></g>
+    <line x1="450" y1="140" x2="260" y2="298" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar-a)"/>
+    <text x="430" y="135" text-anchor="end" font-size="11" fill="currentColor" fill-opacity="0.55">webhook POSTs</text>
+    <g transform="translate(80,300)"><rect x="0" y="0" width="200" height="60" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="5 4"/><text x="100" y="26" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Your webhook URLs</text><text x="100" y="44" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">CRM · Slack · Zapier</text></g>
+  </g>
+</svg>
+
+A single Docker container running the Go binary serves both the API and the Vue SPA. PostgreSQL holds all your data; Redis caches the GitHub releases response and powers per-project rate limits. Your own SMTP relay handles outbound mail — SendDock never proxies your sends.
+
 ## Requirements
 
 - A Linux server (Ubuntu, Debian, etc.)
@@ -56,22 +83,27 @@ Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and 
 
 | `SENDDOCK_LICENSE_KEY` | Behavior |
 |---|---|
-| empty | Free tier — Core features (subscribers, templates, transactional sends, broadcasts, campaigns, BYO SMTP). |
-| valid | Pro tier — adds advanced analytics, audit logs, team roles, A/B testing. |
+| empty (self-hosted) | All features unlocked locally — useful for evaluating Pro before buying. |
+| empty (cloud mode) | Free tier — Core features only (subscribers, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking). |
+| valid | Pro tier — unlocks the [Analytics dashboard](/guide/analytics) and [Webhooks management](/guide/webhooks). |
 
 The image is the same in both cases. The license key, validated against a hosted endpoint, toggles the gated routes. Read more in the [pricing page](https://senddock.com/pricing).
 
+::: warning Self-hosted with empty license unlocks everything
+This is intentional — local development should never need a license. If you self-host an instance that other people will use, set a real `SENDDOCK_LICENSE_KEY` (or accept that Pro features are free for those users). The "empty key = unlocked" behavior only fires when `DEPLOYMENT_MODE=self-hosted`, which is the default.
+:::
+
 ### Pinning a version in production
 
-`:latest` is the default for first-time installs. For production, pin to a specific version so you control when updates land:
+`:latest` resolves to the most recently tagged release. For production, pin to a specific version so you control when updates land:
 
 ```yaml
 services:
   senddock:
-    image: ghcr.io/arkhe-systems/senddock:0.4.0
+    image: ghcr.io/arkhe-systems/senddock:0.5.0
 ```
 
-See available tags on [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock).
+See available tags on [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock). Only versioned tags (`X.Y.Z`, `X.Y`, `X`) and `:latest` are public — pre-release builds (`:dev`) live in a separate, private package and are not intended for end users.
 
 ---
 
@@ -111,7 +143,7 @@ The setup script is **idempotent**:
 
 After running, the script waits for SendDock to be healthy and only then reports success. If startup fails it points at `docker compose logs app`.
 
-This path runs `docker-compose.prod.yml`, which builds the image locally instead of pulling the prebuilt one. The result is the same Core experience as Option 1 with `SENDDOCK_LICENSE_KEY` empty — Pro features are not present in source-built images.
+This path runs `docker-compose.prod.yml`, which builds the image locally instead of pulling the prebuilt one. The result is the **Core only** — Pro features (Analytics dashboard, Webhooks management) live in a private repository and are not part of source builds. To run Pro you need the prebuilt image (Option 1 or 2) and a license key.
 
 ### What gets started
 

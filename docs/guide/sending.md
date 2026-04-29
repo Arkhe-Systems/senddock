@@ -134,6 +134,32 @@ For recurring or scheduled sends, use **Campaigns** instead of sending directly.
 
 See the [Campaigns guide](/guide/campaigns) for details on creating and managing campaigns.
 
+## How tracking works
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-label="Tracking sequence" style="width:100%;max-width:760px;margin:1rem 0;color:var(--vp-c-text-1);">
+  <defs>
+    <marker id="tf-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.7"/></marker>
+  </defs>
+  <g style="font-family: ui-sans-serif, system-ui, sans-serif">
+    <text x="80" y="32" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.04em" text-transform="uppercase" fill="currentColor">Send API</text>
+    <text x="280" y="32" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.04em" text-transform="uppercase" fill="currentColor">SMTP</text>
+    <text x="480" y="32" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.04em" text-transform="uppercase" fill="currentColor">Recipient</text>
+    <text x="680" y="32" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.04em" text-transform="uppercase" fill="currentColor">/t · /c</text>
+    <line x1="80" y1="50" x2="80" y2="350" stroke="currentColor" stroke-opacity="0.2" stroke-dasharray="4 4"/>
+    <line x1="280" y1="50" x2="280" y2="350" stroke="currentColor" stroke-opacity="0.2" stroke-dasharray="4 4"/>
+    <line x1="480" y1="50" x2="480" y2="350" stroke="currentColor" stroke-opacity="0.2" stroke-dasharray="4 4"/>
+    <line x1="680" y1="50" x2="680" y2="350" stroke="currentColor" stroke-opacity="0.2" stroke-dasharray="4 4"/>
+    <g transform="translate(0,80)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">1</text><text x="80" y="0" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">rewrite &lt;a href&gt;, inject pixel</text><path d="M 80 16 C 80 30 80 30 80 40" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none"/><circle cx="80" cy="16" r="3" fill="currentColor" fill-opacity="0.7"/><circle cx="80" cy="40" r="3" fill="currentColor" fill-opacity="0.7"/></g>
+    <g transform="translate(0,140)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">2</text><line x1="80" y1="0" x2="270" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="180" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">deliver</text></g>
+    <g transform="translate(0,190)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">3</text><line x1="280" y1="0" x2="470" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="380" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">email lands in inbox</text></g>
+    <g transform="translate(0,242)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">4</text><line x1="480" y1="0" x2="670" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="580" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">GET /t/{logId}.gif</text><text x="580" y="14" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">→ opened_at = NOW()</text></g>
+    <g transform="translate(0,302)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">5</text><line x1="480" y1="0" x2="670" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="580" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">GET /c/{logId}/{...}</text><text x="580" y="14" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">→ clicked_at + email_clicks</text></g>
+    <g transform="translate(0,344)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">6</text><line x1="670" y1="0" x2="490" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="580" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">302 → original URL</text></g>
+  </g>
+</svg>
+
+Tracking is on by default for every send. The two touch points — the open pixel and the click redirect — are public endpoints on your SendDock instance, so `PUBLIC_URL` must point at a host the recipient can reach.
+
 ## Open Tracking
 
 SendDock automatically injects a 1x1 transparent tracking pixel into emails sent to subscribers and via broadcast. When the recipient opens the email and their email client loads the pixel, SendDock records the open.
@@ -143,6 +169,33 @@ SendDock automatically injects a 1x1 transparent tracking pixel into emails sent
 - The stats endpoint includes the `opened` count alongside `sent` and `failed`
 
 Open tracking is automatic and requires no configuration.
+
+## Click Tracking
+
+For every link in an outgoing email, SendDock rewrites the `href` to point through a redirect endpoint hosted at the same instance:
+
+```
+GET /c/{logId}/{base64url(URL)}.{token}
+```
+
+When the recipient clicks the link, the redirect endpoint:
+
+1. Verifies the token (HMAC of `<logId>.<URL>` using `JWT_SECRET`) — tampered or guessed links return 400.
+2. Records the click — first click sets `clicked_at` on the email log; every click writes a row to `email_clicks` with the URL, user agent, and IP, which feeds the **Top clicked links** chart in [Analytics](/guide/analytics).
+3. Issues a `302 Found` to the original URL.
+
+Properties worth knowing:
+
+- **No subscriber required**. Transactional sends (`/send` to a raw email, `/send/batch`) get tracked clicks too, not just broadcasts.
+- **Tokens are unguessable**. Recipients can't fabricate a tracking link by knowing a `logId` — the HMAC is over the full URL plus the log ID.
+- **The redirect is fast**. The DB write is best-effort; the redirect happens whether or not it lands. A failed write does not block the recipient from reaching their destination.
+- **Only the first click counts** for the `email.clicked` webhook event and for the `clicked_at` log column. The `email_clicks` table records every click for analytics.
+
+Click tracking is enabled by default for all outgoing emails. There is no opt-out at the project level today — links built directly with `https://...` in HTML get rewritten before send.
+
+::: tip Plain-text URLs in HTML
+Click tracking only rewrites links inside `<a href="…">` tags. URLs pasted as plain text (`Click here: https://example.com/x`) are left alone — most email clients auto-link them, but those auto-links are untracked. Always wrap a link you want measured in an explicit anchor.
+:::
 
 ## Sending from the UI
 

@@ -93,6 +93,7 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | POST | `/api/v1/projects/{id}/subscribers` | Add subscriber |
 | GET | `/api/v1/projects/{id}/subscribers` | List subscribers |
 | POST | `/api/v1/projects/{id}/subscribers/import` | Bulk import subscribers |
+| POST | `/api/v1/projects/{id}/subscribers/bulk` | Bulk action (update status / delete) |
 | PATCH | `/api/v1/projects/{id}/subscribers/{subscriberId}` | Update status |
 | DELETE | `/api/v1/projects/{id}/subscribers/{subscriberId}` | Remove subscriber |
 
@@ -124,8 +125,10 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | POST | `/api/v1/projects/{id}/smtp/test` | Cookie | Test SMTP connection |
 | GET | `/api/v1/projects/{id}/logs` | Cookie | List email logs |
 | GET | `/api/v1/projects/{id}/stats` | Cookie or API key | Get email stats |
-| GET | `/unsubscribe/{id}/{subscriberId}` | Public | Unsubscribe page |
+| GET | `/unsubscribe/{id}/{subscriberId}` | Public | Unsubscribe confirmation page |
+| POST | `/unsubscribe/{id}/{subscriberId}` | Public | One-click unsubscribe (RFC 8058) |
 | GET | `/t/{logId}.gif` | Public | Open tracking pixel |
+| GET | `/c/{logId}/{payload}` | Public | Click tracking redirect |
 
 ### Campaigns
 
@@ -148,7 +151,40 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | GET | `/api/v1/setup/status` | Check if setup is required |
 | POST | `/api/v1/setup` | Create admin account (first-time only) |
 
+### Pro endpoints
+
+Gated by a valid `SENDDOCK_LICENSE_KEY` (or self-hosted with empty key for local development). Compiled into the official `ghcr.io/arkhe-systems/senddock` image; not present in source builds.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/projects/{id}/analytics/overview` | Aggregated metrics for the Analytics dashboard |
+| POST | `/api/v1/projects/{id}/webhooks` | Create webhook |
+| GET | `/api/v1/projects/{id}/webhooks` | List webhooks |
+| GET | `/api/v1/projects/{id}/webhooks/{webhookId}` | Get webhook |
+| PATCH | `/api/v1/projects/{id}/webhooks/{webhookId}` | Pause/resume webhook |
+| DELETE | `/api/v1/projects/{id}/webhooks/{webhookId}` | Delete webhook |
+| GET | `/api/v1/projects/{id}/webhooks/{webhookId}/deliveries` | List recent delivery attempts |
+
 API key auth uses `Authorization: Bearer sk_...` header.
+
+## Core vs Pro
+
+SendDock is open-core: the open-source binary you can self-host today is fully usable on its own. A license key unlocks an extra dashboard and management surface for teams that want it.
+
+**Core (AGPL, free, in this repo)**
+- Project, subscriber, template, API key, campaign and SMTP management
+- Transactional sends, broadcasts, batch sends, scheduled campaigns
+- Open tracking, click tracking, one-click unsubscribe (RFC 8058)
+- Webhook **dispatcher** with HMAC signing and retries — webhooks created on a Pro instance keep firing here
+- Per-project rate limits (Redis-backed), encrypted SMTP credentials, JWT auth
+- Update-available notice in the dashboard polled from GitHub releases
+
+**Pro (private, license-gated)**
+- Analytics dashboard with funnel, opens-over-time, top templates, top clicked links, insights and trend pills against the previous period
+- Webhooks management UI and REST API (CRUD, pause/resume, deliveries history)
+- Future: team members + roles, SMTP failover, SSO/LDAP, white-label
+
+In **self-hosted** mode an empty `SENDDOCK_LICENSE_KEY` unlocks Pro locally for development. In **cloud** mode it stays locked until a real key is set. See [docs/self-hosting/configuration.md](docs/self-hosting/configuration.md) for the full matrix.
 
 ## Environment Variables
 
@@ -156,10 +192,12 @@ API key auth uses `Authorization: Bearer sk_...` header.
 |----------|-------------|---------|
 | `PORT` | Server port | `8080` |
 | `DATABASE_URL` | PostgreSQL connection string | — |
-| `REDIS_URL` | Redis connection string | — |
-| `JWT_SECRET` | Secret key for JWT signing | — |
+| `REDIS_URL` | Redis connection string (required for rate limits) | — |
+| `JWT_SECRET` | Secret key for JWT signing and click-tracking HMAC | — |
 | `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:5173` |
+| `PUBLIC_URL` | Public URL of the instance, used in unsubscribe and tracking links inside emails | falls back to `FRONTEND_URL` |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
+| `SENDDOCK_LICENSE_KEY` | Pro license key (Lemon Squeezy). Empty in self-hosted unlocks Pro locally | — |
 
 ## License
 

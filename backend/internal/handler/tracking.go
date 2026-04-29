@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
@@ -8,9 +9,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/internal/service"
+	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
 )
@@ -20,22 +23,48 @@ var transparentPixel, _ = base64.StdEncoding.DecodeString("R0lGODlhAQABAIAAAAAAA
 type TrackingHandler struct {
 	queries *db.Queries
 	emails  *service.EmailService
+	hooks   *webhooks.Service
 }
 
-func NewTrackingHandler(queries *db.Queries, emails *service.EmailService) *TrackingHandler {
-	return &TrackingHandler{queries: queries, emails: emails}
+func NewTrackingHandler(queries *db.Queries, emails *service.EmailService, hooks *webhooks.Service) *TrackingHandler {
+	return &TrackingHandler{queries: queries, emails: emails, hooks: hooks}
 }
 
 func (h *TrackingHandler) Open(w http.ResponseWriter, r *http.Request) {
 	logID := strings.TrimSuffix(r.PathValue("logId"), ".gif")
 
 	if lid, err := uuid.Parse(logID); err == nil {
-		h.queries.MarkEmailOpened(r.Context(), lid)
+		rows, err := h.queries.MarkEmailOpened(r.Context(), lid)
+		if err == nil && rows > 0 {
+			h.dispatchEmailEvent(r.Context(), "email.opened", lid, map[string]any{"opened_at": time.Now().UTC().Format(time.RFC3339)})
+		}
 	}
 
 	w.Header().Set("Content-Type", "image/gif")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
 	w.Write(transparentPixel)
+}
+
+func (h *TrackingHandler) dispatchEmailEvent(ctx context.Context, eventType string, logID uuid.UUID, extra map[string]any) {
+	if h.hooks == nil {
+		return
+	}
+	projectID, err := h.queries.GetEmailLogProjectID(ctx, logID)
+	if err != nil {
+		return
+	}
+	data := map[string]any{
+		"log_id":     logID.String(),
+		"project_id": projectID.String(),
+	}
+	for k, v := range extra {
+		data[k] = v
+	}
+	h.hooks.Enqueue(ctx, webhooks.Event{
+		Type:      eventType,
+		ProjectID: projectID,
+		Data:      data,
+	})
 }
 
 func (h *TrackingHandler) Click(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +97,7 @@ func (h *TrackingHandler) Click(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lid, err := uuid.Parse(logIDStr); err == nil {
-		h.queries.MarkEmailClicked(r.Context(), lid)
+		rows, _ := h.queries.MarkEmailClicked(r.Context(), lid)
 		h.queries.CreateEmailClick(r.Context(), db.CreateEmailClickParams{
 			LogID:     lid,
 			Url:       rawURL,
@@ -76,6 +105,12 @@ func (h *TrackingHandler) Click(w http.ResponseWriter, r *http.Request) {
 			UserAgent: nullString(r.UserAgent()),
 			IpAddress: parseIP(r),
 		})
+		if rows > 0 {
+			h.dispatchEmailEvent(r.Context(), "email.clicked", lid, map[string]any{
+				"url":        rawURL,
+				"clicked_at": time.Now().UTC().Format(time.RFC3339),
+			})
+		}
 	}
 
 	http.Redirect(w, r, rawURL, http.StatusFound)
