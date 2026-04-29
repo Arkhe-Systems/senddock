@@ -14,7 +14,7 @@ export const useAuthStore = defineStore('auth', () => {
     async function checkAuth() {
         const wasAuthenticated = isAuthenticated.value
         try {
-            await api<any>('/me')
+            await api<any>('/me', { silent: true })
             isAuthenticated.value = true
             sessionExpired.value = false
         } catch {
