@@ -173,6 +173,45 @@ func (h *ProjectHandler) UpdateSMTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response.FromProject(project))
 }
 
+func (h *ProjectHandler) GetBounceWebhook(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(auth.UserIDKey).(string)
+	projectID := r.PathValue("id")
+	project, err := h.projectService.GetByID(r.Context(), projectID, userID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"project_id":   project.ID.String(),
+		"bounce_token": project.BounceToken.String(),
+		"path":         "/webhooks/bounces/" + project.ID.String() + "?token=" + project.BounceToken.String(),
+	})
+}
+
+func (h *ProjectHandler) RotateBounceToken(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(auth.UserIDKey).(string)
+	projectID := r.PathValue("id")
+	project, err := h.projectService.RotateBounceToken(r.Context(), projectID, userID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+	if h.Audit != nil {
+		h.Audit.LogFromRequest(r, projectID, userID, "bounce_token.rotate", "project", projectID, nil)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"project_id":   project.ID.String(),
+		"bounce_token": project.BounceToken.String(),
+		"path":         "/webhooks/bounces/" + project.ID.String() + "?token=" + project.BounceToken.String(),
+	})
+}
+
 func (h *ProjectHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(auth.UserIDKey).(string)
 	projectID := r.PathValue("id")

@@ -37,3 +37,11 @@ DELETE FROM projects WHERE id = $1 AND user_id = $2;
 
 -- name: CountProjectsByUserID :one
 SELECT COUNT(*) FROM projects WHERE user_id = $1;
+
+-- name: RotateBounceToken :one
+UPDATE projects SET bounce_token = gen_random_uuid(), updated_at = NOW()
+WHERE id = $1 AND user_id = $2
+RETURNING *;
+
+-- name: GetProjectByBounceToken :one
+SELECT * FROM projects WHERE id = $1 AND bounce_token = $2;

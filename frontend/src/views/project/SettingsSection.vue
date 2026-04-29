@@ -8,6 +8,7 @@ import type { Project } from '@/stores/projects'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 
 interface APIKey {
     id: string
@@ -37,6 +38,49 @@ async function copyInstanceUrl() {
     toast.success('Instance URL copied')
 }
 
+const bounceWebhookPath = ref('')
+const bounceToken = ref('')
+const showRotateBounceConfirm = ref(false)
+const rotateLoading = ref(false)
+
+const bounceWebhookUrl = computed(() => bounceWebhookPath.value ? instanceUrl.value.replace(/\/$/, '') + bounceWebhookPath.value : '')
+
+async function loadBounceWebhook() {
+    try {
+        const res = await api<{ project_id: string, bounce_token: string, path: string }>(
+            `/projects/${props.project.id}/bounce-webhook`,
+        )
+        bounceToken.value = res.bounce_token
+        bounceWebhookPath.value = res.path
+    } catch {
+        bounceWebhookPath.value = ''
+    }
+}
+
+async function copyBounceWebhook() {
+    if (!bounceWebhookUrl.value) return
+    await navigator.clipboard.writeText(bounceWebhookUrl.value)
+    toast.success('Webhook URL copied')
+}
+
+async function rotateBounceToken() {
+    rotateLoading.value = true
+    try {
+        const res = await api<{ project_id: string, bounce_token: string, path: string }>(
+            `/projects/${props.project.id}/bounce-webhook/rotate`,
+            { method: 'POST' },
+        )
+        bounceToken.value = res.bounce_token
+        bounceWebhookPath.value = res.path
+        toast.success('New bounce token issued')
+        showRotateBounceConfirm.value = false
+    } catch (e: any) {
+        toast.error(e.message || 'Failed to rotate token')
+    } finally {
+        rotateLoading.value = false
+    }
+}
+
 const projectName = ref('')
 const projectDescription = ref('')
 const generalLoading = ref(false)
@@ -54,6 +98,7 @@ onMounted(() => {
     projectName.value = props.project.name
     projectDescription.value = props.project.description ?? ''
     fetchAPIKeys()
+    loadBounceWebhook()
 })
 
 async function copyProjectId() {
@@ -224,6 +269,27 @@ async function handleDelete() {
             <p v-else class="text-sm text-zinc-500">No API keys yet.</p>
         </div>
 
+        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg">
+            <h2 class="text-sm font-medium text-white mb-2">Bounce ingestion webhook</h2>
+            <p class="text-xs text-zinc-500 mb-4">
+                Public endpoint your email provider can POST bounce notifications to. Each delivered payload adds the affected address to the suppression list with reason <code class="text-zinc-400">bounce</code>. Accepts a generic <code class="text-zinc-400">{ "email": "...", "reason": "..." }</code> JSON body or a Mailgun event payload.
+            </p>
+            <div class="flex items-center gap-2">
+                <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white break-all">{{ bounceWebhookUrl || 'Loading…' }}</code>
+                <button type="button" @click="copyBounceWebhook" :disabled="!bounceWebhookUrl"
+                    class="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer disabled:opacity-50">
+                    Copy
+                </button>
+            </div>
+            <p class="text-xs text-zinc-500 mt-3">
+                The token in the query string authenticates the call. If it leaks, rotate it — the new token immediately invalidates the old one.
+            </p>
+            <button type="button" @click="showRotateBounceConfirm = true"
+                class="mt-3 px-3 py-1.5 text-xs text-red-400 border border-red-900/50 rounded-md hover:bg-red-950/40 transition cursor-pointer">
+                Rotate token
+            </button>
+        </div>
+
         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg opacity-60">
             <div class="flex items-center gap-2 mb-2">
                 <h2 class="text-sm font-medium text-white">Team Members</h2>
@@ -231,6 +297,16 @@ async function handleDelete() {
             </div>
             <p class="text-xs text-zinc-500">Invite team members and manage roles. Available in the Pro edition.</p>
         </div>
+
+        <AppConfirmModal
+            :show="showRotateBounceConfirm"
+            title="Rotate bounce webhook token"
+            message="Generate a new token? The current URL stops working immediately, so update your provider configuration to point at the new URL right after this."
+            confirmLabel="Rotate"
+            danger
+            :loading="rotateLoading"
+            @confirm="rotateBounceToken"
+            @cancel="showRotateBounceConfirm = false" />
 
         <div class="bg-zinc-900 border border-red-500/20 rounded-lg p-6 max-w-lg">
             <h2 class="text-sm font-medium text-red-400 mb-4">Danger Zone</h2>
