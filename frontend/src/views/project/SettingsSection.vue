@@ -63,6 +63,53 @@ async function copyBounceWebhook() {
     toast.success('Webhook URL copied')
 }
 
+interface BounceIMAPConfig {
+    enabled: boolean
+    folder: string
+    host?: string
+    port?: number
+    user?: string
+    password_set: boolean
+}
+
+const imapConfig = ref<BounceIMAPConfig>({ enabled: false, folder: 'INBOX', password_set: false })
+const imapForm = ref({ host: '', port: 993, user: '', password: '', folder: 'INBOX', enabled: false })
+const imapLoading = ref(false)
+
+async function loadBounceIMAP() {
+    try {
+        const res = await api<BounceIMAPConfig>(`/projects/${props.project.id}/bounce-imap`)
+        imapConfig.value = res
+        imapForm.value = {
+            host: res.host ?? '',
+            port: res.port ?? 993,
+            user: res.user ?? '',
+            password: '',
+            folder: res.folder || 'INBOX',
+            enabled: res.enabled,
+        }
+    } catch {
+        /* noop */
+    }
+}
+
+async function saveBounceIMAP() {
+    imapLoading.value = true
+    try {
+        await api(`/projects/${props.project.id}/bounce-imap`, {
+            method: 'PUT',
+            body: imapForm.value,
+        })
+        toast.success('Bounce mailbox settings saved')
+        imapForm.value.password = ''
+        loadBounceIMAP()
+    } catch (e: any) {
+        toast.error(e.message || 'Failed to save IMAP settings')
+    } finally {
+        imapLoading.value = false
+    }
+}
+
 async function rotateBounceToken() {
     rotateLoading.value = true
     try {
@@ -99,6 +146,7 @@ onMounted(() => {
     projectDescription.value = props.project.description ?? ''
     fetchAPIKeys()
     loadBounceWebhook()
+    loadBounceIMAP()
 })
 
 async function copyProjectId() {
@@ -288,6 +336,38 @@ async function handleDelete() {
                 class="mt-3 px-3 py-1.5 text-xs text-red-400 border border-red-900/50 rounded-md hover:bg-red-950/40 transition cursor-pointer">
                 Rotate token
             </button>
+        </div>
+
+        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg">
+            <h2 class="text-sm font-medium text-white mb-2">Bounce mailbox (IMAP)</h2>
+            <p class="text-xs text-zinc-500 mb-4">
+                Poll a mailbox where your SMTP relay forwards Delivery Status Notifications. Every 5 minutes SendDock fetches unseen messages, extracts hard-bounce recipients (RFC 3464 <code>Final-Recipient</code> first, then 5xx lines as fallback) and adds them to the suppression list.
+            </p>
+            <form @submit.prevent="saveBounceIMAP" class="space-y-3">
+                <AppInput v-model="imapForm.host" label="Host" placeholder="imap.your-mailbox.com" />
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-300 mb-1">Port</label>
+                        <input v-model.number="imapForm.port" type="number" min="1" max="65535"
+                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-300 mb-1">Folder</label>
+                        <input v-model="imapForm.folder"
+                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition" />
+                    </div>
+                </div>
+                <AppInput v-model="imapForm.user" label="Username" placeholder="bounces@your-domain.com" />
+                <AppInput v-model="imapForm.password" type="password" label="Password"
+                    :placeholder="imapConfig.password_set ? 'Leave empty to keep current' : 'Mailbox password'" />
+                <label class="flex items-center gap-2 text-sm text-zinc-300">
+                    <input type="checkbox" v-model="imapForm.enabled" class="accent-white" />
+                    Enable polling
+                </label>
+                <AppButton type="submit" :loading="imapLoading" :disabled="imapLoading">
+                    {{ imapLoading ? 'Saving...' : 'Save IMAP settings' }}
+                </AppButton>
+            </form>
         </div>
 
         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg opacity-60">

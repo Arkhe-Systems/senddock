@@ -45,3 +45,22 @@ RETURNING *;
 
 -- name: GetProjectByBounceToken :one
 SELECT * FROM projects WHERE id = $1 AND bounce_token = $2;
+
+-- name: UpdateBounceIMAP :one
+UPDATE projects SET
+    bounce_imap_host = $3,
+    bounce_imap_port = $4,
+    bounce_imap_user = $5,
+    bounce_imap_password_encrypted = $6,
+    bounce_imap_folder = $7,
+    bounce_imap_enabled = $8,
+    updated_at = NOW()
+WHERE id = $1 AND user_id = $2
+RETURNING *;
+
+-- name: ListProjectsWithBounceIMAP :many
+SELECT * FROM projects
+WHERE bounce_imap_enabled = TRUE
+  AND bounce_imap_host IS NOT NULL
+  AND bounce_imap_user IS NOT NULL
+  AND bounce_imap_password_encrypted IS NOT NULL;

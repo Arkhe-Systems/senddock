@@ -76,22 +76,28 @@ type EmailLog struct {
 }
 
 type Project struct {
-	ID                    uuid.UUID
-	UserID                uuid.UUID
-	Name                  string
-	FromName              sql.NullString
-	FromEmail             sql.NullString
-	SmtpHost              sql.NullString
-	SmtpPort              sql.NullInt32
-	SmtpUser              sql.NullString
-	SmtpPasswordEncrypted sql.NullString
-	WebhookUrl            sql.NullString
-	WebhookSecret         sql.NullString
-	TrackingEnabled       bool
-	CreatedAt             time.Time
-	UpdatedAt             time.Time
-	Description           sql.NullString
-	BounceToken           uuid.UUID
+	ID                          uuid.UUID
+	UserID                      uuid.UUID
+	Name                        string
+	FromName                    sql.NullString
+	FromEmail                   sql.NullString
+	SmtpHost                    sql.NullString
+	SmtpPort                    sql.NullInt32
+	SmtpUser                    sql.NullString
+	SmtpPasswordEncrypted       sql.NullString
+	WebhookUrl                  sql.NullString
+	WebhookSecret               sql.NullString
+	TrackingEnabled             bool
+	CreatedAt                   time.Time
+	UpdatedAt                   time.Time
+	Description                 sql.NullString
+	BounceToken                 uuid.UUID
+	BounceImapHost              sql.NullString
+	BounceImapPort              sql.NullInt32
+	BounceImapUser              sql.NullString
+	BounceImapPasswordEncrypted sql.NullString
+	BounceImapFolder            string
+	BounceImapEnabled           bool
 }
 
 type RefreshToken struct {

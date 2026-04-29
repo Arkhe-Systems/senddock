@@ -131,6 +131,58 @@ func (s *ProjectService) Delete(ctx context.Context, projectID, userID string) e
 	})
 }
 
+func (s *ProjectService) UpdateBounceIMAP(ctx context.Context, projectID, userID, host string, port int32, user, password, folder string, enabled bool) (db.Project, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid project id")
+	}
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid user id")
+	}
+
+	current, err := s.queries.GetProjectByID(ctx, db.GetProjectByIDParams{ID: pid, UserID: uid})
+	if err != nil {
+		return db.Project{}, errors.New("project not found")
+	}
+
+	encrypted := current.BounceImapPasswordEncrypted
+	if password != "" {
+		enc, err := Encrypt(password, s.encSecret)
+		if err != nil {
+			return db.Project{}, err
+		}
+		encrypted = sql.NullString{String: enc, Valid: true}
+	}
+
+	hostNS := sql.NullString{}
+	if host != "" {
+		hostNS = sql.NullString{String: host, Valid: true}
+	}
+	portNS := sql.NullInt32{}
+	if port != 0 {
+		portNS = sql.NullInt32{Int32: port, Valid: true}
+	}
+	userNS := sql.NullString{}
+	if user != "" {
+		userNS = sql.NullString{String: user, Valid: true}
+	}
+	if folder == "" {
+		folder = "INBOX"
+	}
+
+	return s.queries.UpdateBounceIMAP(ctx, db.UpdateBounceIMAPParams{
+		ID:                          pid,
+		UserID:                      uid,
+		BounceImapHost:              hostNS,
+		BounceImapPort:              portNS,
+		BounceImapUser:               userNS,
+		BounceImapPasswordEncrypted: encrypted,
+		BounceImapFolder:            folder,
+		BounceImapEnabled:           enabled,
+	})
+}
+
 func (s *ProjectService) RotateBounceToken(ctx context.Context, projectID, userID string) (db.Project, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
