@@ -45,7 +45,7 @@ Pin the version in `docker-compose.yml` to control update timing:
 ```yaml
 services:
   senddock:
-    image: ghcr.io/arkhe-systems/senddock:0.5.0
+    image: ghcr.io/arkhe-systems/senddock:0.5.1
 ```
 
 When you decide to upgrade, edit the tag, then `docker compose pull && docker compose up -d`.
