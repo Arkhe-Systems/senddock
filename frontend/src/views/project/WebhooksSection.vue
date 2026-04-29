@@ -290,10 +290,18 @@ onMounted(load)
                     <label class="block text-sm font-medium text-zinc-300 mb-2">Events</label>
                     <div class="space-y-2">
                         <label v-for="ev in ALL_EVENTS" :key="ev.value"
-                            class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition">
-                            <input type="checkbox" :checked="newEvents.includes(ev.value)"
-                                @change="toggleEvent(ev.value)"
-                                class="mt-0.5 appearance-none w-[18px] h-[18px] border-2 border-zinc-600 rounded bg-transparent checked:border-white relative cursor-pointer focus:outline-none transition-colors checked:after:content-[''] checked:after:absolute checked:after:inset-[3px] checked:after:bg-white checked:after:rounded-sm hover:border-zinc-400" />
+                            class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition group">
+                            <span class="relative flex-shrink-0 mt-0.5 w-[18px] h-[18px]">
+                                <input type="checkbox" :checked="newEvents.includes(ev.value)"
+                                    @change="toggleEvent(ev.value)"
+                                    class="peer sr-only" />
+                                <span class="absolute inset-0 rounded border-2 border-zinc-600 bg-transparent transition-colors peer-checked:border-white peer-checked:bg-white group-hover:border-zinc-400"></span>
+                                <svg v-if="newEvents.includes(ev.value)"
+                                    class="absolute inset-0 m-auto w-3 h-3 text-zinc-950 pointer-events-none"
+                                    viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 8 7 12 13 4" />
+                                </svg>
+                            </span>
                             <div class="min-w-0">
                                 <p class="text-sm text-white font-mono">{{ ev.value }}</p>
                                 <p class="text-xs text-zinc-500 mt-0.5">{{ ev.description }}</p>
