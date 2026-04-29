@@ -60,19 +60,19 @@ SENDDOCK_LICENSE_KEY=
   <g style="font-family: ui-sans-serif, system-ui, sans-serif">
     <g transform="translate(310,16)"><rect x="0" y="0" width="160" height="50" rx="25" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="80" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">DEPLOYMENT_MODE</text><text x="80" y="38" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">self-hosted · cloud</text></g>
     <path d="M 360 66 L 200 110" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
-    <text x="252" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor" fill-opacity="0.75">self-hosted</text>
+    <text x="252" y="78" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor" fill-opacity="0.75">self-hosted</text>
     <path d="M 420 66 L 580 110" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
-    <text x="528" y="80" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor" fill-opacity="0.75">cloud</text>
+    <text x="528" y="78" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor" fill-opacity="0.75">cloud</text>
     <g transform="translate(110,116)"><rect x="0" y="0" width="180" height="50" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5"/><text x="90" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">SENDDOCK_LICENSE_KEY?</text><text x="90" y="38" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">empty · valid</text></g>
     <g transform="translate(490,116)"><rect x="0" y="0" width="180" height="50" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5"/><text x="90" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">SENDDOCK_LICENSE_KEY?</text><text x="90" y="38" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">empty · valid</text></g>
-    <path d="M 150 166 L 80 220" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
-    <text x="98" y="200" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.7">empty</text>
-    <path d="M 250 166 L 320 220" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
-    <text x="300" y="200" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.7">valid</text>
-    <path d="M 530 166 L 460 220" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#lm-a)"/>
-    <text x="478" y="200" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">empty</text>
-    <path d="M 630 166 L 700 220" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
-    <text x="682" y="200" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.7">valid</text>
+    <path d="M 200 166 L 200 200 L 80 200 L 80 218" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
+    <text x="140" y="194" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.75">empty</text>
+    <path d="M 200 200 L 320 200 L 320 218" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
+    <text x="260" y="194" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.75">valid</text>
+    <path d="M 580 166 L 580 200 L 460 200 L 460 218" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#lm-a)"/>
+    <text x="520" y="194" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.65">empty</text>
+    <path d="M 580 200 L 700 200 L 700 218" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
+    <text x="640" y="194" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.75">valid</text>
     <g transform="translate(20,224)"><rect x="0" y="0" width="120" height="60" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="60" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Unlocked</text><text x="60" y="46" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">local dev</text></g>
     <g transform="translate(260,224)"><rect x="0" y="0" width="120" height="60" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="60" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Unlocked</text><text x="60" y="46" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">licensed</text></g>
     <g transform="translate(400,224)"><rect x="0" y="0" width="120" height="60" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.4" stroke-dasharray="5 4"/><text x="60" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor" fill-opacity="0.7">Locked</text><text x="60" y="46" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.5">free tier</text></g>
