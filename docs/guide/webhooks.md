@@ -4,6 +4,24 @@ Webhooks let SendDock call your own HTTP endpoint every time something interesti
 
 Webhook delivery, signing and retries ship in the open-source Core; the **management UI and API endpoints** (creating, listing, pausing, deleting webhooks) live in Pro and require a license in cloud mode.
 
+## How a delivery works
+
+```mermaid
+flowchart LR
+    A[Event fires<br/>e.g. email.sent] --> B[Enqueue]
+    B --> C[(webhook_deliveries<br/>status=pending)]
+    C -.tick every 10s.-> D{Dispatcher claim}
+    D -- FOR UPDATE<br/>SKIP LOCKED --> E[POST to your URL<br/>X-SendDock-Signature]
+    E --> F{Response}
+    F -- 2xx --> G[delivered]
+    F -- non-2xx<br/>or timeout --> H{attempts<br/>&lt; 5?}
+    H -- yes --> I[Schedule retry<br/>30s → 2h backoff]
+    I --> C
+    H -- no --> J[failed]
+```
+
+The dispatcher runs inside the Core process, polls every 10 seconds, and claims up to 20 ready deliveries per tick using `FOR UPDATE SKIP LOCKED` — so two SendDock containers behind the same Postgres won't double-send.
+
 ## Events
 
 SendDock emits six event types today:
@@ -145,6 +163,20 @@ Most frameworks parse the body before your handler runs. The signature is comput
 
 Deliveries that don't return a `2xx` are retried with exponential backoff. The schedule is fixed:
 
+```mermaid
+gantt
+    title Backoff schedule (worst case, 5 failed attempts)
+    dateFormat X
+    axisFormat %s s
+    section Attempt
+    1 (immediate)   :done, 0, 1
+    2 (+30s)        :done, 30, 31
+    3 (+2m)         :done, 150, 151
+    4 (+10m)        :done, 750, 751
+    5 (+30m)        :done, 2550, 2551
+    Total: ~2h      :crit, 2550, 9750
+```
+
 | Attempt | Delay before retry |
 |---|---|
 | 1 → 2 | 30 seconds |
@@ -153,7 +185,7 @@ Deliveries that don't return a `2xx` are retried with exponential backoff. The s
 | 4 → 5 | 30 minutes |
 | 5 → fail | gives up |
 
-After 5 attempts the delivery is marked `failed` and stored on the webhook for visibility. The dispatcher polls every 10 seconds and claims up to 20 ready deliveries per tick using `FOR UPDATE SKIP LOCKED`, so multiple SendDock instances behind the same database don't double-send.
+After 5 attempts the delivery is marked `failed` and stored on the webhook for visibility.
 
 A delivery to a paused webhook (active=false) is marked `failed` immediately on the next tick — pausing a webhook does not buffer events for later replay.
 

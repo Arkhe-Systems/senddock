@@ -134,11 +134,22 @@ GET /api/v1/projects/{id}/webhooks/{webhookId}/deliveries?limit=50
 
 ### Status values
 
+```mermaid
+stateDiagram-v2
+    [*] --> pending: enqueued
+    pending --> inflight: dispatcher claims
+    inflight --> delivered: 2xx
+    inflight --> pending: non-2xx,<br/>attempts < 5
+    inflight --> failed: attempts ≥ 5<br/>or webhook inactive
+    delivered --> [*]
+    failed --> [*]
+```
+
 | Status | Meaning |
 |---|---|
 | `pending` | Waiting for next attempt. `next_attempt_at` is populated. |
 | `inflight` | Claimed by a dispatcher worker, in flight to your endpoint. |
-| `delivered` | Your endpoint returned a 2xx. `delivered_at` is populated. |
+| `delivered` | Your endpoint returned a 2xx. `delivered_at` is populated. Terminal. |
 | `failed` | Either the webhook was inactive when it ran, or 5 attempts all failed. Terminal. |
 
 The `attempts` counter increments on every retry; combined with the [retry schedule](/guide/webhooks#retries) it tells you how far through the backoff a `pending` delivery is.
