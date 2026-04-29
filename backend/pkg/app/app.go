@@ -18,6 +18,7 @@ import (
 	"github.com/arkhe-systems/senddock/internal/handler"
 	"github.com/arkhe-systems/senddock/internal/middleware"
 	"github.com/arkhe-systems/senddock/internal/service"
+	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/pkg/config"
 
@@ -38,7 +39,8 @@ type App struct {
 	eitherAuth       func(http.Handler) http.Handler
 	rateLimiter      *middleware.RateLimiter
 
-	worker *service.CampaignWorker
+	worker   *service.CampaignWorker
+	webhooks *webhooks.Service
 
 	server *http.Server
 }
@@ -77,7 +79,8 @@ func New(cfg config.Config) (*App, error) {
 	a.eitherAuth = middleware.EitherAuth(a.authMiddleware, a.apiKeyMiddleware)
 	a.rateLimiter = middleware.NewRateLimiter(redisCache, 100, time.Minute)
 
-	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache)
+	a.webhooks = webhooks.NewService(queries)
+	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks)
 	a.worker = service.NewCampaignWorker(queries, emailService)
 
 	a.registerCoreRoutes(emailService)
@@ -90,6 +93,8 @@ func (a *App) Mux() *http.ServeMux { return a.mux }
 
 func (a *App) DB() *sql.DB { return a.conn }
 
+func (a *App) Webhooks() *webhooks.Service { return a.webhooks }
+
 func (a *App) WithAuth(h http.Handler) http.Handler {
 	return a.authMiddleware(h)
 }
@@ -100,6 +105,7 @@ func (a *App) WithAPIAuth(h http.Handler) http.Handler {
 
 func (a *App) Run(ctx context.Context) error {
 	a.worker.Start()
+	a.webhooks.Start(ctx)
 
 	wrapped := middleware.Security(
 		middleware.LimitBody(
@@ -159,7 +165,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	projectService := service.NewProjectService(queries, cfg.JWTSecret)
 	projectHandler := handler.NewProjectHandler(projectService)
 
-	subscriberService := service.NewSubscriberService(queries)
+	subscriberService := service.NewSubscriberService(queries, a.webhooks)
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
 
 	templateService := service.NewTemplateService(queries)
@@ -173,7 +179,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	campaignService := service.NewCampaignService(queries)
 	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
 
-	trackingHandler := handler.NewTrackingHandler(queries, emailService)
+	trackingHandler := handler.NewTrackingHandler(queries, emailService, a.webhooks)
 
 	releaseService := service.NewReleaseService(a.cache)
 	releaseHandler := handler.NewReleaseHandler(releaseService)

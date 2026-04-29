@@ -134,3 +134,27 @@ type User struct {
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
+
+type Webhook struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Url       string
+	Secret    string
+	Events    []string
+	Active    bool
+	CreatedAt time.Time
+}
+
+type WebhookDelivery struct {
+	ID             uuid.UUID
+	WebhookID      uuid.UUID
+	EventType      string
+	Payload        json.RawMessage
+	Status         string
+	Attempts       int32
+	LastStatusCode sql.NullInt32
+	LastError      sql.NullString
+	NextAttemptAt  time.Time
+	DeliveredAt    sql.NullTime
+	CreatedAt      time.Time
+}

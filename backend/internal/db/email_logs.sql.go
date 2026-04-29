@@ -277,22 +277,28 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 	return items, nil
 }
 
-const markEmailClicked = `-- name: MarkEmailClicked :exec
+const markEmailClicked = `-- name: MarkEmailClicked :execrows
 UPDATE email_logs SET clicked_at = NOW() WHERE id = $1 AND clicked_at IS NULL
 `
 
-func (q *Queries) MarkEmailClicked(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, markEmailClicked, id)
-	return err
+func (q *Queries) MarkEmailClicked(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markEmailClicked, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const markEmailOpened = `-- name: MarkEmailOpened :exec
+const markEmailOpened = `-- name: MarkEmailOpened :execrows
 UPDATE email_logs SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL
 `
 
-func (q *Queries) MarkEmailOpened(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, markEmailOpened, id)
-	return err
+func (q *Queries) MarkEmailOpened(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markEmailOpened, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateEmailLogStatus = `-- name: UpdateEmailLogStatus :exec
