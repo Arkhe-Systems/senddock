@@ -235,6 +235,11 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("PUT /api/v1/projects/{id}", authMW(http.HandlerFunc(projectHandler.Update)))
 	mux.Handle("DELETE /api/v1/projects/{id}", authMW(http.HandlerFunc(projectHandler.Delete)))
 	mux.Handle("PUT /api/v1/projects/{id}/smtp", authMW(http.HandlerFunc(projectHandler.UpdateSMTP)))
+	mux.Handle("GET /api/v1/projects/{id}/bounce-webhook", authMW(http.HandlerFunc(projectHandler.GetBounceWebhook)))
+	mux.Handle("POST /api/v1/projects/{id}/bounce-webhook/rotate", authMW(http.HandlerFunc(projectHandler.RotateBounceToken)))
+
+	bounceWebhookHandler := handler.NewBounceWebhookHandler(queries, a.suppressions)
+	mux.HandleFunc("POST /webhooks/bounces/{projectId}", bounceWebhookHandler.Receive)
 
 	mux.Handle("POST /api/v1/projects/{id}/subscribers", authMW(http.HandlerFunc(subscriberHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/subscribers", authMW(http.HandlerFunc(subscriberHandler.List)))
@@ -298,7 +303,7 @@ func (a *App) serveFrontend() {
 	fileServer := http.FileServerFS(frontendFS)
 
 	a.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || strings.HasPrefix(r.URL.Path, "/t/") || strings.HasPrefix(r.URL.Path, "/c/") || r.URL.Path == "/health" {
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || strings.HasPrefix(r.URL.Path, "/t/") || strings.HasPrefix(r.URL.Path, "/c/") || strings.HasPrefix(r.URL.Path, "/webhooks/") || r.URL.Path == "/health" {
 			http.NotFound(w, r)
 			return
 		}

@@ -130,3 +130,15 @@ func (s *ProjectService) Delete(ctx context.Context, projectID, userID string) e
 		UserID: uid,
 	})
 }
+
+func (s *ProjectService) RotateBounceToken(ctx context.Context, projectID, userID string) (db.Project, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid project id")
+	}
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid user id")
+	}
+	return s.queries.RotateBounceToken(ctx, db.RotateBounceTokenParams{ID: pid, UserID: uid})
+}

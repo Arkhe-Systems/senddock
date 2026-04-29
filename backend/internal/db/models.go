@@ -91,6 +91,7 @@ type Project struct {
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
 	Description           sql.NullString
+	BounceToken           uuid.UUID
 }
 
 type RefreshToken struct {
