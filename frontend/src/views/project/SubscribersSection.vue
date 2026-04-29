@@ -241,6 +241,33 @@ function resetImport() {
     showImportModal.value = false
 }
 
+function readFile(file: File) {
+    if (!/\.csv$|text\/csv/i.test(file.name + ' ' + file.type)) {
+        toast.error('Pick a .csv file')
+        return
+    }
+    const reader = new FileReader()
+    reader.onload = e => { importText.value = String(e.target?.result ?? '') }
+    reader.onerror = () => toast.error('Could not read file')
+    reader.readAsText(file)
+}
+
+function handleFileUpload(event: Event) {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    if (file) readFile(file)
+    input.value = ''
+}
+
+const isDragging = ref(false)
+
+function handleFileDrop(event: DragEvent) {
+    event.preventDefault()
+    isDragging.value = false
+    const file = event.dataTransfer?.files?.[0]
+    if (file) readFile(file)
+}
+
 onMounted(fetchSubscribers)
 </script>
 
@@ -366,10 +393,24 @@ onMounted(fetchSubscribers)
         <AppModal :show="showImportModal" title="Import subscribers" @close="resetImport">
             <div v-if="!importResult" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-zinc-300 mb-1">Paste CSV (email, name)</label>
-                    <textarea v-model="importText" rows="8" placeholder="email,name&#10;ada@example.com,Ada Lovelace&#10;alan@example.com,Alan Turing"
-                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition resize-y" />
-                    <p class="text-xs text-zinc-500 mt-1">First line can be a header (<code class="text-zinc-400">email,name</code>). Name column is optional.</p>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-sm font-medium text-zinc-300">CSV (email, name)</label>
+                        <label class="text-xs text-zinc-300 hover:text-white border border-zinc-700 rounded-md px-2 py-1 cursor-pointer transition hover:bg-zinc-800">
+                            Choose file
+                            <input type="file" accept=".csv,text/csv" class="hidden" @change="handleFileUpload" />
+                        </label>
+                    </div>
+                    <div @dragover.prevent="isDragging = true"
+                        @dragleave.prevent="isDragging = false"
+                        @drop="handleFileDrop"
+                        :class="[
+                            'rounded-lg border transition',
+                            isDragging ? 'border-white border-dashed bg-zinc-900' : 'border-zinc-800',
+                        ]">
+                        <textarea v-model="importText" rows="8" placeholder="email,name&#10;ada@example.com,Ada Lovelace&#10;alan@example.com,Alan Turing&#10;&#10;…or drop a .csv file here"
+                            class="w-full px-3 py-2 bg-zinc-950 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition resize-y" />
+                    </div>
+                    <p class="text-xs text-zinc-500 mt-1">First line can be a header (<code class="text-zinc-400">email,name</code>). Name column is optional. Drop a .csv file or pick one above.</p>
                 </div>
 
                 <div class="space-y-2">
