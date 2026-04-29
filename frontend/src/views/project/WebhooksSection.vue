@@ -310,12 +310,11 @@ onMounted(load)
                     </div>
                 </div>
 
-                <div class="flex gap-3 pt-2">
-                    <button type="button" @click="showCreate = false"
-                        class="flex-1 py-2 text-sm font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 transition cursor-pointer">
+                <div class="flex gap-2 pt-2">
+                    <AppButton type="button" variant="ghost" size="sm" class="flex-1" @click="showCreate = false">
                         Cancel
-                    </button>
-                    <AppButton type="submit" :loading="creating" :disabled="creating">
+                    </AppButton>
+                    <AppButton type="submit" size="sm" :loading="creating" :disabled="creating" class="flex-1">
                         {{ creating ? 'Creating...' : 'Create webhook' }}
                     </AppButton>
                 </div>
@@ -353,10 +352,7 @@ onMounted(load)
                     <code class="text-zinc-400">timestamp.body</code> using this secret.
                 </p>
 
-                <button @click="createdWebhook = null"
-                    class="w-full py-2 font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
-                    Done
-                </button>
+                <AppButton @click="createdWebhook = null">Done</AppButton>
             </div>
         </AppModal>
 
