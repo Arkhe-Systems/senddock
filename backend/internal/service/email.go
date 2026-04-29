@@ -396,13 +396,15 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 	total, _ := s.queries.CountEmailLogsByProject(ctx, pid)
 	sent, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "sent"})
 	failed, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "failed"})
+	suppressed, _ := s.queries.CountEmailLogsByStatus(ctx, db.CountEmailLogsByStatusParams{ProjectID: pid, Status: "suppressed"})
 	opened, _ := s.queries.CountEmailLogsOpened(ctx, pid)
 
 	stats := map[string]int64{
-		"total":  total,
-		"sent":   sent,
-		"failed": failed,
-		"opened": opened,
+		"total":      total,
+		"sent":       sent,
+		"failed":     failed,
+		"suppressed": suppressed,
+		"opened":     opened,
 	}
 
 	s.cache.Set(ctx, cacheKey, stats, 30*time.Second)

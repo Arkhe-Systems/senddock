@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"html"
 	"net/http"
 	"strconv"
@@ -129,6 +130,10 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 
 	if req.To != "" && req.TemplateID != "" {
 		err := h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, req.To, req.Subject, req.Data)
+		if errors.Is(err, service.ErrRecipientSuppressed) {
+			json.NewEncoder(w).Encode(map[string]any{"message": "suppressed", "suppressed": 1})
+			return
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
@@ -145,6 +150,10 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err := h.emailService.SendDirect(r.Context(), projectID, req.To, req.Subject, req.HtmlBody)
+		if errors.Is(err, service.ErrRecipientSuppressed) {
+			json.NewEncoder(w).Encode(map[string]any{"message": "suppressed", "suppressed": 1})
+			return
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
@@ -240,12 +249,17 @@ func (h *EmailHandler) BatchSend(w http.ResponseWriter, r *http.Request) {
 
 	sent := 0
 	failed := 0
+	suppressed := 0
 	for _, rcpt := range req.Recipients {
 		if rcpt.To == "" {
 			failed++
 			continue
 		}
 		err := h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, rcpt.To, req.Subject, rcpt.Data)
+		if errors.Is(err, service.ErrRecipientSuppressed) {
+			suppressed++
+			continue
+		}
 		if err != nil {
 			failed++
 		} else {
@@ -254,7 +268,7 @@ func (h *EmailHandler) BatchSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int{"sent": sent, "failed": failed})
+	json.NewEncoder(w).Encode(map[string]int{"sent": sent, "failed": failed, "suppressed": suppressed})
 }
 
 func (h *EmailHandler) TestSMTP(w http.ResponseWriter, r *http.Request) {
