@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-label="Tracking flow: send API rewrites links and injects pixel, SMTP delivers email, recipient loads pixel and clicks tracked links, both events land in email_logs and email_clicks">
+  <defs>
+    <marker id="tf-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.55"/>
+    </marker>
+    <marker id="tf-as" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0ea5e9"/>
+    </marker>
+    <marker id="tf-ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a855f7"/>
+    </marker>
+  </defs>
+  <style>
+    .lane { fill: none; stroke: currentColor; stroke-opacity: 0.2; stroke-dasharray: 4 4; }
+    .actor { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: currentColor; letter-spacing: 0.04em; text-transform: uppercase; }
+    .label { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: currentColor; }
+    .sub { font: 11px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.55; }
+    .arrow { stroke: currentColor; stroke-opacity: 0.6; fill: none; stroke-width: 1.5; }
+    .arrow-pixel { stroke: #0ea5e9; fill: none; stroke-width: 1.5; }
+    .arrow-click { stroke: #a855f7; fill: none; stroke-width: 1.5; }
+    .step { font: 600 10px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.5; }
+  </style>
+
+  <g>
+    <text class="actor" x="80" y="32" text-anchor="middle">Send API</text>
+    <text class="actor" x="280" y="32" text-anchor="middle">SMTP</text>
+    <text class="actor" x="480" y="32" text-anchor="middle">Recipient</text>
+    <text class="actor" x="680" y="32" text-anchor="middle">/t · /c</text>
+  </g>
+
+  <line class="lane" x1="80" y1="50" x2="80" y2="350"/>
+  <line class="lane" x1="280" y1="50" x2="280" y2="350"/>
+  <line class="lane" x1="480" y1="50" x2="480" y2="350"/>
+  <line class="lane" x1="680" y1="50" x2="680" y2="350"/>
+
+  <g transform="translate(0,80)">
+    <text class="step" x="20" y="0">1</text>
+    <text class="label" x="80" y="0" text-anchor="middle">rewrite &lt;a href&gt;, inject pixel</text>
+    <path class="arrow" d="M 80 16 C 80 30 80 30 80 40"/>
+    <circle cx="80" cy="16" r="3" fill="currentColor" opacity="0.6"/>
+    <circle cx="80" cy="40" r="3" fill="currentColor" opacity="0.6"/>
+  </g>
+
+  <g transform="translate(0,140)">
+    <text class="step" x="20" y="0">2</text>
+    <line class="arrow" x1="80" y1="0" x2="270" y2="0" marker-end="url(#tf-a)"/>
+    <text class="label" x="180" y="-8" text-anchor="middle">deliver</text>
+  </g>
+
+  <g transform="translate(0,180)">
+    <text class="step" x="20" y="0">3</text>
+    <line class="arrow" x1="280" y1="0" x2="470" y2="0" marker-end="url(#tf-a)"/>
+    <text class="label" x="380" y="-8" text-anchor="middle">email lands in inbox</text>
+  </g>
+
+  <g transform="translate(0,232)">
+    <text class="step" x="20" y="0">4</text>
+    <line class="arrow-pixel" x1="480" y1="0" x2="670" y2="0" marker-end="url(#tf-as)"/>
+    <text class="label" x="580" y="-8" text-anchor="middle" fill="#0ea5e9">GET /t/{logId}.gif</text>
+    <text class="sub" x="580" y="14" text-anchor="middle">→ opened_at = NOW()</text>
+  </g>
+
+  <g transform="translate(0,290)">
+    <text class="step" x="20" y="0">5</text>
+    <line class="arrow-click" x1="480" y1="0" x2="670" y2="0" marker-end="url(#tf-ap)"/>
+    <text class="label" x="580" y="-8" text-anchor="middle" fill="#a855f7">GET /c/{logId}/{...}</text>
+    <text class="sub" x="580" y="14" text-anchor="middle">→ clicked_at + email_clicks</text>
+  </g>
+
+  <g transform="translate(0,332)">
+    <text class="step" x="20" y="0">6</text>
+    <line class="arrow-click" x1="670" y1="0" x2="490" y2="0" marker-end="url(#tf-ap)"/>
+    <text class="label" x="580" y="-8" text-anchor="middle" fill="#a855f7">302 → original URL</text>
+  </g>
+</svg>

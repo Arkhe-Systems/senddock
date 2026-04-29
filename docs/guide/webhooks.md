@@ -6,19 +6,7 @@ Webhook delivery, signing and retries ship in the open-source Core; the **manage
 
 ## How a delivery works
 
-```mermaid
-flowchart LR
-    A[Event fires<br/>e.g. email.sent] --> B[Enqueue]
-    B --> C[(webhook_deliveries<br/>status=pending)]
-    C -.tick every 10s.-> D{Dispatcher claim}
-    D -- FOR UPDATE<br/>SKIP LOCKED --> E[POST to your URL<br/>X-SendDock-Signature]
-    E --> F{Response}
-    F -- 2xx --> G[delivered]
-    F -- non-2xx<br/>or timeout --> H{attempts<br/>&lt; 5?}
-    H -- yes --> I[Schedule retry<br/>30s → 2h backoff]
-    I --> C
-    H -- no --> J[failed]
-```
+<img src="/diagrams/webhook-flow.svg" alt="Webhook delivery pipeline" style="width:100%;max-width:760px;margin:1rem 0;" />
 
 The dispatcher runs inside the Core process, polls every 10 seconds, and claims up to 20 ready deliveries per tick using `FOR UPDATE SKIP LOCKED` — so two SendDock containers behind the same Postgres won't double-send.
 
@@ -163,19 +151,7 @@ Most frameworks parse the body before your handler runs. The signature is comput
 
 Deliveries that don't return a `2xx` are retried with exponential backoff. The schedule is fixed:
 
-```mermaid
-gantt
-    title Backoff schedule (worst case, 5 failed attempts)
-    dateFormat X
-    axisFormat %s s
-    section Attempt
-    1 (immediate)   :done, 0, 1
-    2 (+30s)        :done, 30, 31
-    3 (+2m)         :done, 150, 151
-    4 (+10m)        :done, 750, 751
-    5 (+30m)        :done, 2550, 2551
-    Total: ~2h      :crit, 2550, 9750
-```
+<img src="/diagrams/webhook-retry.svg" alt="Retry backoff timeline" style="width:100%;max-width:760px;margin:1rem 0;" />
 
 | Attempt | Delay before retry |
 |---|---|
@@ -197,6 +173,8 @@ From the dashboard:
 2. **New webhook**: paste your endpoint URL, pick which event types to subscribe to (all by default), submit.
 3. The signing secret appears **once** on creation. Copy it — you cannot retrieve it again later. If you lose it, delete the webhook and create a new one.
 4. Each row offers **Pause/Resume**, **Delete**, and **Deliveries** — the latter opens a panel showing the most recent delivery attempts with status, attempt count, last HTTP code, and error message if any.
+
+<img src="/screenshots/webhooks-list.png" alt="Webhooks list view with one active webhook subscribed to all six event types" style="width:100%;max-width:900px;margin:1rem 0;border-radius:12px;border:1px solid rgba(120,120,128,0.25);" />
 
 The same operations are available over the REST API — see [Webhooks API](/api/webhooks).
 

@@ -1,12 +1,8 @@
 import { defineConfig } from 'vitepress'
-import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default withMermaid(defineConfig({
+export default defineConfig({
   title: 'SendDock',
   description: 'Open-source email marketing platform',
-  mermaid: {
-    theme: 'dark',
-  },
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
   ],
@@ -100,4 +96,4 @@ export default withMermaid(defineConfig({
       provider: 'local',
     },
   },
-}))
+})

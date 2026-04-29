@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 280" role="img" aria-label="Webhook delivery pipeline: event fires, gets enqueued, dispatcher claims and POSTs with HMAC signature, then either delivers (2xx) or retries with backoff up to 5 times before failing">
+  <defs>
+    <marker id="wf-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.55"/>
+    </marker>
+    <marker id="wf-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/>
+    </marker>
+    <marker id="wf-aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill: none; stroke: currentColor; stroke-opacity: 0.35; }
+    .label { font: 600 13px ui-sans-serif, system-ui, -apple-system, sans-serif; fill: currentColor; }
+    .sub { font: 11px ui-sans-serif, system-ui, -apple-system, sans-serif; fill: currentColor; fill-opacity: 0.55; }
+    .pill { font: 600 10px ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+    .arrow { stroke: currentColor; stroke-opacity: 0.55; fill: none; stroke-width: 1.6; }
+    .arrow-g { stroke: #10b981; fill: none; stroke-width: 1.6; }
+    .arrow-a { stroke: #f59e0b; fill: none; stroke-width: 1.6; stroke-dasharray: 5 4; }
+  </style>
+
+  <g transform="translate(20,108)">
+    <rect class="box" x="0" y="0" width="130" height="64" rx="10"/>
+    <text class="label" x="65" y="30" text-anchor="middle">Event fires</text>
+    <text class="sub" x="65" y="48" text-anchor="middle">email.sent / opened / …</text>
+  </g>
+
+  <line class="arrow" x1="152" y1="140" x2="188" y2="140" marker-end="url(#wf-a)"/>
+
+  <g transform="translate(190,108)">
+    <rect class="box" x="0" y="0" width="130" height="64" rx="10"/>
+    <text class="label" x="65" y="30" text-anchor="middle">Enqueue</text>
+    <text class="sub" x="65" y="48" text-anchor="middle">webhook_deliveries</text>
+  </g>
+
+  <line class="arrow" x1="322" y1="140" x2="358" y2="140" marker-end="url(#wf-a)"/>
+
+  <g transform="translate(360,108)">
+    <rect class="box" x="0" y="0" width="130" height="64" rx="10" stroke-opacity="0.7"/>
+    <text class="label" x="65" y="30" text-anchor="middle">Dispatcher</text>
+    <text class="sub" x="65" y="48" text-anchor="middle">tick every 10s</text>
+  </g>
+
+  <line class="arrow" x1="492" y1="140" x2="528" y2="140" marker-end="url(#wf-a)"/>
+
+  <g transform="translate(530,108)">
+    <rect class="box" x="0" y="0" width="150" height="64" rx="10"/>
+    <text class="label" x="75" y="30" text-anchor="middle">POST + HMAC</text>
+    <text class="sub" x="75" y="48" text-anchor="middle">your endpoint</text>
+  </g>
+
+  <path class="arrow-g" d="M 605 108 L 605 70" marker-end="url(#wf-ag)"/>
+  <g transform="translate(560,28)">
+    <rect x="0" y="0" width="90" height="32" rx="8" fill="none" stroke="#10b981" stroke-opacity="0.6"/>
+    <text class="pill" x="45" y="20" text-anchor="middle" fill="#10b981">2xx · delivered</text>
+  </g>
+
+  <path class="arrow-a" d="M 605 172 L 605 218" marker-end="url(#wf-aa)"/>
+  <g transform="translate(550,220)">
+    <rect x="0" y="0" width="110" height="32" rx="8" fill="none" stroke="#f59e0b" stroke-opacity="0.6"/>
+    <text class="pill" x="55" y="20" text-anchor="middle" fill="#f59e0b">non-2xx · retry</text>
+  </g>
+
+  <path class="arrow-a" d="M 550 236 L 255 236 L 255 174" marker-end="url(#wf-aa)"/>
+  <text class="sub" x="402" y="228" text-anchor="middle" fill="#f59e0b" fill-opacity="0.85">attempts &lt; 5 → backoff</text>
+</svg>

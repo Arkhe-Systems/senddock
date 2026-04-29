@@ -53,22 +53,7 @@ Pro features (the [Analytics dashboard](/guide/analytics) and [Webhooks manageme
 SENDDOCK_LICENSE_KEY=
 ```
 
-```mermaid
-flowchart TD
-    Start([App starts]) --> Mode{DEPLOYMENT_MODE}
-    Mode -- self-hosted --> SH{LICENSE_KEY?}
-    Mode -- cloud --> CL{LICENSE_KEY?}
-    SH -- empty --> SHU[Pro UNLOCKED<br/>local dev mode]
-    SH -- set --> Validate1[Validate against<br/>Lemon Squeezy]
-    CL -- empty --> CLF[Pro LOCKED<br/>free tier]
-    CL -- set --> Validate2[Validate against<br/>Lemon Squeezy]
-    Validate1 --> OK1{Active?}
-    Validate2 --> OK2{Active?}
-    OK1 -- yes --> Unlocked1[Pro UNLOCKED]
-    OK1 -- no --> Locked1[Pro LOCKED<br/>+ stdout warning]
-    OK2 -- yes --> Unlocked2[Pro UNLOCKED]
-    OK2 -- no --> Locked2[Pro LOCKED<br/>+ stdout warning]
-```
+<img src="/diagrams/license-matrix.svg" alt="Pro license decision matrix across deployment modes and license key states" style="width:100%;max-width:760px;margin:1rem 0;" />
 
 | `DEPLOYMENT_MODE` | `SENDDOCK_LICENSE_KEY` | Pro features |
 |---|---|---|

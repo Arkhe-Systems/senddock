@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" role="img" aria-label="SendDock self-hosted architecture: HTTPS reverse proxy fronts a single Go container that talks to PostgreSQL, Redis, your SMTP relay, and posts events to your webhook endpoints; recipients hit tracking and unsubscribe routes through the same proxy">
+  <defs>
+    <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.55"/>
+    </marker>
+    <marker id="ar-ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.4"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill: none; stroke: currentColor; stroke-opacity: 0.4; }
+    .container { fill: none; stroke: currentColor; stroke-opacity: 0.6; stroke-width: 1.5; }
+    .ext { fill: none; stroke: currentColor; stroke-opacity: 0.3; stroke-dasharray: 5 4; }
+    .label { font: 600 13px ui-sans-serif, system-ui, sans-serif; fill: currentColor; }
+    .title { font: 700 13px ui-sans-serif, system-ui, sans-serif; fill: currentColor; }
+    .sub { font: 11px ui-sans-serif, system-ui, sans-serif; fill: currentColor; fill-opacity: 0.55; }
+    .pill { font: 600 10px ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; fill: currentColor; fill-opacity: 0.6; }
+    .arrow { stroke: currentColor; stroke-opacity: 0.55; fill: none; stroke-width: 1.5; }
+    .arrow-d { stroke: currentColor; stroke-opacity: 0.4; fill: none; stroke-width: 1.5; stroke-dasharray: 4 3; }
+  </style>
+
+  <g transform="translate(20,40)">
+    <rect class="ext" x="0" y="0" width="160" height="80" rx="10"/>
+    <text class="title" x="80" y="34" text-anchor="middle">Recipients</text>
+    <text class="sub" x="80" y="54" text-anchor="middle">opens · clicks</text>
+    <text class="sub" x="80" y="68" text-anchor="middle">unsubscribes</text>
+  </g>
+
+  <line class="arrow" x1="180" y1="80" x2="228" y2="80" marker-end="url(#ar-a)"/>
+
+  <g transform="translate(230,40)">
+    <rect class="box" x="0" y="0" width="170" height="80" rx="10"/>
+    <text class="title" x="85" y="30" text-anchor="middle">Reverse proxy</text>
+    <text class="sub" x="85" y="48" text-anchor="middle">HTTPS · your domain</text>
+    <text class="pill" x="85" y="66" text-anchor="middle">caddy · nginx · traefik</text>
+  </g>
+
+  <line class="arrow" x1="400" y1="80" x2="448" y2="80" marker-end="url(#ar-a)"/>
+
+  <g transform="translate(450,30)">
+    <rect class="container" x="0" y="0" width="290" height="100" rx="12"/>
+    <text class="title" x="145" y="28" text-anchor="middle">senddock</text>
+    <text class="sub" x="145" y="46" text-anchor="middle">single Docker container · :8080</text>
+    <text class="pill" x="145" y="78" text-anchor="middle">go api + vue spa + dispatcher</text>
+  </g>
+
+  <line class="arrow" x1="540" y1="130" x2="540" y2="178" marker-end="url(#ar-a)"/>
+  <line class="arrow" x1="650" y1="130" x2="650" y2="178" marker-end="url(#ar-a)"/>
+
+  <g transform="translate(478,180)">
+    <rect class="box" x="0" y="0" width="124" height="64" rx="10"/>
+    <text class="label" x="62" y="28" text-anchor="middle">PostgreSQL 17</text>
+    <text class="sub" x="62" y="46" text-anchor="middle">pgdata volume</text>
+  </g>
+
+  <g transform="translate(588,180)">
+    <rect class="box" x="0" y="0" width="124" height="64" rx="10"/>
+    <text class="label" x="62" y="28" text-anchor="middle">Redis 7</text>
+    <text class="sub" x="62" y="46" text-anchor="middle">redisdata volume</text>
+  </g>
+
+  <line class="arrow-d" x1="595" y1="80" x2="730" y2="80" marker-end="url(#ar-ad)"/>
+  <text class="sub" x="660" y="68" text-anchor="middle">SMTP submit</text>
+  <g transform="translate(580,300)">
+    <rect class="ext" x="0" y="-90" width="160" height="60" rx="10"/>
+  </g>
+  <line class="arrow-d" x1="595" y1="105" x2="595" y2="245" marker-end="url(#ar-ad)"/>
+
+  <g transform="translate(536,260)">
+    <rect class="ext" x="0" y="0" width="170" height="60" rx="10"/>
+    <text class="title" x="85" y="26" text-anchor="middle">Your SMTP relay</text>
+    <text class="sub" x="85" y="44" text-anchor="middle">SES · Mailgun · Postmark</text>
+  </g>
+
+  <line class="arrow-d" x1="450" y1="105" x2="290" y2="240" marker-end="url(#ar-ad)"/>
+  <text class="sub" x="338" y="170" text-anchor="middle">webhook POSTs</text>
+
+  <g transform="translate(170,250)">
+    <rect class="ext" x="0" y="0" width="170" height="60" rx="10"/>
+    <text class="title" x="85" y="26" text-anchor="middle">Your webhook URLs</text>
+    <text class="sub" x="85" y="44" text-anchor="middle">CRM · Slack · Zapier</text>
+  </g>
+</svg>

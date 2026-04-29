@@ -6,6 +6,8 @@ It lives under each project at **Project → Analytics**, and reads the same dat
 
 ## What it shows
 
+<img src="/screenshots/analytics-dashboard.png" alt="Analytics dashboard with metric cards, conversion funnel, opens-over-time chart, top templates and top clicked links" style="width:100%;max-width:900px;margin:1rem 0;border-radius:12px;border:1px solid rgba(120,120,128,0.25);" />
+
 Open `https://your-instance.com/projects/{id}/analytics` to get:
 
 - **Six top cards** — sent, failed, opened, clicked, open rate, click rate. Each card carries a trend pill comparing the current period against the same-length previous period (▲/▼ with delta percentage).

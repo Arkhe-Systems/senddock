@@ -134,16 +134,11 @@ GET /api/v1/projects/{id}/webhooks/{webhookId}/deliveries?limit=50
 
 ### Status values
 
-```mermaid
-stateDiagram-v2
-    [*] --> pending: enqueued
-    pending --> inflight: dispatcher claims
-    inflight --> delivered: 2xx
-    inflight --> pending: non-2xx,<br/>attempts < 5
-    inflight --> failed: attempts ≥ 5<br/>or webhook inactive
-    delivered --> [*]
-    failed --> [*]
-```
+<img src="/diagrams/delivery-states.svg" alt="Webhook delivery state machine" style="width:100%;max-width:760px;margin:1rem 0;" />
+
+The same data is also visible from the dashboard — open the **Deliveries** panel on any webhook row:
+
+<img src="/screenshots/webhook-deliveries.png" alt="Recent deliveries panel showing email.sent, email.opened and email.clicked events all delivered with HTTP 200" style="width:100%;max-width:600px;margin:1rem 0;border-radius:12px;border:1px solid rgba(120,120,128,0.25);" />
 
 | Status | Meaning |
 |---|---|
