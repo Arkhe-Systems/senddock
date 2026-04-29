@@ -124,8 +124,10 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | POST | `/api/v1/projects/{id}/smtp/test` | Cookie | Test SMTP connection |
 | GET | `/api/v1/projects/{id}/logs` | Cookie | List email logs |
 | GET | `/api/v1/projects/{id}/stats` | Cookie or API key | Get email stats |
-| GET | `/unsubscribe/{id}/{subscriberId}` | Public | Unsubscribe page |
+| GET | `/unsubscribe/{id}/{subscriberId}` | Public | Unsubscribe confirmation page |
+| POST | `/unsubscribe/{id}/{subscriberId}` | Public | One-click unsubscribe (RFC 8058) |
 | GET | `/t/{logId}.gif` | Public | Open tracking pixel |
+| GET | `/c/{logId}/{payload}` | Public | Click tracking redirect |
 
 ### Campaigns
 
@@ -148,6 +150,20 @@ Authentication is managed via HttpOnly cookies, set automatically on login/regis
 | GET | `/api/v1/setup/status` | Check if setup is required |
 | POST | `/api/v1/setup` | Create admin account (first-time only) |
 
+### Pro endpoints
+
+Gated by a valid `SENDDOCK_LICENSE_KEY` (or self-hosted with empty key for local development). Compiled into the official `ghcr.io/arkhe-systems/senddock` image; not present in source builds.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/projects/{id}/analytics/overview` | Aggregated metrics for the Analytics dashboard |
+| POST | `/api/v1/projects/{id}/webhooks` | Create webhook |
+| GET | `/api/v1/projects/{id}/webhooks` | List webhooks |
+| GET | `/api/v1/projects/{id}/webhooks/{webhookId}` | Get webhook |
+| PATCH | `/api/v1/projects/{id}/webhooks/{webhookId}` | Pause/resume webhook |
+| DELETE | `/api/v1/projects/{id}/webhooks/{webhookId}` | Delete webhook |
+| GET | `/api/v1/projects/{id}/webhooks/{webhookId}/deliveries` | List recent delivery attempts |
+
 API key auth uses `Authorization: Bearer sk_...` header.
 
 ## Environment Variables
@@ -156,10 +172,12 @@ API key auth uses `Authorization: Bearer sk_...` header.
 |----------|-------------|---------|
 | `PORT` | Server port | `8080` |
 | `DATABASE_URL` | PostgreSQL connection string | — |
-| `REDIS_URL` | Redis connection string | — |
-| `JWT_SECRET` | Secret key for JWT signing | — |
+| `REDIS_URL` | Redis connection string (required for rate limits) | — |
+| `JWT_SECRET` | Secret key for JWT signing and click-tracking HMAC | — |
 | `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:5173` |
+| `PUBLIC_URL` | Public URL of the instance, used in unsubscribe and tracking links inside emails | falls back to `FRONTEND_URL` |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
+| `SENDDOCK_LICENSE_KEY` | Pro license key (Lemon Squeezy). Empty in self-hosted unlocks Pro locally | — |
 
 ## License
 

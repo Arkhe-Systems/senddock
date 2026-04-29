@@ -56,14 +56,19 @@ Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and 
 
 | `SENDDOCK_LICENSE_KEY` | Behavior |
 |---|---|
-| empty | Free tier — Core features (subscribers, templates, transactional sends, broadcasts, campaigns, BYO SMTP). |
-| valid | Pro tier — adds advanced analytics, audit logs, team roles, A/B testing. |
+| empty (self-hosted) | All features unlocked locally — useful for evaluating Pro before buying. |
+| empty (cloud mode) | Free tier — Core features only (subscribers, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking). |
+| valid | Pro tier — unlocks the [Analytics dashboard](/guide/analytics) and [Webhooks management](/guide/webhooks). |
 
 The image is the same in both cases. The license key, validated against a hosted endpoint, toggles the gated routes. Read more in the [pricing page](https://senddock.com/pricing).
 
+::: warning Self-hosted with empty license unlocks everything
+This is intentional — local development should never need a license. If you self-host an instance that other people will use, set a real `SENDDOCK_LICENSE_KEY` (or accept that Pro features are free for those users). The "empty key = unlocked" behavior only fires when `DEPLOYMENT_MODE=self-hosted`, which is the default.
+:::
+
 ### Pinning a version in production
 
-`:latest` is the default for first-time installs. For production, pin to a specific version so you control when updates land:
+`:latest` resolves to the most recently tagged release. For production, pin to a specific version so you control when updates land:
 
 ```yaml
 services:
@@ -71,7 +76,7 @@ services:
     image: ghcr.io/arkhe-systems/senddock:0.4.0
 ```
 
-See available tags on [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock).
+See available tags on [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock). Only versioned tags (`X.Y.Z`, `X.Y`, `X`) and `:latest` are public — pre-release builds (`:dev`) live in a separate, private package and are not intended for end users.
 
 ---
 
@@ -111,7 +116,7 @@ The setup script is **idempotent**:
 
 After running, the script waits for SendDock to be healthy and only then reports success. If startup fails it points at `docker compose logs app`.
 
-This path runs `docker-compose.prod.yml`, which builds the image locally instead of pulling the prebuilt one. The result is the same Core experience as Option 1 with `SENDDOCK_LICENSE_KEY` empty — Pro features are not present in source-built images.
+This path runs `docker-compose.prod.yml`, which builds the image locally instead of pulling the prebuilt one. The result is the **Core only** — Pro features (Analytics dashboard, Webhooks management) live in a private repository and are not part of source builds. To run Pro you need the prebuilt image (Option 1 or 2) and a license key.
 
 ### What gets started
 

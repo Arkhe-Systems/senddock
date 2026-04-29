@@ -131,6 +131,18 @@ GET /t/{logId}.gif
 
 Public endpoint (no auth required). Returns a 1x1 transparent GIF pixel. This pixel is automatically injected into emails sent to subscribers and via broadcast. When the recipient's email client loads the image, SendDock records the `opened_at` timestamp on the corresponding email log entry. Only the first open is recorded.
 
+## Click Tracking
+
+```
+GET /c/{logId}/{payload}
+```
+
+Public endpoint (no auth required). `{payload}` has the form `<base64url-encoded-URL>.<hmac-token>` and is generated automatically when SendDock rewrites `<a href>` tags in outgoing emails.
+
+The handler verifies the HMAC against `JWT_SECRET`, records the click (first click sets `clicked_at` on the email log; every click appends a row to `email_clicks` with URL, user agent and IP), then returns `302 Found` to the original URL.
+
+Tampered or invalid tokens return `400 Bad Request`. Click tracking is on by default for every outgoing email; it does not need to be enabled per project.
+
 ## Email Logs
 
 ```
