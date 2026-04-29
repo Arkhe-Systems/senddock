@@ -53,7 +53,35 @@ Pro features (the [Analytics dashboard](/guide/analytics) and [Webhooks manageme
 SENDDOCK_LICENSE_KEY=
 ```
 
-<img src="/diagrams/license-matrix.svg" alt="Pro license decision matrix across deployment modes and license key states" style="width:100%;max-width:760px;margin:1rem 0;" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" role="img" aria-label="Pro license decision matrix" style="width:100%;max-width:760px;margin:1rem 0;color:var(--vp-c-text-1);">
+  <defs>
+    <marker id="lm-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.6"/></marker>
+    <marker id="lm-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/></marker>
+    <marker id="lm-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/></marker>
+  </defs>
+  <g style="font-family: ui-sans-serif, system-ui, sans-serif">
+    <g transform="translate(310,16)"><rect x="0" y="0" width="160" height="50" rx="25" fill="none" stroke="currentColor" stroke-opacity="0.85" stroke-width="1.6"/><text x="80" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">DEPLOYMENT_MODE</text><text x="80" y="38" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.65">self-hosted · cloud</text></g>
+    <path d="M 360 66 L 200 110" stroke="currentColor" stroke-opacity="0.6" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
+    <text x="260" y="86" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.75">self-hosted</text>
+    <path d="M 420 66 L 580 110" stroke="currentColor" stroke-opacity="0.6" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
+    <text x="520" y="86" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.75">cloud</text>
+    <g transform="translate(110,116)"><rect x="0" y="0" width="180" height="50" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5"/><text x="90" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">SENDDOCK_LICENSE_KEY?</text><text x="90" y="38" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.65">empty · valid</text></g>
+    <g transform="translate(490,116)"><rect x="0" y="0" width="180" height="50" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.5"/><text x="90" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">SENDDOCK_LICENSE_KEY?</text><text x="90" y="38" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.65">empty · valid</text></g>
+    <path d="M 150 166 L 80 220" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#lm-ag)"/>
+    <text x="92" y="190" text-anchor="middle" font-size="11" fill="#10b981">empty</text>
+    <path d="M 250 166 L 320 220" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#lm-ag)"/>
+    <text x="305" y="190" text-anchor="middle" font-size="11" fill="#10b981">valid</text>
+    <path d="M 530 166 L 460 220" stroke="#ef4444" stroke-width="1.5" fill="none" marker-end="url(#lm-ar)"/>
+    <text x="472" y="190" text-anchor="middle" font-size="11" fill="#ef4444">empty</text>
+    <path d="M 630 166 L 700 220" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#lm-ag)"/>
+    <text x="685" y="190" text-anchor="middle" font-size="11" fill="#10b981">valid</text>
+    <g transform="translate(20,224)"><rect x="0" y="0" width="120" height="60" rx="10" fill="none" stroke="#10b981" stroke-width="1.6"/><text x="60" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="#10b981">Unlocked</text><text x="60" y="46" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.05em" text-transform="uppercase" fill="#10b981">local dev</text></g>
+    <g transform="translate(260,224)"><rect x="0" y="0" width="120" height="60" rx="10" fill="none" stroke="#10b981" stroke-width="1.6"/><text x="60" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="#10b981">Unlocked</text><text x="60" y="46" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.05em" text-transform="uppercase" fill="#10b981">licensed</text></g>
+    <g transform="translate(400,224)"><rect x="0" y="0" width="120" height="60" rx="10" fill="none" stroke="#ef4444" stroke-width="1.6"/><text x="60" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="#ef4444">Locked</text><text x="60" y="46" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.05em" text-transform="uppercase" fill="#ef4444">free tier</text></g>
+    <g transform="translate(640,224)"><rect x="0" y="0" width="120" height="60" rx="10" fill="none" stroke="#10b981" stroke-width="1.6"/><text x="60" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="#10b981">Unlocked</text><text x="60" y="46" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.05em" text-transform="uppercase" fill="#10b981">licensed</text></g>
+    <text x="380" y="306" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.65">Lemon Squeezy validates the key on startup and re-validates periodically</text>
+  </g>
+</svg>
 
 | `DEPLOYMENT_MODE` | `SENDDOCK_LICENSE_KEY` | Pro features |
 |---|---|---|

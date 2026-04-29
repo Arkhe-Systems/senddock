@@ -134,7 +134,28 @@ GET /api/v1/projects/{id}/webhooks/{webhookId}/deliveries?limit=50
 
 ### Status values
 
-<img src="/diagrams/delivery-states.svg" alt="Webhook delivery state machine" style="width:100%;max-width:760px;margin:1rem 0;" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 280" role="img" aria-label="Webhook delivery state machine" style="width:100%;max-width:760px;margin:1rem 0;color:var(--vp-c-text-1);">
+  <defs>
+    <marker id="ds-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.6"/></marker>
+    <marker id="ds-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/></marker>
+    <marker id="ds-aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b"/></marker>
+    <marker id="ds-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/></marker>
+  </defs>
+  <g style="font-family: ui-sans-serif, system-ui, sans-serif">
+    <g transform="translate(40,108)"><rect x="0" y="0" width="130" height="60" rx="30" fill="none" stroke="currentColor" stroke-opacity="0.55"/><text x="65" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">pending</text><text x="65" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="#f59e0b">waiting</text></g>
+    <line x1="172" y1="138" x2="248" y2="138" stroke="currentColor" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#ds-a)"/>
+    <text x="210" y="128" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.75">claim</text>
+    <g transform="translate(250,108)"><rect x="0" y="0" width="130" height="60" rx="30" fill="none" stroke="currentColor" stroke-opacity="0.55"/><text x="65" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">inflight</text><text x="65" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="#0ea5e9">in flight</text></g>
+    <path d="M 380 130 L 580 80" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#ds-ag)"/>
+    <text x="475" y="92" text-anchor="middle" font-size="11" fill="#10b981">2xx response</text>
+    <g transform="translate(580,40)"><rect x="0" y="0" width="130" height="60" rx="30" fill="none" stroke="#10b981" stroke-width="2"/><text x="65" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="#10b981">delivered</text><text x="65" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="#10b981">terminal</text></g>
+    <path d="M 290 168 C 200 220 130 220 105 168" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#ds-aa)"/>
+    <text x="200" y="216" text-anchor="middle" font-size="11" fill="#f59e0b">non-2xx · attempts &lt; 5</text>
+    <path d="M 380 158 L 580 200" stroke="#ef4444" stroke-width="1.5" fill="none" marker-end="url(#ds-ar)"/>
+    <text x="475" y="172" text-anchor="middle" font-size="11" fill="#ef4444">5 attempts · or webhook inactive</text>
+    <g transform="translate(580,180)"><rect x="0" y="0" width="130" height="60" rx="30" fill="none" stroke="#ef4444" stroke-width="2"/><text x="65" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="#ef4444">failed</text><text x="65" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="#ef4444">terminal</text></g>
+  </g>
+</svg>
 
 The same data is also visible from the dashboard — open the **Deliveries** panel on any webhook row:
 
