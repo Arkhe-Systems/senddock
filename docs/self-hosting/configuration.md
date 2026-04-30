@@ -45,13 +45,37 @@ Before exposing to the internet:
 
 If anything misbehaves after going live, see [Troubleshooting](/self-hosting/troubleshooting).
 
-## Pro license
+## Plans & licensing
 
-Pro features (the [Analytics dashboard](/guide/analytics) and [Webhooks management](/guide/webhooks)) are gated by a single environment variable validated against [Lemon Squeezy](https://lemonsqueezy.com).
+SendDock is open-core: the AGPL-3.0 **Community** edition does everything most one-person operations need, and two paid tiers (**Pro** and **Team**) add features for analytics and team collaboration. All paid tiers are unlocked through a single environment variable validated against [Lemon Squeezy](https://lemonsqueezy.com).
 
 ```bash
 SENDDOCK_LICENSE_KEY=
 ```
+
+::: info Self-hosted prices below are flat per instance
+The `$9` and `$29` prices on this page are the **self-hosted** rates — one license per SendDock instance, unlimited subscribers, unlimited sends. The managed cloud at senddock.dev (when it ships) is priced separately on a volume basis because we operate the SMTP relays and deliverability for you.
+:::
+
+### What each tier unlocks
+
+| Capability | Community (Free) | Pro ($9 / mo, $90 / yr) | Team ($29 / mo, $290 / yr) |
+|---|---|---|---|
+| Single user, multiple workspaces | ✓ | ✓ | ✓ |
+| Subscribers, templates, broadcasts | ✓ | ✓ | ✓ |
+| BYO SMTP, unlimited sends | ✓ | ✓ | ✓ |
+| Bounce ingestion, suppression list | ✓ | ✓ | ✓ |
+| Click & open tracking | ✓ | ✓ | ✓ |
+| API keys + webhook dispatcher | ✓ | ✓ | ✓ |
+| Pro Analytics dashboard | — | ✓ | ✓ |
+| Webhooks management UI | — | ✓ | ✓ |
+| Audit log | — | ✓ | ✓ |
+| Multi-user workspaces (members + invites) | — | — | ✓ |
+| Roles: owner / admin / developer / viewer | — | — | ✓ |
+| Admin user creation (no public registration needed) | — | — | ✓ |
+| A/B testing, segments & tags, approval workflow | — | — | roadmap |
+
+A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tracking domain, per-seat billing and SLA support — pricing on request, starting around $149 / mo.
 
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" role="img" aria-label="Pro license decision matrix" style="width:100%;max-width:760px;margin:1rem 0;color:var(--vp-c-text-1);">
   <defs>
@@ -81,11 +105,14 @@ SENDDOCK_LICENSE_KEY=
   </g>
 </svg>
 
-| `SENDDOCK_LICENSE_KEY` | Pro features |
+| `SENDDOCK_LICENSE_KEY` | What unlocks |
 |---|---|
-| empty | **Locked** — Core only. |
-| valid | Unlocked. License is checked on startup and re-validated periodically. |
+| empty | **Community** — Pro features locked, Team features locked. |
+| valid Pro key | Pro features unlocked (Analytics, Webhooks, Audit log). Team features stay locked. |
+| valid Team key | Pro and Team features unlocked. |
 | invalid / revoked | Locked after the next validation tick (24h grace from the last successful check). |
+
+The validator distinguishes Pro from Team by the Lemon Squeezy `variant_id` of the license — there is no separate Team key file or env var. Buying Team gives you a single key that the validator recognizes as Team-tier; buying Pro gives a key that validates only the Pro features.
 
 `DEPLOYMENT_MODE` no longer changes Pro gating — the license requirement applies the same way to self-hosted and cloud. The mode still controls registration (`cloud` enables `POST /api/v1/auth/register`; `self-hosted` keeps registration disabled and relies on the setup screen).
 
