@@ -54,11 +54,8 @@ func (h *CampaignHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectID, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapCampaignsWrite)
+	if !ok {
 		return
 	}
 
@@ -127,17 +124,14 @@ func (h *CampaignHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CampaignHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapCampaignsWrite)
+	if !ok {
 		return
 	}
 
 	campaignID := r.PathValue("campaignId")
 
-	err = h.campaignService.Delete(r.Context(), campaignID, projectID)
+	err := h.campaignService.Delete(r.Context(), campaignID, projectID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -153,11 +147,8 @@ func (h *CampaignHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectID, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapCampaignsWrite)
+	if !ok {
 		return
 	}
 

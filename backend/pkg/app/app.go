@@ -21,6 +21,7 @@ import (
 	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/pkg/config"
+	"github.com/arkhe-systems/senddock/pkg/license"
 
 	_ "github.com/lib/pq"
 )
@@ -39,8 +40,13 @@ type App struct {
 	eitherAuth       func(http.Handler) http.Handler
 	rateLimiter      *middleware.RateLimiter
 
-	worker   *service.CampaignWorker
-	webhooks *webhooks.Service
+	worker       *service.CampaignWorker
+	webhooks     *webhooks.Service
+	suppressions *service.SuppressionService
+	audit        *service.AuditService
+	bouncePoller *service.BounceIMAPPoller
+	workspaces   *service.WorkspaceService
+	projects     *service.ProjectService
 
 	server *http.Server
 }
@@ -77,11 +83,15 @@ func New(cfg config.Config) (*App, error) {
 	a.authMiddleware = middleware.Auth([]byte(cfg.JWTSecret))
 	a.apiKeyMiddleware = middleware.APIKey(queries)
 	a.eitherAuth = middleware.EitherAuth(a.authMiddleware, a.apiKeyMiddleware)
-	a.rateLimiter = middleware.NewRateLimiter(redisCache, 100, time.Minute)
+	a.rateLimiter = middleware.NewRateLimiter(redisCache, 600, time.Minute)
 
 	a.webhooks = webhooks.NewService(queries)
-	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks)
+	suppressionService := service.NewSuppressionService(queries)
+	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks, suppressionService)
 	a.worker = service.NewCampaignWorker(queries, emailService)
+	a.suppressions = suppressionService
+	a.audit = service.NewAuditService(queries)
+	a.bouncePoller = service.NewBounceIMAPPoller(queries, suppressionService, cfg.JWTSecret)
 
 	a.registerCoreRoutes(emailService)
 	a.serveFrontend()
@@ -95,6 +105,16 @@ func (a *App) DB() *sql.DB { return a.conn }
 
 func (a *App) Webhooks() *webhooks.Service { return a.webhooks }
 
+func (a *App) Audit() *service.AuditService { return a.audit }
+
+func (a *App) Projects() *service.ProjectService { return a.projects }
+
+func (a *App) SetLicenseGate(gate license.Gate) {
+	if a.workspaces != nil {
+		a.workspaces.SetLicenseGate(gate)
+	}
+}
+
 func (a *App) WithAuth(h http.Handler) http.Handler {
 	return a.authMiddleware(h)
 }
@@ -106,6 +126,7 @@ func (a *App) WithAPIAuth(h http.Handler) http.Handler {
 func (a *App) Run(ctx context.Context) error {
 	a.worker.Start()
 	a.webhooks.Start(ctx)
+	a.bouncePoller.Start(ctx)
 
 	wrapped := middleware.Security(
 		middleware.LimitBody(
@@ -163,9 +184,16 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	authHandler := handler.NewAuthHandler(authService)
 
 	projectService := service.NewProjectService(queries, cfg.JWTSecret)
+	a.projects = projectService
 	projectHandler := handler.NewProjectHandler(projectService)
 
-	subscriberService := service.NewSubscriberService(queries, a.webhooks)
+	workspaceService := service.NewWorkspaceService(queries)
+	a.workspaces = workspaceService
+	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, projectService)
+
+	emailValidator := service.NewEmailValidator()
+	subscriberService := service.NewSubscriberService(queries, a.webhooks, emailValidator, a.suppressions)
+	suppressionHandler := handler.NewSuppressionHandler(a.suppressions, projectService)
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
 
 	templateService := service.NewTemplateService(queries)
@@ -180,6 +208,13 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
 
 	trackingHandler := handler.NewTrackingHandler(queries, emailService, a.webhooks)
+
+	projectHandler.Audit = a.audit
+	subscriberHandler.Audit = a.audit
+	apiKeyHandler.Audit = a.audit
+	emailHandler.Audit = a.audit
+	suppressionHandler.Audit = a.audit
+	workspaceHandler.Audit = a.audit
 
 	releaseService := service.NewReleaseService(a.cache, cfg.DeploymentMode)
 	releaseHandler := handler.NewReleaseHandler(releaseService)
@@ -214,12 +249,30 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 		mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	}
 
+	mux.Handle("POST /api/v1/workspaces", authMW(http.HandlerFunc(workspaceHandler.Create)))
+	mux.Handle("GET /api/v1/workspaces", authMW(http.HandlerFunc(workspaceHandler.List)))
+	mux.Handle("PATCH /api/v1/workspaces/{id}", authMW(http.HandlerFunc(workspaceHandler.Rename)))
+	mux.Handle("DELETE /api/v1/workspaces/{id}", authMW(http.HandlerFunc(workspaceHandler.Delete)))
+	mux.Handle("GET /api/v1/workspaces/{id}/projects", authMW(http.HandlerFunc(workspaceHandler.ListProjects)))
+	mux.Handle("GET /api/v1/workspaces/{id}/members", authMW(http.HandlerFunc(workspaceHandler.ListMembers)))
+	mux.Handle("POST /api/v1/workspaces/{id}/members", authMW(http.HandlerFunc(workspaceHandler.AddMember)))
+	mux.Handle("POST /api/v1/workspaces/{id}/users", authMW(http.HandlerFunc(workspaceHandler.CreateUser)))
+	mux.Handle("PATCH /api/v1/workspaces/{id}/members/{userId}", authMW(http.HandlerFunc(workspaceHandler.UpdateMember)))
+	mux.Handle("DELETE /api/v1/workspaces/{id}/members/{userId}", authMW(http.HandlerFunc(workspaceHandler.RemoveMember)))
+
 	mux.Handle("POST /api/v1/projects", authMW(http.HandlerFunc(projectHandler.Create)))
 	mux.Handle("GET /api/v1/projects", authMW(http.HandlerFunc(projectHandler.List)))
 	mux.Handle("GET /api/v1/projects/{id}", authMW(http.HandlerFunc(projectHandler.Get)))
 	mux.Handle("PUT /api/v1/projects/{id}", authMW(http.HandlerFunc(projectHandler.Update)))
 	mux.Handle("DELETE /api/v1/projects/{id}", authMW(http.HandlerFunc(projectHandler.Delete)))
 	mux.Handle("PUT /api/v1/projects/{id}/smtp", authMW(http.HandlerFunc(projectHandler.UpdateSMTP)))
+	mux.Handle("GET /api/v1/projects/{id}/bounce-webhook", authMW(http.HandlerFunc(projectHandler.GetBounceWebhook)))
+	mux.Handle("POST /api/v1/projects/{id}/bounce-webhook/rotate", authMW(http.HandlerFunc(projectHandler.RotateBounceToken)))
+	mux.Handle("GET /api/v1/projects/{id}/bounce-imap", authMW(http.HandlerFunc(projectHandler.GetBounceIMAP)))
+	mux.Handle("PUT /api/v1/projects/{id}/bounce-imap", authMW(http.HandlerFunc(projectHandler.UpdateBounceIMAP)))
+
+	bounceWebhookHandler := handler.NewBounceWebhookHandler(queries, a.suppressions)
+	mux.HandleFunc("POST /webhooks/bounces/{projectId}", bounceWebhookHandler.Receive)
 
 	mux.Handle("POST /api/v1/projects/{id}/subscribers", authMW(http.HandlerFunc(subscriberHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/subscribers", authMW(http.HandlerFunc(subscriberHandler.List)))
@@ -227,6 +280,10 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("PATCH /api/v1/projects/{id}/subscribers/{subscriberId}", authMW(http.HandlerFunc(subscriberHandler.UpdateStatus)))
 	mux.Handle("DELETE /api/v1/projects/{id}/subscribers/{subscriberId}", authMW(http.HandlerFunc(subscriberHandler.Delete)))
 	mux.Handle("POST /api/v1/projects/{id}/subscribers/import", eitherAuth(http.HandlerFunc(subscriberHandler.Import)))
+
+	mux.Handle("GET /api/v1/projects/{id}/suppressions", authMW(http.HandlerFunc(suppressionHandler.List)))
+	mux.Handle("POST /api/v1/projects/{id}/suppressions", authMW(http.HandlerFunc(suppressionHandler.Add)))
+	mux.Handle("DELETE /api/v1/projects/{id}/suppressions/{suppressionId}", authMW(http.HandlerFunc(suppressionHandler.Delete)))
 
 	mux.Handle("POST /api/v1/projects/{id}/keys", authMW(http.HandlerFunc(apiKeyHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/keys", authMW(http.HandlerFunc(apiKeyHandler.List)))
@@ -279,7 +336,7 @@ func (a *App) serveFrontend() {
 	fileServer := http.FileServerFS(frontendFS)
 
 	a.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || strings.HasPrefix(r.URL.Path, "/t/") || strings.HasPrefix(r.URL.Path, "/c/") || r.URL.Path == "/health" {
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/unsubscribe/") || strings.HasPrefix(r.URL.Path, "/t/") || strings.HasPrefix(r.URL.Path, "/c/") || strings.HasPrefix(r.URL.Path, "/webhooks/") || r.URL.Path == "/health" {
 			http.NotFound(w, r)
 			return
 		}

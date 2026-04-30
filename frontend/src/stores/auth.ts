@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { api } from '@/api/client'
+import { api, ApiError } from '@/api/client'
 
 interface MessageResponse {
     message: string
@@ -10,15 +10,21 @@ export const useAuthStore = defineStore('auth', () => {
 
     const isAuthenticated = ref(false)
     const sessionExpired = ref(false)
+    const userId = ref<string | null>(null)
 
     async function checkAuth() {
         const wasAuthenticated = isAuthenticated.value
         try {
-            await api<any>('/me', { silent: true })
+            const me = await api<{ user_id: string }>('/me', { silent: true })
             isAuthenticated.value = true
             sessionExpired.value = false
-        } catch {
+            userId.value = me.user_id
+        } catch (e) {
+            if (e instanceof ApiError && (e.status === 0 || e.status === 429 || e.status >= 500)) {
+                return
+            }
             isAuthenticated.value = false
+            userId.value = null
             if (wasAuthenticated) {
                 sessionExpired.value = true
             }
@@ -64,7 +70,8 @@ export const useAuthStore = defineStore('auth', () => {
         }
         isAuthenticated.value = false
         sessionExpired.value = false
+        userId.value = null
     }
 
-    return { isAuthenticated, sessionExpired, login, register, logout, checkAuth, refreshSession }
+    return { isAuthenticated, sessionExpired, userId, login, register, logout, checkAuth, refreshSession }
 })

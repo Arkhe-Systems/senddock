@@ -23,6 +23,19 @@ type ApiKey struct {
 	CreatedAt  time.Time
 }
 
+type AuditLog struct {
+	ID         uuid.UUID
+	ProjectID  uuid.NullUUID
+	UserID     uuid.NullUUID
+	Action     string
+	TargetType sql.NullString
+	TargetID   sql.NullString
+	Metadata   json.RawMessage
+	IpAddress  pqtype.Inet
+	UserAgent  sql.NullString
+	CreatedAt  time.Time
+}
+
 type Campaign struct {
 	ID          uuid.UUID
 	ProjectID   uuid.UUID
@@ -63,21 +76,29 @@ type EmailLog struct {
 }
 
 type Project struct {
-	ID                    uuid.UUID
-	UserID                uuid.UUID
-	Name                  string
-	FromName              sql.NullString
-	FromEmail             sql.NullString
-	SmtpHost              sql.NullString
-	SmtpPort              sql.NullInt32
-	SmtpUser              sql.NullString
-	SmtpPasswordEncrypted sql.NullString
-	WebhookUrl            sql.NullString
-	WebhookSecret         sql.NullString
-	TrackingEnabled       bool
-	CreatedAt             time.Time
-	UpdatedAt             time.Time
-	Description           sql.NullString
+	ID                          uuid.UUID
+	UserID                      uuid.UUID
+	Name                        string
+	FromName                    sql.NullString
+	FromEmail                   sql.NullString
+	SmtpHost                    sql.NullString
+	SmtpPort                    sql.NullInt32
+	SmtpUser                    sql.NullString
+	SmtpPasswordEncrypted       sql.NullString
+	WebhookUrl                  sql.NullString
+	WebhookSecret               sql.NullString
+	TrackingEnabled             bool
+	CreatedAt                   time.Time
+	UpdatedAt                   time.Time
+	Description                 sql.NullString
+	BounceToken                 uuid.UUID
+	BounceImapHost              sql.NullString
+	BounceImapPort              sql.NullInt32
+	BounceImapUser              sql.NullString
+	BounceImapPasswordEncrypted sql.NullString
+	BounceImapFolder            string
+	BounceImapEnabled           bool
+	WorkspaceID                 uuid.UUID
 }
 
 type RefreshToken struct {
@@ -99,6 +120,16 @@ type Subscriber struct {
 	UnsubscribedAt sql.NullTime
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+}
+
+type Suppression struct {
+	ID              uuid.UUID
+	ProjectID       uuid.UUID
+	EmailNormalized string
+	Reason          string
+	Source          sql.NullString
+	CreatedAt       time.Time
+	LastSeenAt      time.Time
 }
 
 type Template struct {
@@ -157,4 +188,20 @@ type WebhookDelivery struct {
 	NextAttemptAt  time.Time
 	DeliveredAt    sql.NullTime
 	CreatedAt      time.Time
+}
+
+type Workspace struct {
+	ID        uuid.UUID
+	Name      string
+	CreatedBy uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type WorkspaceMember struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	Role        string
+	InvitedBy   uuid.NullUUID
+	CreatedAt   time.Time
 }
