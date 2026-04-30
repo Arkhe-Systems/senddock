@@ -251,7 +251,7 @@ onMounted(async () => {
                             <h2 class="text-base font-semibold text-white mb-1">You're on Pro — upgrade to Team to invite people</h2>
                             <p class="text-sm text-zinc-400">Adding members, creating user accounts and changing roles need the Team plan. Your Pro license stays untouched and you keep Analytics, Webhooks and Audit log.</p>
                         </div>
-                        <a href="https://senddock.dev/pricing" target="_blank" rel="noopener"
+                        <a href="https://senddock.dev/#pricing" target="_blank" rel="noopener"
                             class="shrink-0 inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
                             See Team plan
                         </a>

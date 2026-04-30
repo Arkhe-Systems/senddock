@@ -5,7 +5,7 @@ defineProps<{
     cta?: string
 }>()
 
-const PRICING_URL = 'https://senddock.dev/pricing'
+const PRICING_URL = 'https://senddock.dev/#pricing'
 </script>
 
 <template>

@@ -84,9 +84,10 @@ Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and 
 | `SENDDOCK_LICENSE_KEY` | Behavior |
 |---|---|
 | empty | Free tier — Core features only (projects, subscribers, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, suppression list, webhook dispatcher). |
-| valid | Pro tier — adds the [Analytics dashboard](/guide/analytics), [Webhooks management UI](/guide/webhooks), and the audit log. |
+| valid Pro key | Pro tier — adds the [Analytics dashboard](/guide/analytics), [Webhooks management UI](/guide/webhooks), and the audit log. |
+| valid Team key | Team tier — Pro features plus [multi-user workspaces with roles](/guide/workspaces) and admin user creation. |
 
-The image is the same in both cases. The license key, validated against a hosted endpoint, toggles the gated routes. Read more in the [pricing page](https://senddock.dev/pricing).
+The image is the same in all cases. The license key, validated against a hosted endpoint, toggles the gated routes. Read the full tier matrix on the [pricing page](https://senddock.dev/#pricing) or in [Configuration → Plans & licensing](/self-hosting/configuration#plans-licensing).
 
 ### Pinning a version in production
 
