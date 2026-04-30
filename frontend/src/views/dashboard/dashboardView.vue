@@ -88,9 +88,9 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-zinc-950 p-8">
+    <div class="min-h-screen bg-zinc-950 p-4 sm:p-6 md:p-8">
         <div class="max-w-5xl mx-auto">
-            <div class="flex items-center justify-between mb-10">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-8 sm:mb-10">
                 <h1 class="text-2xl font-bold text-white">SendDock</h1>
                 <div class="flex items-center gap-3">
                     <UpdateBadge />
@@ -104,7 +104,7 @@ onMounted(async () => {
             <AppLoader v-if="pageLoading" message="Loading projects..." />
 
             <template v-else>
-            <div class="flex items-center justify-between mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <h2 class="text-xl font-semibold text-white">Your Projects</h2>
                 <button @click="showCreateModal = true"
                     class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">

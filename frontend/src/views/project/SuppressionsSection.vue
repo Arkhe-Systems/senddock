@@ -186,8 +186,8 @@ onMounted(fetchList)
             <AppButton size="sm" @click="showAddModal = true">Add your first address</AppButton>
         </div>
 
-        <div v-else class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-            <table class="w-full">
+        <div v-else class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
+            <table class="w-full min-w-[640px]">
                 <thead>
                     <tr class="border-b border-zinc-800">
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Email</th>
