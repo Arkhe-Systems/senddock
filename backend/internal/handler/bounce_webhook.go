@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/arkhe-systems/senddock/internal/service"
 	"github.com/google/uuid"
 )
+
+const bounceWebhookMaxBody = 65536
 
 type BounceWebhookHandler struct {
 	queries      *db.Queries
@@ -59,20 +62,14 @@ func (h *BounceWebhookHandler) Receive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bodyBytes := make([]byte, 0)
-	buf := make([]byte, 4096)
-	for {
-		n, err := r.Body.Read(buf)
-		if n > 0 {
-			bodyBytes = append(bodyBytes, buf[:n]...)
-		}
-		if err != nil {
-			break
-		}
-		if len(bodyBytes) > 65536 {
-			writeBounceError(w, http.StatusRequestEntityTooLarge, "payload too large")
-			return
-		}
+	bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, bounceWebhookMaxBody+1))
+	if err != nil {
+		writeBounceError(w, http.StatusBadRequest, "could not read body")
+		return
+	}
+	if len(bodyBytes) > bounceWebhookMaxBody {
+		writeBounceError(w, http.StatusRequestEntityTooLarge, "payload too large")
+		return
 	}
 
 	email, reason, ok := extractBounce(bodyBytes)
