@@ -21,6 +21,7 @@ import (
 	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/pkg/config"
+	"github.com/arkhe-systems/senddock/pkg/license"
 
 	_ "github.com/lib/pq"
 )
@@ -44,6 +45,8 @@ type App struct {
 	suppressions *service.SuppressionService
 	audit        *service.AuditService
 	bouncePoller *service.BounceIMAPPoller
+	workspaces   *service.WorkspaceService
+	projects     *service.ProjectService
 
 	server *http.Server
 }
@@ -103,6 +106,14 @@ func (a *App) DB() *sql.DB { return a.conn }
 func (a *App) Webhooks() *webhooks.Service { return a.webhooks }
 
 func (a *App) Audit() *service.AuditService { return a.audit }
+
+func (a *App) Projects() *service.ProjectService { return a.projects }
+
+func (a *App) SetLicenseGate(gate license.Gate) {
+	if a.workspaces != nil {
+		a.workspaces.SetLicenseGate(gate)
+	}
+}
 
 func (a *App) WithAuth(h http.Handler) http.Handler {
 	return a.authMiddleware(h)
@@ -173,9 +184,11 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	authHandler := handler.NewAuthHandler(authService)
 
 	projectService := service.NewProjectService(queries, cfg.JWTSecret)
+	a.projects = projectService
 	projectHandler := handler.NewProjectHandler(projectService)
 
 	workspaceService := service.NewWorkspaceService(queries)
+	a.workspaces = workspaceService
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, projectService)
 
 	emailValidator := service.NewEmailValidator()
@@ -243,6 +256,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("GET /api/v1/workspaces/{id}/projects", authMW(http.HandlerFunc(workspaceHandler.ListProjects)))
 	mux.Handle("GET /api/v1/workspaces/{id}/members", authMW(http.HandlerFunc(workspaceHandler.ListMembers)))
 	mux.Handle("POST /api/v1/workspaces/{id}/members", authMW(http.HandlerFunc(workspaceHandler.AddMember)))
+	mux.Handle("POST /api/v1/workspaces/{id}/users", authMW(http.HandlerFunc(workspaceHandler.CreateUser)))
 	mux.Handle("PATCH /api/v1/workspaces/{id}/members/{userId}", authMW(http.HandlerFunc(workspaceHandler.UpdateMember)))
 	mux.Handle("DELETE /api/v1/workspaces/{id}/members/{userId}", authMW(http.HandlerFunc(workspaceHandler.RemoveMember)))
 

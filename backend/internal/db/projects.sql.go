@@ -211,6 +211,24 @@ func (q *Queries) GetProjectByIDOnly(ctx context.Context, id uuid.UUID) (Project
 	return i, err
 }
 
+const getProjectMemberRole = `-- name: GetProjectMemberRole :one
+SELECT m.role FROM projects p
+JOIN workspace_members m ON m.workspace_id = p.workspace_id
+WHERE p.id = $1 AND m.user_id = $2
+`
+
+type GetProjectMemberRoleParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) GetProjectMemberRole(ctx context.Context, arg GetProjectMemberRoleParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getProjectMemberRole, arg.ID, arg.UserID)
+	var role string
+	err := row.Scan(&role)
+	return role, err
+}
+
 const getProjectsByUserID = `-- name: GetProjectsByUserID :many
 SELECT p.id, p.user_id, p.name, p.from_name, p.from_email, p.smtp_host, p.smtp_port, p.smtp_user, p.smtp_password_encrypted, p.webhook_url, p.webhook_secret, p.tracking_enabled, p.created_at, p.updated_at, p.description, p.bounce_token, p.bounce_imap_host, p.bounce_imap_port, p.bounce_imap_user, p.bounce_imap_password_encrypted, p.bounce_imap_folder, p.bounce_imap_enabled, p.workspace_id FROM projects p
 JOIN workspace_members m ON m.workspace_id = p.workspace_id

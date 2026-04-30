@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"sync/atomic"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/pkg/license"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -16,21 +19,45 @@ const (
 )
 
 var (
-	ErrWorkspaceNotFound      = errors.New("workspace not found")
-	ErrWorkspaceForbidden     = errors.New("forbidden")
-	ErrWorkspaceOwnerRequired = errors.New("workspace owner required")
-	ErrWorkspaceHasProjects   = errors.New("workspace still has projects")
-	ErrInvalidRole            = errors.New("invalid role")
-	ErrUserNotFound           = errors.New("user not found")
-	ErrLastOwner              = errors.New("cannot remove the last owner")
+	ErrWorkspaceNotFound       = errors.New("workspace not found")
+	ErrWorkspaceForbidden      = errors.New("forbidden")
+	ErrWorkspaceOwnerRequired  = errors.New("workspace owner required")
+	ErrWorkspaceHasProjects    = errors.New("workspace still has projects")
+	ErrInvalidRole             = errors.New("invalid role")
+	ErrUserNotFound            = errors.New("user not found")
+	ErrLastOwner               = errors.New("cannot remove the last owner")
+	ErrWorkspaceMembersLicense = errors.New("license required for workspace members")
+	ErrEmailTaken              = errors.New("email already registered")
 )
 
 type WorkspaceService struct {
 	queries *db.Queries
+	gate    atomic.Value
 }
 
 func NewWorkspaceService(queries *db.Queries) *WorkspaceService {
-	return &WorkspaceService{queries: queries}
+	s := &WorkspaceService{queries: queries}
+	s.gate.Store(licenseGateHolder{license.DenyAll()})
+	return s
+}
+
+type licenseGateHolder struct {
+	gate license.Gate
+}
+
+func (s *WorkspaceService) SetLicenseGate(gate license.Gate) {
+	if gate == nil {
+		gate = license.DenyAll()
+	}
+	s.gate.Store(licenseGateHolder{gate})
+}
+
+func (s *WorkspaceService) memberMgmtAllowed(ctx context.Context) bool {
+	holder, _ := s.gate.Load().(licenseGateHolder)
+	if holder.gate == nil {
+		return false
+	}
+	return holder.gate.AllowsFeature(ctx, license.FeatureWorkspaceMembers)
 }
 
 func (s *WorkspaceService) Create(ctx context.Context, userID uuid.UUID, name string) (db.Workspace, error) {
@@ -126,6 +153,9 @@ func (s *WorkspaceService) ListMembers(ctx context.Context, workspaceID, userID 
 }
 
 func (s *WorkspaceService) AddMember(ctx context.Context, workspaceID, actorID uuid.UUID, email, role string) (MemberView, error) {
+	if !s.memberMgmtAllowed(ctx) {
+		return MemberView{}, ErrWorkspaceMembersLicense
+	}
 	role = normalizeRole(role)
 	if role == "" {
 		return MemberView{}, ErrInvalidRole
@@ -156,7 +186,71 @@ func (s *WorkspaceService) AddMember(ctx context.Context, workspaceID, actorID u
 	}, nil
 }
 
+type CreatedUser struct {
+	UserID uuid.UUID `json:"user_id"`
+	Email  string    `json:"email"`
+	Name   string    `json:"name"`
+	Role   string    `json:"role"`
+}
+
+func (s *WorkspaceService) CreateUserAndAddMember(ctx context.Context, workspaceID, actorID uuid.UUID, email, name, password, role string) (CreatedUser, error) {
+	if !s.memberMgmtAllowed(ctx) {
+		return CreatedUser{}, ErrWorkspaceMembersLicense
+	}
+	role = normalizeRole(role)
+	if role == "" {
+		return CreatedUser{}, ErrInvalidRole
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	name = strings.TrimSpace(name)
+	if email == "" || name == "" {
+		return CreatedUser{}, errors.New("email and name are required")
+	}
+	if err := ValidatePassword(password); err != nil {
+		return CreatedUser{}, err
+	}
+	if err := s.requireOwner(ctx, workspaceID, actorID); err != nil {
+		return CreatedUser{}, err
+	}
+	if _, err := s.queries.GetUserByEmail(ctx, email); err == nil {
+		return CreatedUser{}, ErrEmailTaken
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return CreatedUser{}, err
+	}
+
+	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
+		Email:        email,
+		PasswordHash: sql.NullString{String: string(hash), Valid: true},
+		Name:         name,
+	})
+	if err != nil {
+		return CreatedUser{}, err
+	}
+
+	if _, err := s.queries.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
+		WorkspaceID: workspaceID,
+		UserID:      user.ID,
+		Role:        role,
+		InvitedBy:   uuid.NullUUID{UUID: actorID, Valid: true},
+	}); err != nil {
+		return CreatedUser{}, err
+	}
+
+	return CreatedUser{
+		UserID: user.ID,
+		Email:  user.Email,
+		Name:   user.Name,
+		Role:   role,
+	}, nil
+}
+
 func (s *WorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, actorID, targetID uuid.UUID, role string) error {
+	if !s.memberMgmtAllowed(ctx) {
+		return ErrWorkspaceMembersLicense
+	}
 	role = normalizeRole(role)
 	if role == "" {
 		return ErrInvalidRole
@@ -179,6 +273,9 @@ func (s *WorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, ac
 
 func (s *WorkspaceService) RemoveMember(ctx context.Context, workspaceID, actorID, targetID uuid.UUID) error {
 	if actorID != targetID {
+		if !s.memberMgmtAllowed(ctx) {
+			return ErrWorkspaceMembersLicense
+		}
 		if err := s.requireOwner(ctx, workspaceID, actorID); err != nil {
 			return err
 		}

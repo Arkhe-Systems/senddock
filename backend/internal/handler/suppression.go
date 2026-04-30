@@ -99,9 +99,13 @@ type addSuppressionRequest struct {
 }
 
 func (h *SuppressionHandler) Add(w http.ResponseWriter, r *http.Request) {
-	pid, err := h.verifyOwner(r)
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSuppressionsWrite)
+	if !ok {
+		return
+	}
+	pid, err := uuid.Parse(projectID)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "project not found")
+		writeJSONError(w, http.StatusBadRequest, "invalid project id")
 		return
 	}
 
@@ -140,9 +144,13 @@ func (h *SuppressionHandler) Add(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SuppressionHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	pid, err := h.verifyOwner(r)
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSuppressionsWrite)
+	if !ok {
+		return
+	}
+	pid, err := uuid.Parse(projectID)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "project not found")
+		writeJSONError(w, http.StatusBadRequest, "invalid project id")
 		return
 	}
 

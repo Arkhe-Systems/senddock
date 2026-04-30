@@ -1,6 +1,8 @@
 # Workspaces API
 
-Every project belongs to a workspace. Endpoints under `/workspaces` manage workspaces and their member list. All endpoints require cookie authentication. See the [Workspaces guide](../guide/workspaces) for the conceptual model.
+Every project belongs to a workspace. Endpoints under `/workspaces` manage workspaces and their member list. All endpoints require cookie authentication. See the [Workspaces guide](../guide/workspaces) for the conceptual model and the role/capability matrix.
+
+**Team plan**: workspace CRUD and listing members is free. Adding members, creating users from admin, and changing roles all return `402 Payment Required` (`{"error":"license required for workspace members"}`) without a `SENDDOCK_LICENSE_KEY` that includes the Team tier.
 
 All errors share the shape `{"error": "human-readable message"}`.
 
@@ -101,7 +103,7 @@ GET /api/v1/workspaces/{id}/members
 }
 ```
 
-## Add member
+## Add existing member <Badge type="warning" text="Team" />
 
 ```
 POST /api/v1/workspaces/{id}/members
@@ -110,12 +112,12 @@ POST /api/v1/workspaces/{id}/members
 Owner only.
 
 ```json
-{ "email": "bob@example.com", "role": "member" }
+{ "email": "bob@example.com", "role": "developer" }
 ```
 
-The user must already have a SendDock account on this instance — v0.6 does not send invitation emails. Returns `404` (`{"error":"user not found"}`) if no account uses that email.
+The user must already have a SendDock account on this instance. Returns `404` (`{"error":"user not found"}`) if no account uses that email — use the [Create user](#create-user) endpoint below instead.
 
-`role` defaults to `member`. Valid values: `owner`, `member`.
+`role` defaults to `member`. Valid values: `owner`, `admin`, `developer`, `member`, `viewer`. See the [role matrix](../guide/workspaces#roles-capabilities).
 
 **Response — 201 Created**
 
@@ -124,14 +126,49 @@ The user must already have a SendDock account on this instance — v0.6 does not
   "user_id": "uuid",
   "email": "bob@example.com",
   "name": "Bob",
-  "role": "member",
+  "role": "developer",
   "joined_at": "2026-04-30T12:00:00Z"
 }
 ```
 
 If the user is already a member, the call updates their role and returns the same shape.
 
-## Change member role
+## Create user <Badge type="warning" text="Team" />
+
+```
+POST /api/v1/workspaces/{id}/users
+```
+
+Owner only. Creates a new SendDock account and adds them to the workspace at the chosen role in a single transaction. Use this when the person doesn't have an account yet — public registration is disabled on self-hosted, so this is the only way to onboard a teammate.
+
+```json
+{
+  "email": "bob@example.com",
+  "name": "Bob",
+  "password": "TempPass123!",
+  "role": "developer"
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `email` | yes | Must be unique. Returns `409 email already registered` otherwise. |
+| `name` | yes | Display name shown in member lists and audit log. |
+| `password` | yes | Minimum 8 characters. Pass it to the user out of band; they can change it after first login. |
+| `role` | no | Defaults to `member`. Same enum as [Add member](#add-existing-member). |
+
+**Response — 201 Created**
+
+```json
+{
+  "user_id": "uuid",
+  "email": "bob@example.com",
+  "name": "Bob",
+  "role": "developer"
+}
+```
+
+## Change member role <Badge type="warning" text="Team" />
 
 ```
 PATCH /api/v1/workspaces/{id}/members/{userId}
@@ -168,7 +205,7 @@ The removed user's access to every project in the workspace is revoked immediate
 
 ## Audit events
 
-These events land in the project audit log only when scoped to a project; workspace-level events are recorded under `target_type=workspace`:
+Workspace-level events are recorded with `target_type=workspace`:
 
 - `workspace.create`
 - `workspace.rename`
@@ -176,3 +213,4 @@ These events land in the project audit log only when scoped to a project; worksp
 - `workspace.member_added`
 - `workspace.member_role_changed`
 - `workspace.member_removed`
+- `workspace.user_created`

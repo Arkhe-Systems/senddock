@@ -151,8 +151,10 @@ type updateSMTPRequest struct {
 }
 
 func (h *ProjectHandler) UpdateSMTP(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(auth.UserIDKey).(string)
-	projectID := r.PathValue("id")
+	projectID, userID, ok := requireCap(w, r, h.projectService, service.CapProjectSettings)
+	if !ok {
+		return
+	}
 
 	var req updateSMTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -223,8 +225,10 @@ func (h *ProjectHandler) GetBounceIMAP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProjectHandler) UpdateBounceIMAP(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(auth.UserIDKey).(string)
-	projectID := r.PathValue("id")
+	projectID, userID, ok := requireCap(w, r, h.projectService, service.CapProjectSettings)
+	if !ok {
+		return
+	}
 
 	var req updateBounceIMAPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -278,8 +282,10 @@ func (h *ProjectHandler) GetBounceWebhook(w http.ResponseWriter, r *http.Request
 }
 
 func (h *ProjectHandler) RotateBounceToken(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(auth.UserIDKey).(string)
-	projectID := r.PathValue("id")
+	projectID, userID, ok := requireCap(w, r, h.projectService, service.CapProjectSettings)
+	if !ok {
+		return
+	}
 	project, err := h.projectService.RotateBounceToken(r.Context(), projectID, userID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -299,8 +305,10 @@ func (h *ProjectHandler) RotateBounceToken(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *ProjectHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(auth.UserIDKey).(string)
-	projectID := r.PathValue("id")
+	projectID, userID, ok := requireCap(w, r, h.projectService, service.CapProjectSettings)
+	if !ok {
+		return
+	}
 
 	err := h.projectService.Delete(r.Context(), projectID, userID)
 	if err != nil {
