@@ -11,12 +11,14 @@ import (
 )
 
 type SubscriberService struct {
-	queries *db.Queries
-	hooks   WebhookDispatcher
+	queries      *db.Queries
+	hooks        WebhookDispatcher
+	validator    *EmailValidator
+	suppressions *SuppressionService
 }
 
-func NewSubscriberService(queries *db.Queries, hooks WebhookDispatcher) *SubscriberService {
-	return &SubscriberService{queries: queries, hooks: hooks}
+func NewSubscriberService(queries *db.Queries, hooks WebhookDispatcher, validator *EmailValidator, suppressions *SuppressionService) *SubscriberService {
+	return &SubscriberService{queries: queries, hooks: hooks, validator: validator, suppressions: suppressions}
 }
 
 func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, status string) (db.Subscriber, error) {
@@ -61,8 +63,19 @@ func (s *SubscriberService) dispatch(ctx context.Context, eventType string, sub 
 }
 
 type ImportResult struct {
-	Imported int `json:"imported"`
-	Skipped  int `json:"skipped"`
+	Imported      int           `json:"imported"`
+	Duplicates    int           `json:"duplicates"`
+	SyntaxInvalid int           `json:"syntax_invalid"`
+	NoMX          int           `json:"no_mx"`
+	Disposable    int           `json:"disposable"`
+	Suppressed    int           `json:"suppressed"`
+	Rejected      []RejectedRow `json:"rejected"`
+}
+
+type RejectedRow struct {
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
 }
 
 type ImportSubscriber struct {
@@ -71,33 +84,63 @@ type ImportSubscriber struct {
 	Status string `json:"status"`
 }
 
-func (s *SubscriberService) BulkImport(ctx context.Context, projectID string, subscribers []ImportSubscriber) (ImportResult, error) {
+type ImportOptions struct {
+	ValidateMX         bool
+	ValidateDisposable bool
+}
+
+func (s *SubscriberService) BulkImport(ctx context.Context, projectID string, subscribers []ImportSubscriber, opts ImportOptions) (ImportResult, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return ImportResult{}, errors.New("invalid project id")
 	}
 
-	result := ImportResult{}
+	result := ImportResult{Rejected: []RejectedRow{}}
+	mxCache := make(map[string]bool)
+
 	for _, sub := range subscribers {
-		if sub.Email == "" {
-			result.Skipped++
+		raw := sub.Email
+		normalized, ok := s.validator.Syntax(raw)
+		if !ok {
+			result.SyntaxInvalid++
+			result.Rejected = append(result.Rejected, RejectedRow{Email: raw, Name: sub.Name, Reason: "syntax_invalid"})
 			continue
 		}
+
+		if opts.ValidateDisposable && s.validator.IsDisposable(normalized) {
+			result.Disposable++
+			result.Rejected = append(result.Rejected, RejectedRow{Email: normalized, Name: sub.Name, Reason: "disposable"})
+			continue
+		}
+
+		if opts.ValidateMX && !s.validator.HasMX(ctx, normalized, mxCache) {
+			result.NoMX++
+			result.Rejected = append(result.Rejected, RejectedRow{Email: normalized, Name: sub.Name, Reason: "no_mx"})
+			continue
+		}
+
+		if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, normalized) {
+			result.Suppressed++
+			result.Rejected = append(result.Rejected, RejectedRow{Email: normalized, Name: sub.Name, Reason: "suppressed"})
+			continue
+		}
+
 		status := sub.Status
 		if status == "" {
 			status = "active"
 		}
 		_, err := s.queries.CreateSubscriber(ctx, db.CreateSubscriberParams{
 			ProjectID: pid,
-			Email:     sub.Email,
+			Email:     normalized,
 			Name:      sub.Name,
 			Status:    status,
 		})
 		if err != nil {
-			result.Skipped++
-		} else {
-			result.Imported++
+			result.Duplicates++
+			result.Rejected = append(result.Rejected, RejectedRow{Email: normalized, Name: sub.Name, Reason: "duplicate"})
+			continue
 		}
+		result.Imported++
 	}
 	return result, nil
 }
@@ -149,6 +192,9 @@ func (s *SubscriberService) UpdateStatus(ctx context.Context, subscriberID, proj
 		return db.Subscriber{}, fmt.Errorf("update failed for %s in project %s: %w", subscriberID, projectID, err)
 	}
 	if status == "unsubscribed" {
+		if s.suppressions != nil {
+			_, _ = s.suppressions.Add(ctx, pid, sub.Email, SuppressionReasonUnsubscribe, "manual subscriber status change")
+		}
 		s.dispatch(ctx, "subscriber.unsubscribed", sub)
 	}
 	return sub, nil

@@ -19,12 +19,15 @@ export const useProjectStore = defineStore('projects', () => {
 
     const projects = ref<Project[]>([])
 
-    async function fetchProjects() {
+    async function fetchProjects(workspaceId?: string | null) {
         try {
-            const response = await api<Project[]>('/projects')
+            const url = workspaceId
+                ? `/workspaces/${workspaceId}/projects`
+                : '/projects'
+            const response = await api<Project[]>(url)
             projects.value = response || []
         } catch {
-
+            projects.value = []
         }
     }
 

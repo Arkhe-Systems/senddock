@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
-import { setSessionExpiredHandler } from './api/client'
+import { setSessionExpiredHandler, setRateLimitedHandler } from './api/client'
 import { useAuthStore } from './stores/auth'
 import { useToastStore } from './stores/toast'
 
@@ -24,6 +24,15 @@ setSessionExpiredHandler(() => {
     if (router.currentRoute.value.name !== 'login') {
         router.push({ name: 'login', query: { reason: 'session_expired' } })
     }
+})
+
+let lastRateLimitToastAt = 0
+setRateLimitedHandler(() => {
+    const now = Date.now()
+    if (now - lastRateLimitToastAt < 5000) return
+    lastRateLimitToastAt = now
+    const toast = useToastStore()
+    toast.error('Too many requests. Slow down and try again in a minute.')
 })
 
 app.mount('#app')

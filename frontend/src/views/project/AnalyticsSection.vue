@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
+import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 
 interface OpenBucket { bucket: string; opens: number }
 interface TemplateStat { template_id: string; name: string; sends: number }
@@ -354,18 +355,9 @@ onMounted(() => applyPreset(preset.value))
 
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
-        <div v-else-if="errorState === 'paywall'"
-            class="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-            <h2 class="text-lg font-semibold text-white mb-2">Analytics is a Pro feature</h2>
-            <p class="text-sm text-zinc-400 mb-6 max-w-md mx-auto">
-                Detailed deliverability metrics, open tracking trends and top-template insights
-                require a SendDock Pro license. Activate one to unlock this section.
-            </p>
-            <a href="https://senddock.dev/pricing" target="_blank" rel="noopener"
-                class="inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
-                See Pro plans
-            </a>
-        </div>
+        <AppProPaywall v-else-if="errorState === 'paywall'"
+            title="Analytics is a Pro feature"
+            description="Detailed deliverability metrics, open tracking trends and top-template insights require a SendDock Pro license. Activate one to unlock this section." />
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">

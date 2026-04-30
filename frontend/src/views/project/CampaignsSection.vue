@@ -7,6 +7,7 @@ import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 
 interface Template {
     id: string
@@ -222,7 +223,7 @@ onMounted(loadData)
 
 <template>
     <div>
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
                 <h1 class="text-2xl font-bold text-white">Newsletters</h1>
                 <p class="text-sm text-zinc-400 mt-1">Schedule and send email campaigns to your subscribers.</p>
@@ -241,8 +242,8 @@ onMounted(loadData)
 
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
-        <div v-else-if="campaigns.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-            <table class="w-full">
+        <div v-else-if="campaigns.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
+            <table class="w-full min-w-[640px]">
                 <thead>
                     <tr class="border-b border-zinc-800">
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Name</th>
@@ -378,21 +379,14 @@ onMounted(loadData)
             </form>
         </AppModal>
 
-        <AppModal :show="showDeleteModal" title="Delete Campaign" @close="showDeleteModal = false">
-            <div class="space-y-4">
-                <p class="text-zinc-400 text-sm">
-                    Are you sure you want to delete <span class="font-semibold text-white">{{ campaignToDelete?.name }}</span>?
-                </p>
-                <p class="text-zinc-500 text-xs">
-                    This will permanently cancel the scheduled send.
-                </p>
-                <div class="flex gap-2 justify-end mt-4">
-                    <AppButton variant="secondary" @click="showDeleteModal = false">Cancel</AppButton>
-                    <AppButton variant="danger" :loading="deleteLoading" @click="handleDelete">
-                        {{ deleteLoading ? 'Deleting...' : 'Delete Campaign' }}
-                    </AppButton>
-                </div>
-            </div>
-        </AppModal>
+        <AppConfirmModal
+            :show="showDeleteModal"
+            title="Delete campaign"
+            :message="campaignToDelete ? `Delete ${campaignToDelete.name}? This permanently cancels the scheduled send.` : ''"
+            confirmLabel="Delete"
+            danger
+            :loading="deleteLoading"
+            @confirm="handleDelete"
+            @cancel="showDeleteModal = false" />
     </div>
 </template>

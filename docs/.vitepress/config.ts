@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'SendDock',
   description: 'Open-source email marketing platform',
+  cleanUrls: true,
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
   ],
@@ -12,6 +13,7 @@ export default defineConfig({
       { text: 'Self-Hosting', link: '/self-hosting/installation' },
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API', link: '/api/authentication' },
+      { text: 'Changelog', link: '/changelog' },
       {
         text: 'GitHub',
         link: 'https://github.com/arkhe-systems/senddock',
@@ -26,6 +28,7 @@ export default defineConfig({
             { text: 'Configuration', link: '/self-hosting/configuration' },
             { text: 'Updating', link: '/self-hosting/updating' },
             { text: 'Troubleshooting & FAQ', link: '/self-hosting/troubleshooting' },
+            { text: 'Changelog', link: '/changelog' },
           ],
         },
       ],
@@ -35,6 +38,7 @@ export default defineConfig({
           items: [
             { text: 'What is SendDock', link: '/guide/what-is-senddock' },
             { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Workspaces', link: '/guide/workspaces' },
           ],
         },
         {
@@ -68,6 +72,8 @@ export default defineConfig({
           text: 'API Reference',
           items: [
             { text: 'Authentication', link: '/api/authentication' },
+            { text: 'Code examples', link: '/api/code-examples' },
+            { text: 'Workspaces', link: '/api/workspaces' },
             { text: 'Projects', link: '/api/projects' },
             { text: 'Subscribers', link: '/api/subscribers' },
             { text: 'Templates', link: '/api/templates' },

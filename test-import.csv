@@ -1,0 +1,10 @@
+email,name
+ada@gmail.com,Ada Lovelace
+alan@outlook.com,Alan Turing
+grace@protonmail.com,Grace Hopper
+not-an-email,Broken Syntax
+trailing@,Bad Trailing Sign
+spam@mailinator.com,Disposable A
+test@yopmail.com,Disposable B
+ghost@nope-this-domain-does-not-exist.invalid,No MX Domain
+ada@gmail.com,Ada Duplicate

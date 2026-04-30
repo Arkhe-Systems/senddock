@@ -18,13 +18,30 @@ func NewProjectService(queries *db.Queries, encSecret string) *ProjectService {
 	return &ProjectService{queries: queries, encSecret: encSecret}
 }
 
-func (s *ProjectService) Create(ctx context.Context, userID, name, description string) (db.Project, error) {
+func (s *ProjectService) Create(ctx context.Context, userID, workspaceID, name, description string) (db.Project, error) {
 	uid, err := uuid.Parse(userID)
 	if err != nil {
 		return db.Project{}, errors.New("invalid user id")
 	}
 
+	wid, err := uuid.Parse(workspaceID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid workspace id")
+	}
+
+	member, err := s.queries.IsWorkspaceMember(ctx, db.IsWorkspaceMemberParams{
+		WorkspaceID: wid,
+		UserID:      uid,
+	})
+	if err != nil {
+		return db.Project{}, err
+	}
+	if !member {
+		return db.Project{}, ErrWorkspaceForbidden
+	}
+
 	project, err := s.queries.CreateProject(ctx, db.CreateProjectParams{
+		WorkspaceID: wid,
 		UserID:      uid,
 		Name:        name,
 		Description: sql.NullString{String: description, Valid: description != ""},
@@ -35,6 +52,21 @@ func (s *ProjectService) Create(ctx context.Context, userID, name, description s
 	}
 
 	return project, nil
+}
+
+func (s *ProjectService) ListByWorkspace(ctx context.Context, workspaceID, userID string) ([]db.Project, error) {
+	wid, err := uuid.Parse(workspaceID)
+	if err != nil {
+		return nil, errors.New("invalid workspace id")
+	}
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, errors.New("invalid user id")
+	}
+	return s.queries.GetProjectsByWorkspaceForUser(ctx, db.GetProjectsByWorkspaceForUserParams{
+		WorkspaceID: wid,
+		UserID:      uid,
+	})
 }
 
 func (s *ProjectService) Update(ctx context.Context, projectID, userID, name, description string) (db.Project, error) {
@@ -129,4 +161,68 @@ func (s *ProjectService) Delete(ctx context.Context, projectID, userID string) e
 		ID:     pid,
 		UserID: uid,
 	})
+}
+
+func (s *ProjectService) UpdateBounceIMAP(ctx context.Context, projectID, userID, host string, port int32, user, password, folder string, enabled bool) (db.Project, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid project id")
+	}
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid user id")
+	}
+
+	current, err := s.queries.GetProjectByID(ctx, db.GetProjectByIDParams{ID: pid, UserID: uid})
+	if err != nil {
+		return db.Project{}, errors.New("project not found")
+	}
+
+	encrypted := current.BounceImapPasswordEncrypted
+	if password != "" {
+		enc, err := Encrypt(password, s.encSecret)
+		if err != nil {
+			return db.Project{}, err
+		}
+		encrypted = sql.NullString{String: enc, Valid: true}
+	}
+
+	hostNS := sql.NullString{}
+	if host != "" {
+		hostNS = sql.NullString{String: host, Valid: true}
+	}
+	portNS := sql.NullInt32{}
+	if port != 0 {
+		portNS = sql.NullInt32{Int32: port, Valid: true}
+	}
+	userNS := sql.NullString{}
+	if user != "" {
+		userNS = sql.NullString{String: user, Valid: true}
+	}
+	if folder == "" {
+		folder = "INBOX"
+	}
+
+	return s.queries.UpdateBounceIMAP(ctx, db.UpdateBounceIMAPParams{
+		ID:                          pid,
+		UserID:                      uid,
+		BounceImapHost:              hostNS,
+		BounceImapPort:              portNS,
+		BounceImapUser:               userNS,
+		BounceImapPasswordEncrypted: encrypted,
+		BounceImapFolder:            folder,
+		BounceImapEnabled:           enabled,
+	})
+}
+
+func (s *ProjectService) RotateBounceToken(ctx context.Context, projectID, userID string) (db.Project, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid project id")
+	}
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid user id")
+	}
+	return s.queries.RotateBounceToken(ctx, db.RotateBounceTokenParams{ID: pid, UserID: uid})
 }

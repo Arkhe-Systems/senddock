@@ -35,6 +35,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/workspaces/:id/members',
+      name: 'workspace-members',
+      component: () => import('@/views/workspace/MembersView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/projects/:id',
       component: () => import('@/views/project/ProjectView.vue'),
       meta: { requiresAuth: true },
@@ -48,6 +54,11 @@ const router = createRouter({
           path: 'subscribers',
           name: 'project-subscribers',
           component: () => import('@/views/project/SubscribersSection.vue'),
+        },
+        {
+          path: 'suppressions',
+          name: 'project-suppressions',
+          component: () => import('@/views/project/SuppressionsSection.vue'),
         },
         {
           path: 'templates',
@@ -78,6 +89,11 @@ const router = createRouter({
           path: 'webhooks',
           name: 'project-webhooks',
           component: () => import('@/views/project/WebhooksSection.vue'),
+        },
+        {
+          path: 'audit-log',
+          name: 'project-audit-log',
+          component: () => import('@/views/project/AuditLogSection.vue'),
         },
         {
           path: 'settings',

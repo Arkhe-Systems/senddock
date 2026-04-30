@@ -43,11 +43,8 @@ func (h *TemplateHandler) verifyProjectOwner(r *http.Request) (string, error) {
 }
 
 func (h *TemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapTemplatesWrite)
+	if !ok {
 		return
 	}
 
@@ -124,11 +121,8 @@ func (h *TemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapTemplatesWrite)
+	if !ok {
 		return
 	}
 
@@ -162,17 +156,14 @@ func (h *TemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapTemplatesWrite)
+	if !ok {
 		return
 	}
 
 	templateID := r.PathValue("templateId")
 
-	err = h.templateService.Delete(r.Context(), templateID, projectID)
+	err := h.templateService.Delete(r.Context(), templateID, projectID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
