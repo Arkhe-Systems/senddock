@@ -8,6 +8,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 
 interface Webhook {
     id: string
@@ -220,18 +221,9 @@ onMounted(load)
 
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
-        <div v-else-if="errorState === 'paywall'"
-            class="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-            <h2 class="text-lg font-semibold text-white mb-2">Webhooks are a Pro feature</h2>
-            <p class="text-sm text-zinc-400 mb-6 max-w-md mx-auto">
-                Webhook delivery, signed payloads and retries require a SendDock Pro license.
-                Activate one to receive real-time event notifications in your own systems.
-            </p>
-            <a href="https://senddock.dev/pricing" target="_blank" rel="noopener"
-                class="inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
-                See Pro plans
-            </a>
-        </div>
+        <AppProPaywall v-else-if="errorState === 'paywall'"
+            title="Webhooks are a Pro feature"
+            description="Webhook delivery, signed payloads and retries require a SendDock Pro license. Activate one to receive real-time event notifications in your own systems." />
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
