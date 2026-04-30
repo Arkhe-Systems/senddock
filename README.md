@@ -184,7 +184,7 @@ SendDock is open-core: the open-source binary you can self-host today is fully u
 - Webhooks management UI and REST API (CRUD, pause/resume, deliveries history)
 - Future: team members + roles, SMTP failover, SSO/LDAP, white-label
 
-In **self-hosted** mode an empty `SENDDOCK_LICENSE_KEY` unlocks Pro locally for development. In **cloud** mode it stays locked until a real key is set. See [docs/self-hosting/configuration.md](docs/self-hosting/configuration.md) for the full matrix.
+An empty `SENDDOCK_LICENSE_KEY` keeps Pro locked in any deployment mode — Core stays fully usable for free, Pro requires a license. See [docs/self-hosting/configuration.md](docs/self-hosting/configuration.md) for details.
 
 ## Environment Variables
 
@@ -197,7 +197,7 @@ In **self-hosted** mode an empty `SENDDOCK_LICENSE_KEY` unlocks Pro locally for 
 | `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:5173` |
 | `PUBLIC_URL` | Public URL of the instance, used in unsubscribe and tracking links inside emails | falls back to `FRONTEND_URL` |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
-| `SENDDOCK_LICENSE_KEY` | Pro license key (Lemon Squeezy). Empty in self-hosted unlocks Pro locally | — |
+| `SENDDOCK_LICENSE_KEY` | Pro license key (Lemon Squeezy). Empty leaves the deployment on the free tier (Core only) | — |
 
 ## License
 

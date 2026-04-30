@@ -81,12 +81,13 @@ SENDDOCK_LICENSE_KEY=
   </g>
 </svg>
 
-| `DEPLOYMENT_MODE` | `SENDDOCK_LICENSE_KEY` | Pro features |
-|---|---|---|
-| `self-hosted` (default) | empty | **Unlocked locally** — for development and evaluation. |
-| `self-hosted` | valid | Unlocked. License is checked on startup and re-validated periodically. |
-| `cloud` | empty | Locked (free tier). |
-| `cloud` | valid | Unlocked. |
+| `SENDDOCK_LICENSE_KEY` | Pro features |
+|---|---|
+| empty | **Locked** — Core only. |
+| valid | Unlocked. License is checked on startup and re-validated periodically. |
+| invalid / revoked | Locked after the next validation tick (24h grace from the last successful check). |
+
+`DEPLOYMENT_MODE` no longer changes Pro gating — the license requirement applies the same way to self-hosted and cloud. The mode still controls registration (`cloud` enables `POST /api/v1/auth/register`; `self-hosted` keeps registration disabled and relies on the setup screen).
 
 The validator only needs the license key — there is no API key, store ID or webhook secret to configure on the self-hosted side. Those are provisioned on the senddock.dev managed service that issues licenses.
 
