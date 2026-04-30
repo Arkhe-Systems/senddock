@@ -252,7 +252,7 @@ onMounted(fetchTemplates)
         </div>
 
         <div v-else>
-            <div class="flex items-center justify-between mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <h1 class="text-2xl font-bold text-white">Templates</h1>
                 <AppButton @click="showCreateModal = true" class="w-auto! px-4">+ New Template</AppButton>
             </div>

@@ -287,12 +287,12 @@ onMounted(fetchSubscribers)
 
 <template>
     <div>
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
                 <h1 class="text-2xl font-bold text-white">Subscribers</h1>
                 <p class="text-sm text-zinc-500 mt-1">{{ total }} total</p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <AppButton variant="ghost" size="sm" @click="showImportModal = true">Import CSV</AppButton>
                 <AppButton size="sm" @click="showAddModal = true">+ Add Subscriber</AppButton>
             </div>
@@ -315,8 +315,8 @@ onMounted(fetchSubscribers)
 
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
-        <div v-else-if="subscribers.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-            <table class="w-full">
+        <div v-else-if="subscribers.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
+            <table class="w-full min-w-[640px]">
                 <thead>
                     <tr class="border-b border-zinc-800">
                         <th class="px-4 py-3 w-10">

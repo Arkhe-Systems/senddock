@@ -60,14 +60,14 @@ onMounted(fetchLogs)
 
 <template>
     <div>
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
                 <h1 class="text-2xl font-bold text-white">Email Logs</h1>
                 <p class="text-sm text-zinc-500 mt-1">{{ total }} total</p>
             </div>
         </div>
 
-        <div class="flex items-end gap-3 mb-6">
+        <div class="flex flex-wrap items-end gap-3 mb-6">
             <div>
                 <label class="block text-xs text-zinc-500 mb-1">Status</label>
                 <select v-model="filterStatus" @change="applyFilters"
@@ -97,8 +97,8 @@ onMounted(fetchLogs)
 
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
-        <div v-else-if="logs.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-            <table class="w-full">
+        <div v-else-if="logs.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
+            <table class="w-full min-w-[640px]">
                 <thead>
                     <tr class="border-b border-zinc-800">
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">To</th>

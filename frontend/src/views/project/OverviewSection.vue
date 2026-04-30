@@ -152,7 +152,7 @@ onMounted(loadData)
 
 <template>
     <div>
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <h1 class="text-2xl font-bold text-white">Overview</h1>
             <button v-if="project.smtp_host" @click="openSendModal"
                 class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
@@ -184,8 +184,8 @@ onMounted(loadData)
 
             <div v-if="recentLogs.length > 0">
                 <h2 class="text-lg font-semibold text-white mb-4">Recent Activity</h2>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-                    <table class="w-full">
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
+                    <table class="w-full min-w-[640px]">
                         <thead>
                             <tr class="border-b border-zinc-800">
                                 <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">To</th>
