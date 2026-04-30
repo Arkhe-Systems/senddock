@@ -88,9 +88,7 @@ async function loadBounceIMAP() {
             folder: res.folder || 'INBOX',
             enabled: res.enabled,
         }
-    } catch {
-        /* noop */
-    }
+    } catch {}
 }
 
 async function saveBounceIMAP() {
