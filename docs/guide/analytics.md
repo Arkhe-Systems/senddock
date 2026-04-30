@@ -68,8 +68,7 @@ See the [Analytics API reference](/api/analytics) for the full payload schema.
 
 Analytics is gated by `SENDDOCK_LICENSE_KEY`:
 
-- **Self-hosted** with empty license — Pro features are unlocked locally for development. Analytics works.
-- **Self-hosted** with valid license — Pro unlocked.
-- **Cloud** mode (the senddock.dev managed product) requires a valid key. An empty key returns `402 Payment Required` on `/analytics/overview`, which the UI renders as a paywall card linking to pricing.
+- An empty `SENDDOCK_LICENSE_KEY` leaves Pro locked. The Analytics dashboard returns `402 Payment Required`, which the UI renders as a paywall card linking to pricing. This applies to both self-hosted and cloud deployments — Core stays fully usable, Pro requires a license.
+- A valid license unlocks Analytics. The validator caches its last successful result for 24 hours, so brief network blips with Lemon Squeezy don't lock you out.
 
 See [Configuration → Pro license](/self-hosting/configuration#pro-license) for the env var.
