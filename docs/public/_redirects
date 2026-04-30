@@ -1,0 +1,4 @@
+/api/* /api/:splat.html 200
+/guide/* /guide/:splat.html 200
+/self-hosting/* /self-hosting/:splat.html 200
+/changelog /changelog.html 200
