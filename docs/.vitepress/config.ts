@@ -70,6 +70,7 @@ export default defineConfig({
           text: 'API Reference',
           items: [
             { text: 'Authentication', link: '/api/authentication' },
+            { text: 'Code examples', link: '/api/code-examples' },
             { text: 'Projects', link: '/api/projects' },
             { text: 'Subscribers', link: '/api/subscribers' },
             { text: 'Templates', link: '/api/templates' },
