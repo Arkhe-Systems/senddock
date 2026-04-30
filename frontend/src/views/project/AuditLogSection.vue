@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
+import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 
 interface AuditEntry {
     id: string
@@ -99,7 +100,7 @@ onMounted(fetchList)
 
 <template>
     <div>
-        <div class="flex items-start justify-between gap-3 mb-6">
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-2xl font-bold text-white">Audit log</h1>
@@ -113,17 +114,9 @@ onMounted(fetchList)
 
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
-        <div v-else-if="errorState === 'paywall'"
-            class="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-            <h2 class="text-lg font-semibold text-white mb-2">Audit log is a Pro feature</h2>
-            <p class="text-sm text-zinc-400 mb-6 max-w-md mx-auto">
-                A timestamped trail of every project change — who changed what, from which IP, with what payload. Activate a Pro license to access it.
-            </p>
-            <a href="https://senddock.dev/pricing" target="_blank" rel="noopener"
-                class="inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
-                See Pro plans
-            </a>
-        </div>
+        <AppProPaywall v-else-if="errorState === 'paywall'"
+            title="Audit log is a Pro feature"
+            description="A timestamped trail of every project change — who changed what, from which IP, with what payload. Activate a Pro license to access it." />
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
@@ -161,8 +154,8 @@ onMounted(fetchList)
                 <p class="text-sm text-zinc-500">As soon as you create projects, send broadcasts, manage webhooks or change settings, they'll show up here.</p>
             </div>
 
-            <div v-else class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-                <table class="w-full">
+            <div v-else class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
+                <table class="w-full min-w-[768px]">
                     <thead>
                         <tr class="border-b border-zinc-800">
                             <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">When</th>
