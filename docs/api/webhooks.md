@@ -2,7 +2,7 @@
 
 Manage webhook endpoints and inspect their delivery history. Cookie auth required.
 
-In **cloud** mode every endpoint on this page returns `402 Payment Required` (`{"error":"license required for webhooks"}`) when the deployment has no valid `SENDDOCK_LICENSE_KEY`. In **self-hosted** mode an empty license unlocks everything locally — see [Configuration → Pro license](/self-hosting/configuration#pro-license).
+Every endpoint on this page returns `402 Payment Required` (`{"error":"license required for webhooks"}`) when the deployment has no valid `SENDDOCK_LICENSE_KEY`. This applies the same way to self-hosted and cloud — see [Configuration → Pro license](/self-hosting/configuration#pro-license).
 
 For payload format, signature verification, retry policy and event reference, see the [Webhooks guide](/guide/webhooks).
 
