@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
 	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/google/uuid"
@@ -165,7 +166,7 @@ func (h *WorkspaceHandler) ListProjects(w http.ResponseWriter, r *http.Request) 
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, projects)
+	writeJSON(w, http.StatusOK, response.FromProjects(projects))
 }
 
 func (h *WorkspaceHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
