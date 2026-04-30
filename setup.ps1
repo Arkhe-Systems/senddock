@@ -107,7 +107,7 @@ if (-not $ready) {
     Write-Host "  docker compose -f $ComposeFile ps"
     Write-Host "  docker compose -f $ComposeFile logs app --tail 100"
     Write-Host ""
-    Write-Host "Common causes are documented at https://docs.senddock.dev/self-hosting/troubleshooting"
+    Write-Host "Common causes are documented at https://senddock.dev/docs/self-hosting/troubleshooting"
     exit 1
 }
 

@@ -124,7 +124,7 @@ if [ "$ready" = "0" ]; then
     echo "  docker compose -f $COMPOSE_FILE ps"
     echo "  docker compose -f $COMPOSE_FILE logs app --tail 100"
     echo ""
-    echo "Common causes are documented at https://docs.senddock.dev/self-hosting/troubleshooting"
+    echo "Common causes are documented at https://senddock.dev/docs/self-hosting/troubleshooting"
     exit 1
 fi
 

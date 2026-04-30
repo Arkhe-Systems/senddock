@@ -205,4 +205,4 @@ AGPL-3.0 — See [LICENSE](LICENSE).
 
 This software is free to use and self-host. If you modify SendDock and offer it as a hosted service, you must open-source your modifications under the same license.
 
-For commercial licensing, contact sebastian@get.arkhe.systems.
+For commercial licensing, contact hello@senddock.dev.
