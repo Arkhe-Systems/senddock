@@ -83,15 +83,10 @@ Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and 
 
 | `SENDDOCK_LICENSE_KEY` | Behavior |
 |---|---|
-| empty (self-hosted) | All features unlocked locally — useful for evaluating Pro before buying. |
-| empty (cloud mode) | Free tier — Core features only (subscribers, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking). |
-| valid | Pro tier — unlocks the [Analytics dashboard](/guide/analytics) and [Webhooks management](/guide/webhooks). |
+| empty | Free tier — Core features only (projects, subscribers, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, suppression list, webhook dispatcher). |
+| valid | Pro tier — adds the [Analytics dashboard](/guide/analytics), [Webhooks management UI](/guide/webhooks), and the audit log. |
 
 The image is the same in both cases. The license key, validated against a hosted endpoint, toggles the gated routes. Read more in the [pricing page](https://senddock.dev/pricing).
-
-::: warning Self-hosted with empty license unlocks everything
-This is intentional — local development should never need a license. If you self-host an instance that other people will use, set a real `SENDDOCK_LICENSE_KEY` (or accept that Pro features are free for those users). The "empty key = unlocked" behavior only fires when `DEPLOYMENT_MODE=self-hosted`, which is the default.
-:::
 
 ### Pinning a version in production
 
