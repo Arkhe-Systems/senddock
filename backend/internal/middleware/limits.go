@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/cache"
@@ -33,10 +35,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ip := r.RemoteAddr
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			ip = forwarded
-		}
+		ip := clientIP(r)
 
 		key := "rl:" + ip
 		count, err := rl.redis.Increment(r.Context(), key, rl.window)
@@ -47,6 +46,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 
 		if count > rl.limit {
 			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Retry-After", "60")
 			w.WriteHeader(http.StatusTooManyRequests)
 			w.Write([]byte(`{"error":"rate limit exceeded"}`))
 			return
@@ -54,4 +54,23 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func clientIP(r *http.Request) string {
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		if comma := strings.IndexByte(forwarded, ','); comma >= 0 {
+			forwarded = forwarded[:comma]
+		}
+		if ip := strings.TrimSpace(forwarded); ip != "" {
+			return ip
+		}
+	}
+	if real := strings.TrimSpace(r.Header.Get("X-Real-IP")); real != "" {
+		return real
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }

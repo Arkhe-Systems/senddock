@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { api } from '@/api/client'
+import { api, ApiError } from '@/api/client'
 
 interface MessageResponse {
     message: string
@@ -17,7 +17,10 @@ export const useAuthStore = defineStore('auth', () => {
             await api<any>('/me', { silent: true })
             isAuthenticated.value = true
             sessionExpired.value = false
-        } catch {
+        } catch (e) {
+            if (e instanceof ApiError && (e.status === 0 || e.status === 429 || e.status >= 500)) {
+                return
+            }
             isAuthenticated.value = false
             if (wasAuthenticated) {
                 sessionExpired.value = true

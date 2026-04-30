@@ -8,9 +8,23 @@ interface ApiOptions {
 }
 
 let onSessionExpired: (() => void) | null = null
+let onRateLimited: (() => void) | null = null
 
 export function setSessionExpiredHandler(fn: () => void) {
     onSessionExpired = fn
+}
+
+export function setRateLimitedHandler(fn: () => void) {
+    onRateLimited = fn
+}
+
+export class ApiError extends Error {
+    status: number
+    constructor(status: number, message: string) {
+        super(message)
+        this.status = status
+        this.name = 'ApiError'
+    }
 }
 
 export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
@@ -20,12 +34,17 @@ export async function api<T>(endpoint: string, options: ApiOptions = {}): Promis
         'Content-Type': 'application/json',
     }
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-        credentials: 'include',
-    })
+    let response: Response
+    try {
+        response = await fetch(`${API_URL}${endpoint}`, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+            credentials: 'include',
+        })
+    } catch {
+        throw new ApiError(0, 'network error')
+    }
 
     if (response.status === 401 && !_retry && !endpoint.includes('/auth/')) {
         const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
@@ -38,12 +57,21 @@ export async function api<T>(endpoint: string, options: ApiOptions = {}): Promis
         }
 
         if (!silent && onSessionExpired) onSessionExpired()
-        throw new Error('session_expired')
+        throw new ApiError(401, 'session_expired')
+    }
+
+    if (response.status === 429) {
+        if (!silent && onRateLimited) onRateLimited()
+        throw new ApiError(429, 'rate limit exceeded')
     }
 
     if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'something went wrong')
+        let message = 'something went wrong'
+        try {
+            const error = await response.json()
+            if (error?.error) message = error.error
+        } catch {}
+        throw new ApiError(response.status, message)
     }
 
     if (response.status === 204) {
