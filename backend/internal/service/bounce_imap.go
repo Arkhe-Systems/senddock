@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io"
 	"log"
 	"regexp"
 	"strings"
@@ -121,14 +120,10 @@ func (p *BounceIMAPPoller) pollProject(ctx context.Context, project db.Project) 
 	processed := 0
 	for _, msg := range msgs {
 		body := msg.FindBodySection(&imap.FetchItemBodySection{})
-		if body == nil {
+		if len(body) == 0 {
 			continue
 		}
-		raw, err := io.ReadAll(strings.NewReader(string(body)))
-		if err != nil {
-			continue
-		}
-		emails := extractBounceRecipients(string(raw))
+		emails := extractBounceRecipients(string(body))
 		for _, email := range emails {
 			if p.suppressions != nil {
 				_, _ = p.suppressions.Add(ctx, project.ID, email, SuppressionReasonBounce, "imap dsn poll")
