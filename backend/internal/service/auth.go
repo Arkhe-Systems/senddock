@@ -84,7 +84,28 @@ func (s *AuthService) Register(ctx context.Context, email, password, name string
 		return AuthTokens{}, err
 	}
 
+	if err := s.bootstrapDefaultWorkspace(ctx, user.ID); err != nil {
+		return AuthTokens{}, err
+	}
+
 	return s.generateTokens(ctx, user.ID)
+}
+
+func (s *AuthService) bootstrapDefaultWorkspace(ctx context.Context, userID uuid.UUID) error {
+	ws, err := s.queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
+		Name:      "My Workspace",
+		CreatedBy: userID,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = s.queries.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
+		WorkspaceID: ws.ID,
+		UserID:      userID,
+		Role:        WorkspaceRoleOwner,
+		InvitedBy:   uuid.NullUUID{UUID: userID, Valid: true},
+	})
+	return err
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password string) (AuthTokens, error) {

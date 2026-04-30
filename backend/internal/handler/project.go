@@ -21,6 +21,7 @@ func NewProjectHandler(projectService *service.ProjectService) *ProjectHandler {
 type createProjectRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	WorkspaceID string `json:"workspace_id"`
 }
 
 func (h *ProjectHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -41,10 +42,21 @@ func (h *ProjectHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project, err := h.projectService.Create(r.Context(), userID, req.Name, req.Description)
-	if err != nil {
+	if req.WorkspaceID == "" {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "workspace_id is required"})
+		return
+	}
+
+	project, err := h.projectService.Create(r.Context(), userID, req.WorkspaceID, req.Name, req.Description)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err == service.ErrWorkspaceForbidden {
+			status = http.StatusForbidden
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return
 	}
