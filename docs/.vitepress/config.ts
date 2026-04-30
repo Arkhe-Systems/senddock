@@ -37,6 +37,7 @@ export default defineConfig({
           items: [
             { text: 'What is SendDock', link: '/guide/what-is-senddock' },
             { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Workspaces', link: '/guide/workspaces' },
           ],
         },
         {
@@ -71,6 +72,7 @@ export default defineConfig({
           items: [
             { text: 'Authentication', link: '/api/authentication' },
             { text: 'Code examples', link: '/api/code-examples' },
+            { text: 'Workspaces', link: '/api/workspaces' },
             { text: 'Projects', link: '/api/projects' },
             { text: 'Subscribers', link: '/api/subscribers' },
             { text: 'Templates', link: '/api/templates' },

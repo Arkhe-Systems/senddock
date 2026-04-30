@@ -13,6 +13,7 @@ Targeted for the **0.6.0** release. Currently on the `dev` branch.
 
 ### Added
 
+- **Workspaces.** A workspace is a container for projects with its own member list and roles (`owner`, `member`). Authorization for project endpoints now scopes by workspace membership, so multiple users can collaborate on the same project. Existing single-user installs are migrated transparently — every user got a "My Workspace" with all their existing projects under it. New endpoints under `/workspaces` (CRUD, members CRUD, role changes). Frontend: workspace switcher in the dashboard header (remembered in localStorage), members management view, project create form picks the active workspace.
 - **Email validation on import (#43).** CSV/JSON imports now check syntax, MX records and a built-in disposable-domain list. Rejected rows surface in the import results modal with a per-row reason.
 - **File picker and drag-and-drop for CSV imports.** Replaces the textarea-only flow.
 - **Per-project suppression list (#42).** New `suppressions` table; `/send`, `/send/batch` and `/broadcast` skip suppressed recipients and account for them in the result counts. Existing unsubscribed subscribers are backfilled. Manage entries from the Suppressions tab inside a project (list, filter by reason, manual add, bulk import, remove).
