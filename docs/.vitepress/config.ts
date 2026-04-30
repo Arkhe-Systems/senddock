@@ -12,6 +12,7 @@ export default defineConfig({
       { text: 'Self-Hosting', link: '/self-hosting/installation' },
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API', link: '/api/authentication' },
+      { text: 'Changelog', link: '/changelog' },
       {
         text: 'GitHub',
         link: 'https://github.com/arkhe-systems/senddock',
@@ -26,6 +27,7 @@ export default defineConfig({
             { text: 'Configuration', link: '/self-hosting/configuration' },
             { text: 'Updating', link: '/self-hosting/updating' },
             { text: 'Troubleshooting & FAQ', link: '/self-hosting/troubleshooting' },
+            { text: 'Changelog', link: '/changelog' },
           ],
         },
       ],
