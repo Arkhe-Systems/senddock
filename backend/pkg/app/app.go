@@ -80,7 +80,7 @@ func New(cfg config.Config) (*App, error) {
 	a.authMiddleware = middleware.Auth([]byte(cfg.JWTSecret))
 	a.apiKeyMiddleware = middleware.APIKey(queries)
 	a.eitherAuth = middleware.EitherAuth(a.authMiddleware, a.apiKeyMiddleware)
-	a.rateLimiter = middleware.NewRateLimiter(redisCache, 100, time.Minute)
+	a.rateLimiter = middleware.NewRateLimiter(redisCache, 600, time.Minute)
 
 	a.webhooks = webhooks.NewService(queries)
 	suppressionService := service.NewSuppressionService(queries)
