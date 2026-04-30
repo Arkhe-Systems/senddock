@@ -175,6 +175,9 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	projectService := service.NewProjectService(queries, cfg.JWTSecret)
 	projectHandler := handler.NewProjectHandler(projectService)
 
+	workspaceService := service.NewWorkspaceService(queries)
+	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, projectService)
+
 	emailValidator := service.NewEmailValidator()
 	subscriberService := service.NewSubscriberService(queries, a.webhooks, emailValidator, a.suppressions)
 	suppressionHandler := handler.NewSuppressionHandler(a.suppressions, projectService)
@@ -198,6 +201,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	apiKeyHandler.Audit = a.audit
 	emailHandler.Audit = a.audit
 	suppressionHandler.Audit = a.audit
+	workspaceHandler.Audit = a.audit
 
 	releaseService := service.NewReleaseService(a.cache, cfg.DeploymentMode)
 	releaseHandler := handler.NewReleaseHandler(releaseService)
@@ -231,6 +235,16 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 		log.Println("Mode: cloud (registration enabled)")
 		mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	}
+
+	mux.Handle("POST /api/v1/workspaces", authMW(http.HandlerFunc(workspaceHandler.Create)))
+	mux.Handle("GET /api/v1/workspaces", authMW(http.HandlerFunc(workspaceHandler.List)))
+	mux.Handle("PATCH /api/v1/workspaces/{id}", authMW(http.HandlerFunc(workspaceHandler.Rename)))
+	mux.Handle("DELETE /api/v1/workspaces/{id}", authMW(http.HandlerFunc(workspaceHandler.Delete)))
+	mux.Handle("GET /api/v1/workspaces/{id}/projects", authMW(http.HandlerFunc(workspaceHandler.ListProjects)))
+	mux.Handle("GET /api/v1/workspaces/{id}/members", authMW(http.HandlerFunc(workspaceHandler.ListMembers)))
+	mux.Handle("POST /api/v1/workspaces/{id}/members", authMW(http.HandlerFunc(workspaceHandler.AddMember)))
+	mux.Handle("PATCH /api/v1/workspaces/{id}/members/{userId}", authMW(http.HandlerFunc(workspaceHandler.UpdateMember)))
+	mux.Handle("DELETE /api/v1/workspaces/{id}/members/{userId}", authMW(http.HandlerFunc(workspaceHandler.RemoveMember)))
 
 	mux.Handle("POST /api/v1/projects", authMW(http.HandlerFunc(projectHandler.Create)))
 	mux.Handle("GET /api/v1/projects", authMW(http.HandlerFunc(projectHandler.List)))

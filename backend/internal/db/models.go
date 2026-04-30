@@ -98,6 +98,7 @@ type Project struct {
 	BounceImapPasswordEncrypted sql.NullString
 	BounceImapFolder            string
 	BounceImapEnabled           bool
+	WorkspaceID                 uuid.UUID
 }
 
 type RefreshToken struct {
@@ -187,4 +188,20 @@ type WebhookDelivery struct {
 	NextAttemptAt  time.Time
 	DeliveredAt    sql.NullTime
 	CreatedAt      time.Time
+}
+
+type Workspace struct {
+	ID        uuid.UUID
+	Name      string
+	CreatedBy uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type WorkspaceMember struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	Role        string
+	InvitedBy   uuid.NullUUID
+	CreatedAt   time.Time
 }

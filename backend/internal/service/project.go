@@ -18,13 +18,30 @@ func NewProjectService(queries *db.Queries, encSecret string) *ProjectService {
 	return &ProjectService{queries: queries, encSecret: encSecret}
 }
 
-func (s *ProjectService) Create(ctx context.Context, userID, name, description string) (db.Project, error) {
+func (s *ProjectService) Create(ctx context.Context, userID, workspaceID, name, description string) (db.Project, error) {
 	uid, err := uuid.Parse(userID)
 	if err != nil {
 		return db.Project{}, errors.New("invalid user id")
 	}
 
+	wid, err := uuid.Parse(workspaceID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid workspace id")
+	}
+
+	member, err := s.queries.IsWorkspaceMember(ctx, db.IsWorkspaceMemberParams{
+		WorkspaceID: wid,
+		UserID:      uid,
+	})
+	if err != nil {
+		return db.Project{}, err
+	}
+	if !member {
+		return db.Project{}, ErrWorkspaceForbidden
+	}
+
 	project, err := s.queries.CreateProject(ctx, db.CreateProjectParams{
+		WorkspaceID: wid,
 		UserID:      uid,
 		Name:        name,
 		Description: sql.NullString{String: description, Valid: description != ""},
@@ -35,6 +52,21 @@ func (s *ProjectService) Create(ctx context.Context, userID, name, description s
 	}
 
 	return project, nil
+}
+
+func (s *ProjectService) ListByWorkspace(ctx context.Context, workspaceID, userID string) ([]db.Project, error) {
+	wid, err := uuid.Parse(workspaceID)
+	if err != nil {
+		return nil, errors.New("invalid workspace id")
+	}
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, errors.New("invalid user id")
+	}
+	return s.queries.GetProjectsByWorkspaceForUser(ctx, db.GetProjectsByWorkspaceForUserParams{
+		WorkspaceID: wid,
+		UserID:      uid,
+	})
 }
 
 func (s *ProjectService) Update(ctx context.Context, projectID, userID, name, description string) (db.Project, error) {
