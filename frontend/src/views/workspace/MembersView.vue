@@ -2,6 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useLicenseStore } from '@/stores/license'
 import {
     useWorkspaceStore,
     type WorkspaceMember,
@@ -25,6 +26,7 @@ const router = useRouter()
 const workspaceStore = useWorkspaceStore()
 const toast = useToastStore()
 const auth = useAuthStore()
+const license = useLicenseStore()
 
 const workspaceId = computed(() => route.params.id as string)
 const members = ref<WorkspaceMember[]>([])
@@ -60,6 +62,8 @@ const myRole = computed(() => {
 
 const isOwner = computed(() => myRole.value === 'owner')
 const ownerCount = computed(() => members.value.filter(m => m.role === 'owner').length)
+const canManageTeam = computed(() => license.allowsTeam)
+const showTeamPaywall = computed(() => isOwner.value && !license.allowsTeam)
 
 async function load() {
     loading.value = true
@@ -204,6 +208,7 @@ onMounted(async () => {
     if (workspaceStore.workspaces.length === 0) {
         await workspaceStore.fetch()
     }
+    await license.fetch()
     await load()
 })
 </script>
@@ -231,8 +236,25 @@ onMounted(async () => {
                     </div>
                     <div class="flex items-center gap-2">
                         <AppButton variant="ghost" size="sm" v-if="isOwner" @click="openRename">Rename</AppButton>
-                        <AppButton variant="ghost" size="sm" v-if="isOwner" @click="openInvite('existing')">+ Add existing</AppButton>
-                        <AppButton size="sm" v-if="isOwner" @click="openInvite('new')">+ Create user</AppButton>
+                        <AppButton variant="ghost" size="sm" v-if="isOwner && canManageTeam" @click="openInvite('existing')">+ Add existing</AppButton>
+                        <AppButton size="sm" v-if="isOwner && canManageTeam" @click="openInvite('new')">+ Create user</AppButton>
+                    </div>
+                </div>
+
+                <div v-if="showTeamPaywall"
+                    class="mt-4 mb-6 bg-zinc-900 border border-amber-500/30 rounded-lg p-5">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <div class="inline-flex items-center gap-2 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-semibold tracking-wider uppercase mb-2">
+                                Team plan
+                            </div>
+                            <h2 class="text-base font-semibold text-white mb-1">You're on Pro — upgrade to Team to invite people</h2>
+                            <p class="text-sm text-zinc-400">Adding members, creating user accounts and changing roles need the Team plan. Your Pro license stays untouched and you keep Analytics, Webhooks and Audit log.</p>
+                        </div>
+                        <a href="https://senddock.dev/pricing" target="_blank" rel="noopener"
+                            class="shrink-0 inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
+                            See Team plan
+                        </a>
                     </div>
                 </div>
 
@@ -253,7 +275,7 @@ onMounted(async () => {
                                     <div class="text-xs text-zinc-500">{{ m.email }}</div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <select v-if="isOwner" :value="m.role"
+                                    <select v-if="isOwner && canManageTeam" :value="m.role"
                                         @change="changeRole(m, ($event.target as HTMLSelectElement).value as WorkspaceRole)"
                                         class="px-2 py-1 text-xs bg-zinc-950 border border-zinc-800 rounded-md text-white cursor-pointer">
                                         <option v-for="r in ASSIGNABLE_ROLES" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
@@ -262,7 +284,7 @@ onMounted(async () => {
                                 </td>
                                 <td class="px-4 py-3 text-sm text-zinc-400">{{ fmtDate(m.joined_at) }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <button v-if="isOwner && m.user_id !== auth.userId" @click="openRemove(m)"
+                                    <button v-if="isOwner && canManageTeam && m.user_id !== auth.userId" @click="openRemove(m)"
                                         class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer">
                                         Remove
                                     </button>

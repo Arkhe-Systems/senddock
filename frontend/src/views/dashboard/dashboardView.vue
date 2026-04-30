@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useProjectStore, type Project } from '@/stores/projects';
 import { useWorkspaceStore } from '@/stores/workspaces';
+import { useLicenseStore } from '@/stores/license';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import AppButton from '@/components/ui/AppButton.vue';
@@ -18,6 +19,7 @@ const toast = useToastStore()
 const router = useRouter()
 const projectStore = useProjectStore()
 const workspaceStore = useWorkspaceStore()
+const licenseStore = useLicenseStore()
 const pageLoading = ref(true)
 
 const showCreateModal = ref(false)
@@ -94,6 +96,7 @@ async function handleDeleteProject() {
 
 async function handleLogout() {
     workspaceStore.reset()
+    licenseStore.reset()
     await auth.logout()
     router.push('/login')
 }
