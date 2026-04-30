@@ -20,6 +20,11 @@ SELECT p.* FROM projects p
 JOIN workspace_members m ON m.workspace_id = p.workspace_id
 WHERE p.id = $1 AND m.user_id = $2;
 
+-- name: GetProjectMemberRole :one
+SELECT m.role FROM projects p
+JOIN workspace_members m ON m.workspace_id = p.workspace_id
+WHERE p.id = $1 AND m.user_id = $2;
+
 -- name: GetProjectByIDOnly :one
 SELECT * FROM projects WHERE id = $1;
 

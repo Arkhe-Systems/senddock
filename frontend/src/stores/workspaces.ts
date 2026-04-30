@@ -11,13 +11,33 @@ export interface Workspace {
     role?: string
 }
 
+export type WorkspaceRole = 'owner' | 'admin' | 'developer' | 'member' | 'viewer'
+
 export interface WorkspaceMember {
     user_id: string
     email: string
     name: string
-    role: 'owner' | 'member'
+    role: WorkspaceRole
     joined_at: string
 }
+
+export const ROLE_LABEL: Record<WorkspaceRole, string> = {
+    owner: 'Owner',
+    admin: 'Admin',
+    developer: 'Developer',
+    member: 'Member',
+    viewer: 'Viewer',
+}
+
+export const ROLE_DESCRIPTION: Record<WorkspaceRole, string> = {
+    owner: 'Full access — can manage members, delete the workspace, and do everything an admin can.',
+    admin: 'Everything project-related: settings, templates, subscribers, sends, broadcasts, API keys.',
+    developer: 'Send transactional email only (`/send`). Read-only on templates, subscribers, logs.',
+    member: 'Legacy role kept for backward compatibility. Same access as admin.',
+    viewer: 'Read-only — view templates, subscribers, logs, analytics. Cannot send or modify anything.',
+}
+
+export const ASSIGNABLE_ROLES: WorkspaceRole[] = ['owner', 'admin', 'developer', 'viewer']
 
 const ACTIVE_KEY = 'senddock.activeWorkspaceId'
 
@@ -76,14 +96,21 @@ export const useWorkspaceStore = defineStore('workspaces', () => {
         return res.members || []
     }
 
-    async function addMember(id: string, email: string, role: 'owner' | 'member' = 'member') {
+    async function addMember(id: string, email: string, role: WorkspaceRole = 'member') {
         return api<WorkspaceMember>(`/workspaces/${id}/members`, {
             method: 'POST',
             body: { email, role },
         })
     }
 
-    async function updateMemberRole(id: string, userId: string, role: 'owner' | 'member') {
+    async function createUser(id: string, payload: { email: string; name: string; password: string; role: WorkspaceRole }) {
+        return api<WorkspaceMember>(`/workspaces/${id}/users`, {
+            method: 'POST',
+            body: payload,
+        })
+    }
+
+    async function updateMemberRole(id: string, userId: string, role: WorkspaceRole) {
         await api(`/workspaces/${id}/members/${userId}`, { method: 'PATCH', body: { role } })
     }
 
@@ -109,6 +136,7 @@ export const useWorkspaceStore = defineStore('workspaces', () => {
         setActive,
         listMembers,
         addMember,
+        createUser,
         updateMemberRole,
         removeMember,
         reset,

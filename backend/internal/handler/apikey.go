@@ -34,11 +34,8 @@ func (h *APIKeyHandler) verifyProjectOwner(r *http.Request) (string, error) {
 }
 
 func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapAPIKeysManage)
+	if !ok {
 		return
 	}
 
@@ -100,17 +97,14 @@ func (h *APIKeyHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapAPIKeysManage)
+	if !ok {
 		return
 	}
 
 	keyID := r.PathValue("keyId")
 
-	err = h.apiKeyService.Delete(r.Context(), keyID, projectID)
+	err := h.apiKeyService.Delete(r.Context(), keyID, projectID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)

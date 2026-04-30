@@ -42,11 +42,8 @@ func (h *SubscriberHandler) verifyProjectOwner(r *http.Request) (string, string,
 }
 
 func (h *SubscriberHandler) Import(w http.ResponseWriter, r *http.Request) {
-	projectID, _, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSubscribersWrite)
+	if !ok {
 		return
 	}
 
@@ -83,11 +80,8 @@ func (h *SubscriberHandler) Import(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SubscriberHandler) Create(w http.ResponseWriter, r *http.Request) {
-	projectID, _, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSubscribersWrite)
+	if !ok {
 		return
 	}
 
@@ -163,11 +157,8 @@ func (h *SubscriberHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SubscriberHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	projectID, _, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSubscribersWrite)
+	if !ok {
 		return
 	}
 
@@ -201,17 +192,14 @@ func (h *SubscriberHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *SubscriberHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	projectID, _, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSubscribersWrite)
+	if !ok {
 		return
 	}
 
 	subscriberID := r.PathValue("subscriberId")
 
-	err = h.subscriberService.Delete(r.Context(), subscriberID, projectID)
+	err := h.subscriberService.Delete(r.Context(), subscriberID, projectID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -229,11 +217,8 @@ type bulkActionRequest struct {
 }
 
 func (h *SubscriberHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
-	projectID, _, err := h.verifyProjectOwner(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSubscribersWrite)
+	if !ok {
 		return
 	}
 
@@ -252,6 +237,7 @@ func (h *SubscriberHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	switch req.Action {
 	case "delete":
 		err = h.subscriberService.BulkDelete(r.Context(), projectID, req.SubscriberIDs)

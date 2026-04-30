@@ -96,11 +96,8 @@ func (h *EmailHandler) verifyAccess(r *http.Request) (string, error) {
 }
 
 func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyAccess(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSendTransactional)
+	if !ok {
 		return
 	}
 
@@ -169,11 +166,8 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyAccess(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapBroadcast)
+	if !ok {
 		return
 	}
 
@@ -219,11 +213,8 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EmailHandler) BatchSend(w http.ResponseWriter, r *http.Request) {
-	projectID, err := h.verifyAccess(r)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapBroadcast)
+	if !ok {
 		return
 	}
 

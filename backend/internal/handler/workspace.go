@@ -220,6 +220,42 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, member)
 }
 
+type createUserRequest struct {
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+func (h *WorkspaceHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	userID, uid, ok := requireUser(w, r)
+	if !ok {
+		return
+	}
+	wid, ok := requireUUID(w, r, "id", "invalid workspace id")
+	if !ok {
+		return
+	}
+
+	var req createUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	created, err := h.svc.CreateUserAndAddMember(r.Context(), wid, uid, req.Email, req.Name, req.Password, req.Role)
+	if err != nil {
+		writeWorkspaceServiceError(w, err)
+		return
+	}
+
+	if h.Audit != nil {
+		h.Audit.LogFromRequest(r, "", userID, "workspace.user_created", "workspace", wid.String(), map[string]any{"member_id": created.UserID.String(), "email": created.Email, "role": created.Role})
+	}
+
+	writeJSON(w, http.StatusCreated, created)
+}
+
 type updateMemberRequest struct {
 	Role string `json:"role"`
 }
@@ -298,6 +334,10 @@ func writeWorkspaceServiceError(w http.ResponseWriter, err error) {
 		writeJSONError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, service.ErrInvalidRole):
 		writeJSONError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, service.ErrEmailTaken):
+		writeJSONError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, service.ErrWorkspaceMembersLicense):
+		writeJSONError(w, http.StatusPaymentRequired, err.Error())
 	default:
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 	}
