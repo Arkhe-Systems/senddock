@@ -20,6 +20,9 @@ import AppLoader from '@/components/ui/AppLoader.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
+import { checkoutUrl } from '@/config/checkout'
+
+const teamCheckoutUrl = checkoutUrl('team')
 
 const route = useRoute()
 const router = useRouter()
@@ -224,9 +227,9 @@ onMounted(async () => {
             <AppLoader v-if="loading" message="Loading members..." />
 
             <AppProPaywall v-else-if="paywall"
+                tier="team"
                 title="Team management is a Team plan feature"
-                description="Adding members, creating user accounts and changing roles require a SendDock Team license. Without one you can still organize your projects across multiple workspaces — you just stay the only member."
-                cta="See Team plan" />
+                description="Adding members, creating user accounts and changing roles require a SendDock Team license. Without one you can still organize your projects across multiple workspaces — you just stay the only member." />
 
             <template v-else>
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
@@ -251,9 +254,9 @@ onMounted(async () => {
                             <h2 class="text-base font-semibold text-white mb-1">You're on Pro — upgrade to Team to invite people</h2>
                             <p class="text-sm text-zinc-400">Adding members, creating user accounts and changing roles need the Team plan. Your Pro license stays untouched and you keep Analytics, Webhooks and Audit log.</p>
                         </div>
-                        <a href="https://senddock.dev/#pricing" target="_blank" rel="noopener"
+                        <a :href="teamCheckoutUrl" target="_blank" rel="noopener"
                             class="shrink-0 inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
-                            See Team plan
+                            Upgrade to Team — $29/mo
                         </a>
                     </div>
                 </div>
