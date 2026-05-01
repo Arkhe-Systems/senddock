@@ -9,13 +9,19 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 ## [Unreleased]
 
-Targeted for the **0.6.0** release. Currently on the `dev` branch.
+_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+
+## [0.6.0] — 2026-04-30
+
+The "team launch" release. Workspaces with members and roles, a new Team plan above Pro, an in-app subscribe path through Lemon Squeezy, plus a long list of v0.6 quality-of-life features.
 
 ### Added
 
 - **Workspaces.** A workspace is a container for projects with its own member list. Authorization for project endpoints now scopes by workspace membership; existing single-user installs are migrated transparently (every user got a `My Workspace` with their projects under it). Workspace CRUD, listing your own workspaces and listing members stay free in Core.
 - **Roles & capabilities.** Four roles — `owner`, `admin`, `developer`, `viewer` — with a fixed capability matrix enforced at the handler level. Developers can `POST /send` (transactional) but not broadcast or edit templates; viewers are read-only; admins do everything except member management; owners do everything. The legacy `member` role is kept for backward compatibility (same access as `admin`).
 - **Team plan tier.** Multi-member workspaces, role management, and the new admin "Create user" endpoint (`POST /workspaces/{id}/users`) belong to a new **Team** plan above Pro. Without a Team-entitled `SENDDOCK_LICENSE_KEY` the endpoints return `402 Payment Required` and the Members page renders a paywall — the single-user flow stays free.
+- **In-app Subscribe links.** Pro and Team paywalls now drive directly to the Lemon Squeezy checkout for the right tier instead of bouncing the user back to the landing page. Pro's CTA pre-applies the `LAUNCH3FREE` launch coupon while it is active.
+- **Pro vs Team gating in the validator.** The Lemon Squeezy validator now classifies licenses by `variant_id` and returns the right tier in `Status.Tier`. `AllowsFeature(feature)` consults a feature → tier matrix so a Pro key cannot unlock Team features.
 - **Email validation on import (#43).** CSV/JSON imports now check syntax, MX records and a built-in disposable-domain list. Rejected rows surface in the import results modal with a per-row reason.
 - **File picker and drag-and-drop for CSV imports.** Replaces the textarea-only flow.
 - **Per-project suppression list (#42).** New `suppressions` table; `/send`, `/send/batch` and `/broadcast` skip suppressed recipients and account for them in the result counts. Existing unsubscribed subscribers are backfilled. Manage entries from the Suppressions tab inside a project (list, filter by reason, manual add, bulk import, remove).
@@ -34,6 +40,9 @@ Targeted for the **0.6.0** release. Currently on the `dev` branch.
 ### Fixed
 
 - `AppCheckbox` is now clickable outside `<label>` wrappers (the off-screen `peer sr-only` input did not catch clicks inside table cells).
+- Rate-limit middleware no longer poisons the session-expiry flow. The global per-IP cap is 600/min, `X-Forwarded-For` is parsed correctly behind a proxy, and the frontend distinguishes 429 from 401 so a burst of polling no longer dumps the user back to the login screen.
+- Project shell is responsive on mobile — sidebar collapses into a drawer below `md`, page-level headers wrap, every table sits inside `overflow-x-auto`.
+- `GET /workspaces/{id}/projects` now wraps the response with the same shape as `GET /projects` (was returning raw Go field names, broke `project.created_at` and `project.name` on the dashboard).
 
 ## [0.5.2] — 2026-04-30
 

@@ -16,13 +16,17 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 ## [Unreleased]
 
-Targeted for the **0.6.0** release. Currently on the `dev` branch.
+_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+
+## [0.6.0] — 2026-04-30
 
 ### Added
 
 - **Workspaces.** Multi-user collaboration with workspace-scoped projects. Existing single-user installs were backfilled — every user got a `My Workspace` with their projects under it. See [Workspaces guide](./guide/workspaces).
 - **Roles & capabilities.** Four roles (`owner`, `admin`, `developer`, `viewer`) with a fixed capability matrix. Developers can call `/send` (transactional) but cannot broadcast or edit templates; viewers are read-only; admins do everything except member management.
 - **Team plan tier.** Multi-member workspaces, role management and the admin "Create user" flow belong to a new **Team** plan above Pro. Without a Team license the endpoints return `402` and the Members page shows a paywall; single-user organization stays free.
+- **In-app Subscribe links to Lemon Squeezy.** Pro and Team paywalls jump straight to checkout for the right tier; Pro pre-applies the launch promo while it is active.
+- **Pro vs Team gating in the validator.** `Status.Tier` is exposed and `AllowsFeature(feature)` consults a feature → tier matrix, so a Pro license can no longer unlock Team-only endpoints.
 - **Email validation on import (#43).** CSV/JSON imports now check syntax, MX records and a built-in disposable-domain list. Rejected rows surface in the import results modal with a per-row reason.
 - **File picker and drag-and-drop for CSV imports.**
 - **Per-project suppression list (#42).** New `suppressions` table; `/send`, `/send/batch` and `/broadcast` skip suppressed recipients and account for them in the result counts. Existing unsubscribed subscribers are backfilled. Manage entries from the Suppressions tab inside a project.
