@@ -1,0 +1,51 @@
+# SendDock
+
+> Open-source, self-hostable email marketing platform. API-first, BYO SMTP (Mailgun, SES, Postmark, any SMTP server), built with Go and Vue. Single-binary Docker deploy. AGPL-licensed Core plus a license-gated Pro tier.
+
+SendDock lets developers send transactional emails and run broadcast campaigns from their own infrastructure. Authentication uses cookies for the dashboard and per-project API keys (`Bearer <key>`) for everything else. Endpoints are REST + JSON over `https://<your-host>/api`.
+
+## Getting started
+
+- [What is SendDock](https://docs.senddock.dev/guide/what-is-senddock): Overview, architecture, what Core vs Pro vs Team includes.
+- [Getting Started](https://docs.senddock.dev/guide/getting-started): First project, first API key, first send.
+- [Installation](https://docs.senddock.dev/self-hosting/installation): Docker Compose setup, required env vars, first-run admin user.
+- [Configuration](https://docs.senddock.dev/self-hosting/configuration): All deployment knobs (deployment mode, license key, Postgres, Redis, SMTP).
+- [Environment Variables](https://docs.senddock.dev/guide/environment): Reference for every `SENDDOCK_*` variable.
+
+## API reference
+
+- [Authentication](https://docs.senddock.dev/api/authentication): Cookie session vs API key auth, header format, project scoping.
+- [Code examples](https://docs.senddock.dev/api/code-examples): curl, Go, Node, Python, PHP snippets for the common flows.
+- [Workspaces API](https://docs.senddock.dev/api/workspaces): CRUD for workspaces, members, role management (Team plan).
+- [Projects API](https://docs.senddock.dev/api/projects): Create/update/delete projects, configure SMTP, bounce settings.
+- [Subscribers API](https://docs.senddock.dev/api/subscribers): List, create, update, import (CSV/JSON with email validation), unsubscribe, suppression list.
+- [Templates API](https://docs.senddock.dev/api/templates): HTML/text templates with `{{ variable }}` interpolation.
+- [Email Sending API](https://docs.senddock.dev/api/sending): `POST /send`, `POST /send/batch`, `POST /broadcast`. Per-project rate limits, suppression-list handling, bounce classification.
+- [Campaigns API](https://docs.senddock.dev/api/campaigns): Schedule and run campaigns over a subscriber list.
+- [API Keys API](https://docs.senddock.dev/api/api-keys): Create, list, revoke. Hashed at rest, shown once on creation.
+- [Analytics API (Pro)](https://docs.senddock.dev/api/analytics): Funnel, opens-over-time, top templates, top clicked links, trend pills.
+- [Webhooks API (Pro)](https://docs.senddock.dev/api/webhooks): Six event types (`email.sent`, `email.failed`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`), HMAC-SHA256 signing, exponential-backoff retries.
+
+## Feature guides
+
+- [Workspaces](https://docs.senddock.dev/guide/workspaces): Multi-user collaboration. Roles: `owner`, `admin`, `developer` (transactional only), `viewer` (read-only). Team plan.
+- [Projects](https://docs.senddock.dev/guide/projects): Project as the unit of isolation — own SMTP, own subscribers, own keys.
+- [Subscribers](https://docs.senddock.dev/guide/subscribers): Manage lists, import with email validation (syntax + MX + disposable-domain check), suppression list.
+- [Templates](https://docs.senddock.dev/guide/templates): Reusable HTML/text bodies with variable substitution.
+- [Email Sending](https://docs.senddock.dev/guide/sending): Transactional vs broadcast, batch sends, suppression, bounce handling.
+- [Campaigns](https://docs.senddock.dev/guide/campaigns): Scheduled broadcasts with tracking and per-recipient unsubscribe URLs.
+- [API Keys](https://docs.senddock.dev/guide/api-keys): When to use cookies vs keys; per-key rate limits.
+- [SMTP Setup](https://docs.senddock.dev/guide/smtp): BYO SMTP — Mailgun/SES/Postmark/Resend/custom. Encrypted password storage. Test endpoint with bounded timeouts.
+- [Analytics (Pro)](https://docs.senddock.dev/guide/analytics): Dashboard usage, date presets, custom ranges, comparison windows.
+- [Webhooks (Pro)](https://docs.senddock.dev/guide/webhooks): Configuring endpoints, verifying signatures, retry behavior.
+
+## Operations
+
+- [Updating](https://docs.senddock.dev/self-hosting/updating): `docker compose pull && docker compose up -d`. Forward-only `goose` migrations on startup. Rollback steps included.
+- [Troubleshooting & FAQ](https://docs.senddock.dev/self-hosting/troubleshooting): Common issues, log inspection, license validator failures.
+- [Changelog](https://docs.senddock.dev/changelog): Version history, current latest is `0.6.0`.
+
+## Optional
+
+- [Project on GitHub](https://github.com/arkhe-systems/senddock): Source, issues, releases.
+- [Container image](https://github.com/arkhe-systems/senddock/pkgs/container/senddock): `ghcr.io/arkhe-systems/senddock:latest` (also `:0.6`, `:0.6.0`).
