@@ -11,6 +11,13 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.3] — 2026-05-06
+
+### Fixed
+
+- **Container reported `healthy` even when Postgres was zombie.** The `/health` endpoint returned `{"status":"ok"}` without touching the database. When Postgres entered a stuck state (idle-in-transaction backlog, OOM-killed worker, network partition), the Go binary's connection pool kept the old TCP sockets open and never noticed. Docker / Swarm therefore kept routing traffic to the container; the reverse proxy hit those queries, they hung, and Traefik returned `502 Bad Gateway` to the user. Restarting *just* the app didn't fix it because Postgres itself was the broken side; only restarting Postgres recovered the stack. `/health` now performs a `PingContext` against the database with a 2-second timeout, returning `503 db_unreachable` when the round-trip fails. The orchestrator can now react.
+- **Database connection pool was unbounded.** The default `sql.DB` pool has no `MaxOpenConns` / `MaxIdleConns` / `ConnMaxLifetime`. Under traffic, idle connections accumulated indefinitely, and every connection that became zombie (because the Postgres side died) stayed in the pool forever — feeding directly into the symptom above. The pool is now capped at **25 open** / **5 idle** connections with **5-minute lifetime** and **2-minute idle timeout**, so dead sockets are recycled within minutes even if the unhealthy `/health` somehow doesn't trigger first.
+
 ## [0.6.2] — 2026-05-06
 
 ### Fixed
@@ -120,7 +127,8 @@ Earlier work and the foundation for the open-core release. See git history for t
 - Open-tracking pixel and unsubscribe links.
 - Initial dashboard, project switcher, settings UI.
 
-[Unreleased]: https://github.com/arkhe-systems/senddock/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/arkhe-systems/senddock/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/arkhe-systems/senddock/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/arkhe-systems/senddock/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/arkhe-systems/senddock/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/arkhe-systems/senddock/compare/v0.5.2...v0.6.0
