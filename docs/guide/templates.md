@@ -57,7 +57,22 @@ Use double curly braces to insert dynamic content:
 | `{{subscriber_id}}` | Subscriber's UUID |
 | `{{unsubscribe_url}}` | Per-recipient unsubscribe link, signed with HMAC |
 
-Variables are replaced per subscriber when sending.
+Plus any custom keys you pass in the `data` map of `/send`, `/send/batch` or in a campaign's `variables` field — those are substituted by the same engine using the exact same `{{your_key}}` syntax.
+
+Variables are replaced per recipient at send time.
+
+### Safe by default — variables are HTML-escaped
+
+When SendDock substitutes a variable inside the template body, the value runs through `html.EscapeString` first. So if a recipient's name happens to be `Bob <script>alert(1)</script>`, the rendered email shows the literal text — the `<script>` tag is encoded as `&lt;script&gt;` and never executes.
+
+This applies to:
+
+- The four built-in variables (`{{name}}`, `{{email}}`, `{{subscriber_id}}`, `{{unsubscribe_url}}`).
+- Every key in the `data` / `variables` map you pass to a send or campaign.
+
+The trade-off: you cannot inject HTML through a variable. If you genuinely need a dynamic chunk of HTML in your email (e.g. a different banner image per segment), build the HTML directly into the template body or split it into multiple templates rather than passing it as a variable.
+
+The subject line is **not** escaped (subject is plain text, not HTML), but it is also not allowed to introduce headers — newlines are stripped to prevent SMTP header injection.
 
 ## API
 

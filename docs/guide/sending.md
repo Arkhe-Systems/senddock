@@ -211,12 +211,40 @@ SendDock automatically inlines CSS styles before sending. If your template uses 
 
 ## Email Logs
 
-Every email sent is logged. View logs from the project Overview or via API:
+Every email SendDock attempts to send is recorded as one row in the `email_logs` table. View them in the dashboard under **Project → Logs**, or read them via API.
+
+### In the dashboard
+
+The **Logs** tab shows the most recent 25 rows ordered newest-first, with three filters at the top of the page:
+
+| Filter | Options |
+|---|---|
+| **Status** | All · Sent · Failed · Bounced · Suppressed |
+| **From** | Date picker — inclusive lower bound on `sent_at` |
+| **To** | Date picker — inclusive upper bound (end-of-day) on `sent_at` |
+
+Each row shows the recipient, subject and status. Failed and bounced rows expose the underlying SMTP error. Pagination is fixed at 25 per page; the total count is shown next to the page title.
+
+### Status values
+
+| Status | When it lands |
+|---|---|
+| `sent` | SMTP relay accepted the message. |
+| `failed` | Soft failure (4xx) or unexpected error during the send. |
+| `bounced` | Hard failure (5xx) detected by [bounce ingestion](./bounces). The recipient is also added to the [suppression list](./suppressions). |
+| `suppressed` | Send was skipped before it left SendDock — the recipient was already on the suppression list. |
+
+`bounced` and `suppressed` are tracked **separately** from `failed` so you can tell list-hygiene issues apart from delivery problems.
+
+### Via API
 
 ```bash
-curl https://your-instance.com/api/v1/projects/{id}/logs?limit=50 \
-  -H "Authorization: Bearer sk_your_api_key"
+# Cookie auth only — log in first and pass the saved cookie jar.
+curl -b cookies.txt \
+  "https://your-instance.com/api/v1/projects/{id}/logs?limit=50&status=bounced"
 ```
+
+The full request and response shape lives in [Email Sending API → Email Logs](/api/sending#email-logs).
 
 ## Stats
 
@@ -226,12 +254,24 @@ curl https://your-instance.com/api/v1/projects/{id}/stats \
 ```
 
 ```json
-{"total": 1520, "sent": 1500, "failed": 20, "opened": 980}
+{
+  "total": 1520,
+  "sent": 1480,
+  "failed": 8,
+  "bounced": 22,
+  "suppressed": 10,
+  "opened": 980
+}
 ```
+
+`/stats` is one of the five endpoints that accept API key auth (cached in Redis for 30 seconds). Click counts and per-template / per-link breakdowns live behind the [Pro Analytics dashboard](./analytics) instead.
 
 ## Authentication
 
-All sending endpoints accept both cookie auth (from the UI) and API key auth (`Authorization: Bearer sk_...`).
+The send-related endpoints use mixed auth:
+
+- `POST /send`, `POST /send/batch`, `POST /broadcast`, `GET /stats` — accept **both** cookie session and `Authorization: Bearer sk_...` API keys.
+- `GET /logs`, `POST /smtp/test` — **cookie only**. They tie to per-user role capabilities that an API key doesn't carry.
 
 ## Rate limits and abuse prevention
 
