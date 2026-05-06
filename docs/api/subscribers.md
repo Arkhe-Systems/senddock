@@ -71,6 +71,34 @@ Accepts both cookie auth and API key auth.
 {"imported": 2, "skipped": 1}
 ```
 
+## Bulk Action
+
+```
+POST /api/v1/projects/{id}/subscribers/bulk
+```
+
+Apply the same operation to many existing subscribers — the dashboard uses this for "select all → delete" or "select all → unsubscribe" flows.
+
+**Request body**
+
+```json
+{
+  "action": "update_status",
+  "status": "unsubscribed",
+  "subscriber_ids": ["01H...", "01H..."]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `action` | string | yes | One of `delete` or `update_status`. |
+| `subscriber_ids` | string[] | yes | Non-empty list of subscriber UUIDs. |
+| `status` | string | required for `update_status` | One of `active`, `pending`, `unsubscribed`. |
+
+Cookie auth only (the role must have `subscribers:write`). For ingesting fresh rows, use [Bulk Import](#bulk-import) — that endpoint takes raw `email`/`name` rows and accepts API keys; this one operates on already-stored subscriber ids.
+
+**Response** `204 No Content`. Subscriber ids that don't belong to the project are silently skipped.
+
 ## Update Status
 
 ```

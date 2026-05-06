@@ -106,7 +106,7 @@ A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tr
 
 The validator distinguishes Pro from Team by the Lemon Squeezy `variant_id` of the license — there is no separate Team key file or env var. Buying Team gives you a single key that the validator recognizes as Team-tier; buying Pro gives a key that validates only the Pro features.
 
-`DEPLOYMENT_MODE` no longer changes Pro gating — the license requirement applies the same way to self-hosted and cloud. The mode still controls registration (`cloud` enables `POST /api/v1/auth/register`; `self-hosted` keeps registration disabled and relies on the setup screen).
+`DEPLOYMENT_MODE` no longer changes Pro gating — the license requirement applies the same way to self-hosted and cloud. The mode still controls registration: `cloud` opens public sign-up endpoints used by the senddock.dev managed product, while `self-hosted` keeps registration closed and relies on the first-boot setup screen plus the admin **Create user** flow on Team workspaces. There is no public sign-up endpoint to call on a self-hosted deploy.
 
 The validator only needs the license key — there is no API key, store ID or webhook secret to configure on the self-hosted side. Those are provisioned on the senddock.dev managed service that issues licenses.
 
