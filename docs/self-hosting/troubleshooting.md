@@ -61,7 +61,7 @@ If you migrated from an older version, links generated **before** you set `PUBLI
 
 ### Tracking pixel never registers opens
 
-Same root cause as above. The pixel is `GET /t/{logId}.gif` on the backend. If your reverse proxy only forwards `/api/*`, the pixel returns 404 and opens never get marked.
+Same root cause as above. The pixel is `GET /t/{logId}` on the backend (returns a 1×1 transparent GIF; no file extension on the path). If your reverse proxy only forwards `/api/*`, the pixel returns 404 and opens never get marked.
 
 ### "Sender address rejected" / SMTP authentication failed
 
@@ -143,13 +143,19 @@ email.mycompany.com {
 
 **Cause:** Pending migrations weren't applied.
 
-**Fix:**
+**Fix in production (Docker):** migrations run automatically via `goose` on container startup — the entrypoint script blocks until they finish before exec'ing the binary. If you see this error after pulling a new image, the container almost certainly hit the error during boot. Check the logs:
+
+```bash
+docker compose logs app --tail 100 | grep -i 'goose\|migration'
+```
+
+If goose printed an error (e.g. couldn't connect to Postgres, or hit a conflicting schema), fix the underlying cause and restart with `docker compose up -d`. The next boot retries from where the last successful version stopped.
+
+**Fix in dev (running from source):**
 
 ```bash
 cd backend && make migrate
 ```
-
-Or, if running via Docker, exec into the backend container and run the same command.
 
 ### Container crashes on startup with `pq: SSL is not enabled on the server`
 

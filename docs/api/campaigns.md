@@ -1,6 +1,6 @@
 # Campaigns API
 
-All endpoints accept both cookie auth and API key auth (`Authorization: Bearer sk_...`).
+Cookie auth only. Campaigns mutate workspace state and require role-based capabilities (`campaigns:write` for create / update / delete) that an API key does not carry — the role is bound to the user identity.
 
 ## Create Campaign
 
@@ -12,15 +12,21 @@ POST /api/v1/projects/{id}/campaigns
 {
   "template_id": "uuid",
   "name": "April Newsletter",
-  "scheduled_at": "2026-04-20T09:00:00Z"
+  "subject": "Spring update — what's new",
+  "scheduled_at": "2026-04-20T09:00:00Z",
+  "variables": { "promo_code": "SPRING25" }
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `template_id` | string (UUID) | Yes | The template to send |
-| `name` | string | Yes | Campaign name for identification |
-| `scheduled_at` | string (RFC 3339) | Yes | When to send (must be in the future) |
+| `template_id` | string (UUID) | Yes | The template to send. |
+| `name` | string | Yes | Campaign name for the dashboard list. |
+| `scheduled_at` | string (RFC 3339) | Yes | When to send. Must be in the future. |
+| `subject` | string | No | Overrides the template's stored subject for this campaign only. |
+| `variables` | object | No | Map of `string → string` injected into the template body in addition to per-subscriber `{{name}}` and `{{email}}`. |
+
+The deployment must have `PUBLIC_URL` configured (or `FRONTEND_URL` as fallback) — campaigns inject unsubscribe links and SendDock refuses to schedule one without a known public URL.
 
 **Response** `201`
 
@@ -30,11 +36,14 @@ POST /api/v1/projects/{id}/campaigns
   "project_id": "uuid",
   "template_id": "uuid",
   "name": "April Newsletter",
+  "subject": "Spring update — what's new",
   "status": "scheduled",
   "scheduled_at": "2026-04-20T09:00:00Z",
   "sent_at": null,
+  "sent_count": 0,
+  "failed_count": 0,
   "created_at": "2026-04-16T12:00:00Z",
-  "updated_at": "2026-04-16T12:00:00Z"
+  "variables": { "promo_code": "SPRING25" }
 }
 ```
 
@@ -44,25 +53,28 @@ POST /api/v1/projects/{id}/campaigns
 GET /api/v1/projects/{id}/campaigns
 ```
 
-**Response**
+Returns an array of campaigns ordered by most recent first.
 
 ```json
-{
-  "campaigns": [
-    {
-      "id": "uuid",
-      "project_id": "uuid",
-      "template_id": "uuid",
-      "name": "April Newsletter",
-      "status": "scheduled",
-      "scheduled_at": "2026-04-20T09:00:00Z",
-      "sent_at": null,
-      "created_at": "2026-04-16T12:00:00Z",
-      "updated_at": "2026-04-16T12:00:00Z"
-    }
-  ]
-}
+[
+  {
+    "id": "uuid",
+    "project_id": "uuid",
+    "template_id": "uuid",
+    "name": "April Newsletter",
+    "subject": "Spring update — what's new",
+    "status": "sent",
+    "scheduled_at": "2026-04-20T09:00:00Z",
+    "sent_at": "2026-04-20T09:00:14Z",
+    "sent_count": 2341,
+    "failed_count": 12,
+    "created_at": "2026-04-16T12:00:00Z",
+    "variables": { "promo_code": "SPRING25" }
+  }
+]
 ```
+
+`sent_count` and `failed_count` update as the campaign worker processes recipients. Once `status` is `sent`, the two values together equal the size of the active subscriber list at send time (suppressed addresses count as `failed`).
 
 ## Update Campaign
 
