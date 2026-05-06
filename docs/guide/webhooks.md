@@ -33,12 +33,13 @@ The dispatcher runs inside the Core process, polls every 10 seconds, and claims 
 
 ## Events
 
-SendDock emits six event types today:
+SendDock emits seven event types today:
 
 | Type | When it fires |
 |---|---|
 | `email.sent` | Email handed to the SMTP relay successfully |
 | `email.failed` | Email rejected by the SMTP relay or returned an error |
+| `email.bounced` | A hard bounce was detected (in-session 5xx, IMAP DSN, or webhook ingest). The recipient is also added to the [suppression list](./suppressions). |
 | `email.opened` | First time a recipient loads the open-tracking pixel |
 | `email.clicked` | First time a recipient clicks any tracked link in the email |
 | `subscriber.created` | A subscriber is added (UI, API, import, or waitlist signup) |
@@ -69,6 +70,16 @@ Every delivery is an HTTP `POST` with a JSON body shaped like an envelope:
   "to_email": "user@example.com",
   "subject": "Welcome",
   "error": "smtp: 550 mailbox unavailable"   // only on email.failed
+}
+
+// email.bounced
+{
+  "log_id": "uuid",
+  "project_id": "uuid",
+  "to_email": "user@example.com",
+  "subject": "Welcome",
+  "smtp_code": 550,
+  "reason": "5.1.1 mailbox unavailable"
 }
 
 // email.opened

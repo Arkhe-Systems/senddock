@@ -147,7 +147,15 @@ Public endpoint — no authentication required. Designed for landing page waitli
 {"message": "joined"}
 ```
 
-**Example usage in a landing page:**
+**Quick test from the terminal:**
+
+```bash
+curl -X POST "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/waitlist" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","template_id":"YOUR_TEMPLATE_ID"}'
+```
+
+**From a landing page in the browser:**
 
 ```javascript
 const res = await fetch('https://your-instance.com/api/v1/projects/{id}/waitlist', {
@@ -160,4 +168,4 @@ const res = await fetch('https://your-instance.com/api/v1/projects/{id}/waitlist
 });
 ```
 
-No API key needed. Safe to call from frontend JavaScript.
+No API key needed. The endpoint sets `Access-Control-Allow-Origin: *` so it's safe to call from frontend JavaScript on any domain.
