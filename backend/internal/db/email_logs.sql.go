@@ -31,6 +31,7 @@ WHERE project_id = $1
 AND ($2::text = '' OR status = $2::text)
 AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
 AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
+AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%')
 `
 
 type CountEmailLogsByProjectFilteredParams struct {
@@ -38,6 +39,7 @@ type CountEmailLogsByProjectFilteredParams struct {
 	Column2   string
 	Column3   time.Time
 	Column4   time.Time
+	Column5   string
 }
 
 func (q *Queries) CountEmailLogsByProjectFiltered(ctx context.Context, arg CountEmailLogsByProjectFilteredParams) (int64, error) {
@@ -46,6 +48,7 @@ func (q *Queries) CountEmailLogsByProjectFiltered(ctx context.Context, arg Count
 		arg.Column2,
 		arg.Column3,
 		arg.Column4,
+		arg.Column5,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -222,6 +225,7 @@ WHERE project_id = $1
 AND ($4::text = '' OR status = $4::text)
 AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
 AND ($6::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $6)
+AND ($7::text = '' OR to_email ILIKE '%' || $7::text || '%' OR subject ILIKE '%' || $7::text || '%')
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3
 `
@@ -233,6 +237,7 @@ type ListEmailLogsByProjectFilteredParams struct {
 	Column4   string
 	Column5   time.Time
 	Column6   time.Time
+	Column7   string
 }
 
 func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEmailLogsByProjectFilteredParams) ([]EmailLog, error) {
@@ -243,6 +248,7 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 		arg.Column4,
 		arg.Column5,
 		arg.Column6,
+		arg.Column7,
 	)
 	if err != nil {
 		return nil, err

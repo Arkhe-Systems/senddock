@@ -311,8 +311,9 @@ func (h *EmailHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
+	search := r.URL.Query().Get("q")
 
-	logs, total, err := h.emailService.GetLogs(r.Context(), projectID, limit, offset, status, from, to)
+	logs, total, err := h.emailService.GetLogs(r.Context(), projectID, limit, offset, status, from, to, search)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)

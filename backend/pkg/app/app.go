@@ -97,6 +97,12 @@ func New(cfg config.Config) (*App, error) {
 	a.audit = service.NewAuditService(queries)
 	a.bouncePoller = service.NewBounceIMAPPoller(queries, suppressionService, cfg.JWTSecret)
 
+	recoveryCtx, cancelRecovery := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := emailService.RecoverInProgressBroadcasts(recoveryCtx); err != nil {
+		log.Printf("broadcast recovery: %v", err)
+	}
+	cancelRecovery()
+
 	a.registerCoreRoutes(emailService)
 	a.serveFrontend()
 
