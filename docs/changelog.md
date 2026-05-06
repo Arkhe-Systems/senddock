@@ -18,6 +18,12 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.1] — 2026-05-06
+
+### Fixed
+
+- **Healthcheck reliability on IPv6-only hosts.** On hosts with `net.ipv6.bindv6only=1` (some VPS, Docker Swarm clusters and cloud providers) the Go server's `:8080` listener bound IPv6-only while the container `HEALTHCHECK` targeted `127.0.0.1:8080`, causing every healthcheck to fail. The orchestrator marked the task `unhealthy` after three retries, killed it and started a new one — a 60–90s crash-replace loop with no panic and no error log, just intermittent `Bad Gateway` from the reverse proxy. Fixed by binding the listener to `0.0.0.0:8080` explicitly and switching the `HEALTHCHECK` to `localhost`. Start-period grace was also raised to `30s` with `5` retries so a slow first-boot DB doesn't tip the container into a loop.
+
 ## [0.6.0] — 2026-04-30
 
 ### Added

@@ -137,7 +137,7 @@ func (a *App) Run(ctx context.Context) error {
 	)
 
 	a.server = &http.Server{
-		Addr:         ":" + a.cfg.Port,
+		Addr:         "0.0.0.0:" + a.cfg.Port,
 		Handler:      wrapped,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
