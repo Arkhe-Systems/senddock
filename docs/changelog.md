@@ -18,6 +18,13 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.3] — 2026-05-06
+
+### Fixed
+
+- **`/health` now actually checks the database.** Previously it returned `{"status":"ok"}` without touching Postgres. When Postgres entered a stuck state (idle-in-transaction backlog, OOM, network partition), Docker still saw the container as healthy and the reverse proxy kept routing traffic to it. Each request that touched the database hung, and the proxy returned `502 Bad Gateway` to users. Restarting just the app didn't fix it because Postgres was the broken side. `/health` now runs a 2-second `PingContext`; if it fails, the endpoint returns `503` and the orchestrator can mark the container unhealthy and react.
+- **Database connection pool capped.** Added `MaxOpenConns=25`, `MaxIdleConns=5`, `ConnMaxLifetime=5m`, `ConnMaxIdleTime=2m`. Without these, the default Go `sql.DB` lets connections accumulate without bound — and zombie sockets after a Postgres outage never get recycled. With these, dead connections age out within minutes even if `/health` somehow doesn't catch the issue first.
+
 ## [0.6.2] — 2026-05-06
 
 ### Fixed
