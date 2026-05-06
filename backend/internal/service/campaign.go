@@ -29,7 +29,7 @@ func (s *CampaignService) Create(ctx context.Context, projectID, templateID, nam
 		return db.Campaign{}, errors.New("invalid template id")
 	}
 
-	if scheduledAt.Before(time.Now()) {
+	if scheduledAt.Before(time.Now().Add(-1 * time.Minute)) {
 		return db.Campaign{}, errors.New("scheduled time must be in the future")
 	}
 
@@ -59,7 +59,7 @@ func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, tem
 		return db.Campaign{}, errors.New("invalid template id")
 	}
 
-	if scheduledAt.Before(time.Now()) {
+	if scheduledAt.Before(time.Now().Add(-1 * time.Minute)) {
 		return db.Campaign{}, errors.New("scheduled time must be in the future")
 	}
 
