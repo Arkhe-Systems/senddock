@@ -64,6 +64,29 @@ GET /api/v1/projects/{id}/campaigns
 }
 ```
 
+## Update Campaign
+
+```
+PATCH /api/v1/projects/{id}/campaigns/{campaignId}
+```
+
+Reschedules or replaces a `scheduled` campaign. Same body shape as Create:
+
+```json
+{
+  "name": "Spring update — corrected date",
+  "template_id": "uuid",
+  "scheduled_at": "2026-04-22T10:00:00Z",
+  "variables": { "promo": "SPRING25" }
+}
+```
+
+`name`, `template_id` and `scheduled_at` are required (full replacement, not partial update). `scheduled_at` must be RFC 3339. `variables` is optional and replaces the previous map.
+
+Only campaigns in `scheduled` status can be patched — once a campaign moves to `sending`, `sent` or `failed`, it's immutable. Cookie auth only; the role must have `campaigns:write` (owners, admins and developers, not viewers).
+
+**Response** the updated campaign object.
+
 ## Delete / Cancel Campaign
 
 ```
