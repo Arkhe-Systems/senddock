@@ -8,6 +8,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppPagination from '@/components/ui/AppPagination.vue'
 
 interface Subscriber {
     id: string
@@ -48,7 +49,7 @@ interface ImportResult {
 const importResult = ref<ImportResult | null>(null)
 
 const page = ref(0)
-const limit = 50
+const limit = ref(50)
 
 const selectedIds = ref<string[]>([])
 
@@ -105,7 +106,7 @@ async function fetchSubscribers() {
     loading.value = true
     try {
         const res = await api<{ subscribers: Subscriber[] | null, total: number }>(
-            `/projects/${props.project.id}/subscribers?limit=${limit}&offset=${page.value * limit}`
+            `/projects/${props.project.id}/subscribers?limit=${limit.value}&offset=${page.value * limit.value}`
         )
         subscribers.value = res.subscribers || []
         total.value = res.total
@@ -367,17 +368,11 @@ onMounted(fetchSubscribers)
             <p class="text-zinc-500 text-sm">Add subscribers manually or collect them via the API.</p>
         </div>
 
-        <div v-if="total > limit" class="flex items-center justify-between mt-4">
-            <button @click="page--; fetchSubscribers()" :disabled="page === 0"
-                class="text-sm text-zinc-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                Previous
-            </button>
-            <span class="text-sm text-zinc-500">Page {{ page + 1 }} of {{ Math.ceil(total / limit) }}</span>
-            <button @click="page++; fetchSubscribers()" :disabled="(page + 1) * limit >= total"
-                class="text-sm text-zinc-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                Next
-            </button>
-        </div>
+        <AppPagination
+            v-model:page="page"
+            v-model:limit="limit"
+            :total="total"
+            @change="fetchSubscribers" />
 
         <AppModal :show="showAddModal" title="Add Subscriber" @close="showAddModal = false">
             <form @submit.prevent="handleAdd" class="space-y-4">

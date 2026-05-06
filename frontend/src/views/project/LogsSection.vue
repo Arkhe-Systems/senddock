@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
+import AppPagination from '@/components/ui/AppPagination.vue'
 
 interface EmailLog {
     id: string
@@ -18,7 +19,7 @@ const logs = ref<EmailLog[]>([])
 const total = ref(0)
 const loading = ref(true)
 const page = ref(0)
-const limit = 25
+const limit = ref(25)
 
 const filterStatus = ref('')
 const filterFrom = ref('')
@@ -27,7 +28,7 @@ const filterTo = ref('')
 async function fetchLogs() {
     loading.value = true
     try {
-        let url = `/projects/${props.project.id}/logs?limit=${limit}&offset=${page.value * limit}`
+        let url = `/projects/${props.project.id}/logs?limit=${limit.value}&offset=${page.value * limit.value}`
         if (filterStatus.value) url += `&status=${filterStatus.value}`
         if (filterFrom.value) url += `&from=${new Date(filterFrom.value).toISOString()}`
         if (filterTo.value) url += `&to=${new Date(filterTo.value + 'T23:59:59').toISOString()}`
@@ -149,16 +150,10 @@ onMounted(fetchLogs)
             <p class="text-zinc-400">No logs found.</p>
         </div>
 
-        <div v-if="total > limit" class="flex items-center justify-between mt-4">
-            <button @click="page--; fetchLogs()" :disabled="page === 0"
-                class="text-sm text-zinc-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                Previous
-            </button>
-            <span class="text-sm text-zinc-500">Page {{ page + 1 }} of {{ Math.ceil(total / limit) }}</span>
-            <button @click="page++; fetchLogs()" :disabled="(page + 1) * limit >= total"
-                class="text-sm text-zinc-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                Next
-            </button>
-        </div>
+        <AppPagination
+            v-model:page="page"
+            v-model:limit="limit"
+            :total="total"
+            @change="fetchLogs" />
     </div>
 </template>
