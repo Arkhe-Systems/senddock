@@ -328,6 +328,39 @@ func (h *EmailHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *EmailHandler) ListBroadcasts(w http.ResponseWriter, r *http.Request) {
+	projectID, err := h.verifyAccess(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	limit := int32(50)
+	offset := int32(0)
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 200 {
+		limit = int32(v)
+	}
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+		offset = int32(v)
+	}
+
+	broadcasts, total, err := h.emailService.ListBroadcasts(r.Context(), projectID, limit, offset)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"broadcasts": response.FromBroadcasts(broadcasts),
+		"total":      total,
+	})
+}
+
 func (h *EmailHandler) Stats(w http.ResponseWriter, r *http.Request) {
 	projectID, err := h.verifyAccess(r)
 	if err != nil {

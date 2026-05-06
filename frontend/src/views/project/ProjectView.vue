@@ -35,6 +35,7 @@ const navItems = [
     { name: 'Logs', route: 'project-logs' },
     { name: 'SMTP Settings', route: 'project-smtp' },
     { name: 'Newsletters', route: 'project-campaigns' },
+    { name: 'Broadcasts', route: 'project-broadcasts' },
     { name: 'Settings', route: 'project-settings' },
 ]
 
