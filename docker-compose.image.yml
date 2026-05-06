@@ -16,15 +16,15 @@ services:
       FRONTEND_URL: ${PUBLIC_URL}
       DEPLOYMENT_MODE: self-hosted
       SENDDOCK_LICENSE_KEY: ${SENDDOCK_LICENSE_KEY:-}
-      SENDDOCK_LICENSE_ENDPOINT: ${SENDDOCK_LICENSE_ENDPOINT:-https://license.senddock.com/v1/validate}
+      SENDDOCK_LICENSE_ENDPOINT: ${SENDDOCK_LICENSE_ENDPOINT:-}
     ports:
       - "${SENDDOCK_PORT:-8080}:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   postgres:
     image: postgres:17
