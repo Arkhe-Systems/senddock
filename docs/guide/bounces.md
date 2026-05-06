@@ -65,7 +65,7 @@ The poller never deletes messages — it only flags them as read.
 | **Email logs** | The send row's status changes from `sent` to `bounced`. |
 | **Suppression list** | Bounced recipients appear with reason `hard_bounce`. |
 | **Project stats** | `bounced` and `suppressed` are tracked separately from `sent` and `failed`. The dashboard's outcome cards show all four. |
-| **Webhooks** | `email.bounced` fires once with `{ "log_id", "to", "reason" }`. |
+| **Webhooks** | `email.bounced` fires once with `{ "log_id", "to_email", "subject", "smtp_code", "reason" }` in `data`. |
 | **Audit log (Pro)** | Bounce-mailbox config changes and bounce-token rotations are recorded. |
 
 ## Webhook payload
@@ -78,9 +78,10 @@ The poller never deletes messages — it only flags them as read.
   "data": {
     "log_id": "01H...",
     "project_id": "01H...",
-    "to": "user@example.com",
+    "to_email": "user@example.com",
     "subject": "Welcome",
-    "reason": "550 5.1.1 mailbox unavailable"
+    "smtp_code": 550,
+    "reason": "5.1.1 mailbox unavailable"
   }
 }
 ```

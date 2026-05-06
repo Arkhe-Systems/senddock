@@ -555,9 +555,36 @@ The endpoint returns `{ "subscribers": [...], "total": N }`. Use `total` (not th
 
 Every webhook delivery includes an `X-SendDock-Signature: t=<unix>,v1=<hex>` header. Recompute the HMAC over `<t>.<raw_body>` with your webhook's secret and compare in constant time. Reject anything older than ~5 minutes for replay protection.
 
-The [Webhooks guide](../guide/webhooks#verifying-the-signature) has minimal Node.js, Go and Python versions. The implementations below add timestamp-skew protection so a captured request can't be replayed indefinitely — Python, Java, C# and PHP.
+The [Webhooks guide](../guide/webhooks#verifying-the-signature) has minimal Node.js, Go and Python versions. The implementations below add timestamp-skew protection (rejects anything older than 5 minutes) so a captured request can't be replayed indefinitely. cURL doesn't appear in this section because verification needs an HMAC computed at runtime — it's not something a request-only tool can do.
 
 ::: code-group
+
+```js [JavaScript]
+import crypto from 'node:crypto'
+
+function verify(rawBody, header, secret, maxSkewSeconds = 300) {
+  const parts = Object.fromEntries(
+    header.split(',').map(p => p.split('=', 2))
+  )
+  const t = parts.t
+  const sig = parts.v1
+  if (!t || !sig) return false
+
+  const now = Math.floor(Date.now() / 1000)
+  if (Math.abs(now - parseInt(t, 10)) > maxSkewSeconds) return false
+
+  const mac = crypto.createHmac('sha256', secret)
+  mac.update(`${t}.`)
+  mac.update(rawBody)
+  const expected = mac.digest('hex')
+
+  // Both buffers must be the same length for timingSafeEqual.
+  return expected.length === sig.length && crypto.timingSafeEqual(
+    Buffer.from(expected, 'hex'),
+    Buffer.from(sig, 'hex')
+  )
+}
+```
 
 ```python [Python]
 import hmac, hashlib, time

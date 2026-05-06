@@ -16,12 +16,12 @@ The audit log records every sensitive action taken on a project — who did it, 
 
 Each entry stores:
 
-- **timestamp** (UTC, ISO 8601),
-- **actor** — user id and email of the user who took the action,
-- **action** — the string from the table above,
-- **target** — the entity affected (project id, api key id, etc.),
-- **metadata** — action-specific JSON (e.g. for `smtp.update` you get `smtp_host`, `smtp_user`, `from_email` — never the password),
-- **request context** — IP address and User-Agent of the request that triggered it.
+- **`created_at`** — UTC, ISO 8601.
+- **`user_id`** — UUID of the user who took the action. Resolve to email via [`GET /workspaces/{id}/members`](../api/workspaces#list-members) when displaying.
+- **`action`** — the string from the table above.
+- **`target_type`** + **`target_id`** — the entity affected (`project`, `api_key`, `webhook`, `suppression`, `workspace`).
+- **`metadata`** — action-specific JSON (e.g. for `smtp.update` you get `smtp_host`, `smtp_user`, `from_email` — never the password).
+- **`ip_address`** + **`user_agent`** — request context, IP parsed from `X-Forwarded-For` if present.
 
 ## Where to see it
 
@@ -36,9 +36,9 @@ curl -H "Authorization: Bearer sk_..." \
 
 Query parameters:
 
-- `limit` — max rows (default 50, max 500).
+- `limit` — max rows (default 50, max 200).
+- `offset` — pagination offset (default 0).
 - `action` — filter by exact action string.
-- `actor_id` — filter by user id.
 - `from`, `to` — RFC 3339 timestamps to bound the window.
 
 Response:
@@ -48,9 +48,7 @@ Response:
   "entries": [
     {
       "id": "01H...",
-      "created_at": "2026-04-30T14:22:11Z",
-      "actor_id": "01H...",
-      "actor_email": "alice@acme.com",
+      "user_id": "01H...",
       "action": "smtp.update",
       "target_type": "project",
       "target_id": "01H...",
@@ -59,13 +57,16 @@ Response:
         "smtp_user": "postmaster@acme.com",
         "from_email": "hello@acme.com"
       },
-      "ip": "203.0.113.42",
-      "user_agent": "Mozilla/5.0 ..."
+      "ip_address": "203.0.113.42",
+      "user_agent": "Mozilla/5.0 ...",
+      "created_at": "2026-04-30T14:22:11Z"
     }
   ],
-  "next_cursor": null
+  "total": 1842
 }
 ```
+
+The endpoint is cookie-only — API keys can't read the audit log because the actor identity is mandatory and a project-scoped key has none. Resolve `user_id` to a display name / email via [`GET /workspaces/{id}/members`](../api/workspaces#list-members) when rendering the list.
 
 ## What it doesn't record
 
