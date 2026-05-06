@@ -2,7 +2,9 @@
 
 Manage the per-project suppression list — addresses that `/send`, `/send/batch` and `/broadcast` will skip. See the [Suppressions guide](../guide/suppressions) for the conceptual model and how the list interacts with bounces and unsubscribes.
 
-All endpoints support both cookie auth (dashboard) and `Authorization: Bearer sk_...` API keys.
+**Cookie auth only.** Suppression management requires the `suppressions:write` capability that an API key (project-scoped, identity-less) does not carry. Use the dashboard, or call from your own UI built on the same login flow.
+
+The cURL examples below use `-b cookies.txt` to indicate the cookie jar from a prior `POST /api/v1/auth/login`.
 
 ## List suppressions
 
@@ -43,7 +45,7 @@ GET /api/v1/projects/{id}/suppressions
 
 ```bash
 curl -G "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/suppressions" \
-  -H "Authorization: Bearer $YOUR_API_KEY" \
+  -b cookies.txt \
   --data-urlencode "reason=hard_bounce" \
   --data-urlencode "limit=100"
 ```
@@ -88,7 +90,7 @@ Requires the `suppressions:write` capability — owners, admins and developers c
 
 ```bash
 curl -X POST "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/suppressions" \
-  -H "Authorization: Bearer $YOUR_API_KEY" \
+  -b cookies.txt \
   -H "Content-Type: application/json" \
   -d '{"emails":["user@example.com"],"reason":"manual","source":"imported from legacy ESP"}'
 ```
@@ -113,7 +115,7 @@ Requires `suppressions:write`.
 
 ```bash
 curl -X DELETE "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/suppressions/01H..." \
-  -H "Authorization: Bearer $YOUR_API_KEY"
+  -b cookies.txt
 ```
 
 ## Errors

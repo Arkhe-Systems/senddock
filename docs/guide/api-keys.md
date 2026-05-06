@@ -23,13 +23,27 @@ The `sk_` prefix identifies it as a SendDock API key. Only the first 10 characte
 Pass the key in the `Authorization` header:
 
 ```bash
-curl https://your-instance.com/api/v1/projects/{id}/subscribers \
-  -H "Authorization: Bearer sk_your_full_key_here"
+curl -X POST https://your-instance.com/api/v1/projects/{id}/send \
+  -H "Authorization: Bearer sk_your_full_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"to":"user@example.com","template_id":"YOUR_TEMPLATE_ID","data":{"name":"Jane"}}'
 ```
 
 ## Key Scope
 
-An API key grants access to all operations within its project: subscribers, templates, email sending, and stats. It does not grant access to other projects or account-level operations.
+API keys are deliberately narrow: they unlock only the endpoints you'd reach for from external code:
+
+| Endpoint | What it does |
+|---|---|
+| `POST /api/v1/projects/{id}/send` | Single transactional send. |
+| `POST /api/v1/projects/{id}/send/batch` | Same template, many recipients. |
+| `POST /api/v1/projects/{id}/broadcast` | Send to every active subscriber. |
+| `POST /api/v1/projects/{id}/subscribers/import` | CSV / JSON bulk import. |
+| `GET /api/v1/projects/{id}/stats` | Read-only counts (sent, failed, bounced, suppressed, opened). |
+
+**Everything else** — managing subscribers individually, editing templates, scheduling campaigns, configuring SMTP, reading the audit log — requires cookie auth (the dashboard, or your own UI built against the same login flow). The reason: those operations key off role-based capabilities tied to the user identity, which a project-scoped key has none of.
+
+A key is also strictly scoped to its own project. It does not grant access to other projects, workspace-level operations, or your account.
 
 ## Last Used
 

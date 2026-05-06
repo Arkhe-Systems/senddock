@@ -10,12 +10,21 @@ Go to **Subscribers** in the project sidebar and click **+ Add Subscriber**. Pro
 
 ### Via the API
 
+For programmatic ingestion of multiple subscribers (e.g. from a CRM sync, an existing user database, or a CSV upload in your own UI), use [`POST /api/v1/projects/{id}/subscribers/import`](/api/subscribers#bulk-import) — it accepts both cookie auth and `Authorization: Bearer sk_...` API keys, takes an array of rows, and runs them through the same email validation as the dashboard import.
+
 ```bash
-curl -X POST https://your-instance.com/api/v1/projects/{id}/subscribers \
+curl -X POST https://your-instance.com/api/v1/projects/{id}/subscribers/import \
   -H "Authorization: Bearer sk_your_api_key" \
   -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "name": "John Doe"}'
+  -d '{"rows": [
+    {"email": "user@example.com", "name": "John Doe"},
+    {"email": "other@example.com", "name": "Jane Smith"}
+  ]}'
 ```
+
+The single-recipient `POST /subscribers` is cookie-only and used by the dashboard's "+ Add Subscriber" button — for a one-shot programmatic add, just send a one-row import.
+
+For waitlist forms on landing pages, use the public [`/waitlist` endpoint](/api/subscribers#waitlist-public) — no auth required, and it sets the subscriber's status to `pending` instead of `active`.
 
 ## Import
 

@@ -21,38 +21,19 @@ Campaigns let you schedule email broadcasts for a future time. Instead of sendin
 
 ## Create a Campaign
 
-```bash
-curl -X POST https://your-instance.com/api/v1/projects/{id}/campaigns \
-  -H "Authorization: Bearer sk_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "template_id": "uuid",
-    "name": "April Newsletter",
-    "scheduled_at": "2026-04-20T09:00:00Z"
-  }'
-```
+From the **Newsletters** tab in your project, click **+ New Campaign**, pick a template, set the scheduled date and (optionally) override the subject. The full request shape (including `variables` for per-campaign substitutions) lives in the [Campaigns API reference](/api/campaigns#create-campaign).
 
-The `scheduled_at` field must be in RFC 3339 format and must be in the future.
+::: tip Cookie auth only
+Campaigns mutate workspace state and require role-based capabilities (`campaigns:write`). API keys, which are project-scoped and identity-less, can't call these endpoints — you'll get `401`. Schedule from the dashboard, or call the endpoints from your own UI built on the same cookie-session login.
+:::
 
 ## List Campaigns
 
-```bash
-curl https://your-instance.com/api/v1/projects/{id}/campaigns \
-  -H "Authorization: Bearer sk_your_api_key"
-```
-
-Returns all campaigns for the project, ordered by scheduled time.
+The **Newsletters** tab shows every campaign in the project, ordered by scheduled time, with their current status and live `sent_count` / `failed_count`. The same data is exposed at `GET /api/v1/projects/{id}/campaigns` — see the [API reference](/api/campaigns#list-campaigns).
 
 ## Cancel a Campaign
 
-You can only delete/cancel a campaign while it is in `scheduled` status:
-
-```bash
-curl -X DELETE https://your-instance.com/api/v1/projects/{id}/campaigns/{campaignId} \
-  -H "Authorization: Bearer sk_your_api_key"
-```
-
-Campaigns that are `sending`, `sent`, or `failed` cannot be deleted.
+You can only delete or reschedule a campaign while its status is `scheduled`. From the dashboard, open the campaign row and use **Cancel** or **Edit**. Once it transitions to `sending`, `sent` or `failed`, the row becomes immutable.
 
 ## How the Worker Operates
 

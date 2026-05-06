@@ -4,7 +4,7 @@ After installing SendDock (see [Installation](/self-hosting/installation)), open
 
 ## Setup Screen
 
-On first launch, SendDock detects there are no users and shows the setup screen. Create your admin account with name, email, and password. You'll be logged in automatically.
+On first launch, SendDock detects there are no users and shows the setup screen. Create your admin account with name, email, and password. You'll be logged in automatically — and a default workspace named **My Workspace** is created for you behind the scenes (see [Workspaces](./workspaces) if you're on Team and want to invite members later).
 
 ## Creating Your First Project
 

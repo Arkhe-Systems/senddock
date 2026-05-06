@@ -30,7 +30,8 @@ In the project sidebar, open **Audit Log**. Filter by action, by actor, or by da
 ## API
 
 ```bash
-curl -H "Authorization: Bearer sk_..." \
+# Cookie auth only — log in first and pass the saved cookie jar.
+curl -b cookies.txt \
   "https://your-instance.com/api/v1/projects/{project_id}/audit-log?limit=50&action=smtp.update"
 ```
 
