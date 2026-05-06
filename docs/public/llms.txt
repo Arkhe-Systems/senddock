@@ -1,6 +1,6 @@
 # SendDock
 
-> Open-source, self-hostable email marketing platform. API-first, BYO SMTP (Mailgun, SES, Postmark, any SMTP server), built with Go and Vue. Single-binary Docker deploy. AGPL-licensed Core plus a license-gated Pro tier.
+> Open-source, self-hostable email marketing platform. API-first, BYO SMTP (Mailgun, SES, Postmark, any SMTP server), built with Go and Vue. Single-binary Docker deploy. AGPL-licensed Core plus license-gated Pro and Team tiers.
 
 SendDock lets developers send transactional emails and run broadcast campaigns from their own infrastructure. Authentication uses cookies for the dashboard and per-project API keys (`Bearer <key>`) for everything else. Endpoints are REST + JSON over `https://<your-host>/api`.
 
@@ -30,14 +30,17 @@ SendDock lets developers send transactional emails and run broadcast campaigns f
 
 - [Workspaces](https://docs.senddock.dev/guide/workspaces): Multi-user collaboration. Roles: `owner`, `admin`, `developer` (transactional only), `viewer` (read-only). Team plan.
 - [Projects](https://docs.senddock.dev/guide/projects): Project as the unit of isolation — own SMTP, own subscribers, own keys.
-- [Subscribers](https://docs.senddock.dev/guide/subscribers): Manage lists, import with email validation (syntax + MX + disposable-domain check), suppression list.
+- [Subscribers](https://docs.senddock.dev/guide/subscribers): Manage lists, import CSV/JSON with email validation (syntax + MX + disposable-domain block-list), waitlist endpoint.
 - [Templates](https://docs.senddock.dev/guide/templates): Reusable HTML/text bodies with variable substitution.
 - [Email Sending](https://docs.senddock.dev/guide/sending): Transactional vs broadcast, batch sends, suppression, bounce handling.
 - [Campaigns](https://docs.senddock.dev/guide/campaigns): Scheduled broadcasts with tracking and per-recipient unsubscribe URLs.
+- [Suppressions](https://docs.senddock.dev/guide/suppressions): Per-project list of addresses that never receive sends. Sources: hard bounce, unsubscribe, manual, bulk import.
+- [Bounces](https://docs.senddock.dev/guide/bounces): Three detection sources — in-session 5xx, public webhook ingest, and IMAP poller. Hard bounces auto-suppress.
 - [API Keys](https://docs.senddock.dev/guide/api-keys): When to use cookies vs keys; per-key rate limits.
 - [SMTP Setup](https://docs.senddock.dev/guide/smtp): BYO SMTP — Mailgun/SES/Postmark/Resend/custom. Encrypted password storage. Test endpoint with bounded timeouts.
 - [Analytics (Pro)](https://docs.senddock.dev/guide/analytics): Dashboard usage, date presets, custom ranges, comparison windows.
 - [Webhooks (Pro)](https://docs.senddock.dev/guide/webhooks): Configuring endpoints, verifying signatures, retry behavior.
+- [Audit log (Pro)](https://docs.senddock.dev/guide/audit-log): Append-only record of project, SMTP, API key, webhook, suppression and workspace changes. Per-entry actor, IP, metadata.
 
 ## Operations
 
