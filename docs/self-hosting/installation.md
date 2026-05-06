@@ -38,6 +38,10 @@ A single Docker container running the Go binary serves both the API and the Vue 
 
 That's it. Everything else is handled by Docker.
 
+::: tip Multi-arch image
+The official `ghcr.io/arkhe-systems/senddock` image is built for both **`linux/amd64`** and **`linux/arm64`** in the same release tag. So x86 cloud servers (most VPS, AWS x86, DigitalOcean droplets), AWS Graviton / Hetzner ARM nodes, Raspberry Pi 4+ and Apple Silicon dev machines all pull the right binary automatically — no `--platform` flag, no separate tag.
+:::
+
 ::: warning Don't expect to send real emails from a laptop
 Most residential ISPs block outbound SMTP ports (25, 465, 587) at the network edge to prevent spam botnets. A SendDock instance on your home network cannot deliver mail through any external SMTP provider — including Gmail, SES, Mailgun, or your own Mailcow if it lives elsewhere. **SendDock in production must run on a cloud server (DigitalOcean, Hetzner, AWS, etc.) where outbound SMTP is unblocked.**
 

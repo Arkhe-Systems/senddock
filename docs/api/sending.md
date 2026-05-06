@@ -173,14 +173,16 @@ Cookie auth only.
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `status` | Filter by delivery status | `?status=sent` or `?status=failed` |
-| `from` | Start date (RFC 3339) | `?from=2026-01-01T00:00:00Z` |
-| `to` | End date (RFC 3339) | `?to=2026-02-01T00:00:00Z` |
+| `status` | Filter by delivery status. Valid: `sent`, `failed`, `bounced`, `suppressed`. | `?status=bounced` |
+| `from` | Inclusive lower bound on `sent_at` (RFC 3339) | `?from=2026-01-01T00:00:00Z` |
+| `to` | Inclusive upper bound on `sent_at` (RFC 3339) | `?to=2026-02-01T00:00:00Z` |
+| `limit` | Page size (default 50, max 200) | `?limit=100` |
+| `offset` | Pagination offset | `?offset=50` |
 
 Example with filters:
 
 ```
-GET /api/v1/projects/{id}/logs?status=sent&from=2026-01-01T00:00:00Z&to=2026-02-01T00:00:00Z&limit=50&offset=0
+GET /api/v1/projects/{id}/logs?status=bounced&from=2026-01-01T00:00:00Z&to=2026-02-01T00:00:00Z&limit=50&offset=0
 ```
 
 ```json
@@ -195,13 +197,14 @@ GET /api/v1/projects/{id}/logs?status=sent&from=2026-01-01T00:00:00Z&to=2026-02-
       "subject": "Welcome!",
       "status": "sent",
       "error": null,
-      "sent_at": "2026-01-01T00:00:00Z",
-      "opened_at": "2026-01-01T01:23:45Z"
+      "sent_at": "2026-01-01T00:00:00Z"
     }
   ],
   "total": 1520
 }
 ```
+
+`opened_at` and `clicked_at` are **not** included in the log row (the row tracks delivery, not engagement). For per-email open/click data, query the [Pro Analytics endpoint](./analytics) — it joins `email_logs` against the `email_opens` and `email_clicks` tables internally.
 
 ## Stats
 
