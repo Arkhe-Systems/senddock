@@ -85,6 +85,8 @@ export default defineConfig({
             { text: 'Templates', link: '/api/templates' },
             { text: 'Email Sending', link: '/api/sending' },
             { text: 'Campaigns', link: '/api/campaigns' },
+            { text: 'Suppressions', link: '/api/suppressions' },
+            { text: 'Bounces', link: '/api/bounces' },
             { text: 'API Keys', link: '/api/api-keys' },
           ],
         },
@@ -93,6 +95,7 @@ export default defineConfig({
           items: [
             { text: 'Analytics', link: '/api/analytics' },
             { text: 'Webhooks', link: '/api/webhooks' },
+            { text: 'Audit Log', link: '/api/audit-log' },
           ],
         },
       ],
