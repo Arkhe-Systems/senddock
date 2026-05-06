@@ -11,6 +11,14 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.1] — 2026-05-06
+
+### Fixed
+
+- **Healthcheck reliability on IPv6-only hosts.** On hosts with `net.ipv6.bindv6only=1` (some VPS, Docker Swarm clusters and cloud providers) the Go server's default `:8080` listener would bind IPv6-only, while the container `HEALTHCHECK` targeted `127.0.0.1:8080`. Every healthcheck failed, the container was marked `unhealthy` after three retries, the orchestrator killed the task and started a new one — a 60–90s crash-replace loop with no panic, no error log, just intermittent `Bad Gateway` from the reverse proxy. Two changes ship in 0.6.1:
+  - The HTTP listener binds `0.0.0.0:8080` explicitly, guaranteeing IPv4 availability regardless of host sysctls.
+  - The container `HEALTHCHECK` now uses `localhost` (resolves to both `127.0.0.1` and `::1` via `/etc/hosts`) and the start-period grace was raised to `30s` with `5` retries so a slow first-boot DB doesn't tip the container into a loop.
+
 ## [0.6.0] — 2026-04-30
 
 The "team launch" release. Workspaces with members and roles, a new Team plan above Pro, an in-app subscribe path through Lemon Squeezy, plus a long list of v0.6 quality-of-life features.
@@ -97,7 +105,9 @@ Earlier work and the foundation for the open-core release. See git history for t
 - Open-tracking pixel and unsubscribe links.
 - Initial dashboard, project switcher, settings UI.
 
-[Unreleased]: https://github.com/arkhe-systems/senddock/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/arkhe-systems/senddock/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/arkhe-systems/senddock/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/arkhe-systems/senddock/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/arkhe-systems/senddock/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/arkhe-systems/senddock/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/arkhe-systems/senddock/compare/v0.4.0...v0.5.0
