@@ -18,6 +18,13 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.2] — 2026-05-06
+
+### Fixed
+
+- **Workspace role assignment was silently broken for `admin`, `developer` and `viewer`.** The internal `normalizeRole` helper that runs on every member assignment predated the v0.6 role expansion and only recognised `owner` and `member` — anything else came back as `400 invalid role`. Capability enforcement was already aware of all five roles, so the bug was strictly on the *assignment* path: an owner trying to invite a developer or change a member to viewer hit a hard `400`. Fixed in `service.normalizeRole`. Existing memberships are untouched.
+- **`docker-compose.image.yml` healthcheck and license endpoint defaults.** The compose-level healthcheck overrides the image's; on hosts with `net.ipv6.bindv6only=1` it was still tripping the crash-replace loop fixed in v0.6.1 even after pulling the new image. Switched to `localhost` and longer grace (start-period `30s`, retries `5`). Removed the broken `SENDDOCK_LICENSE_ENDPOINT` default that pointed at a non-existent host; the binary now reaches its real default (`https://api.lemonsqueezy.com/v1`) when the env var is empty.
+
 ## [0.6.1] — 2026-05-06
 
 ### Fixed

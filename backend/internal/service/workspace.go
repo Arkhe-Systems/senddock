@@ -352,6 +352,12 @@ func normalizeRole(role string) string {
 	switch strings.ToLower(strings.TrimSpace(role)) {
 	case WorkspaceRoleOwner:
 		return WorkspaceRoleOwner
+	case WorkspaceRoleAdmin:
+		return WorkspaceRoleAdmin
+	case WorkspaceRoleDeveloper:
+		return WorkspaceRoleDeveloper
+	case WorkspaceRoleViewer:
+		return WorkspaceRoleViewer
 	case "", WorkspaceRoleMember:
 		return WorkspaceRoleMember
 	default:

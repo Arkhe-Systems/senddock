@@ -11,6 +11,21 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.2] — 2026-05-06
+
+### Fixed
+
+- **Role assignment accepted only `owner` and `member`.** The `normalizeRole` helper used by `AddMember`, `CreateUser` and `UpdateMember` predated the v0.6 role expansion and silently rejected `admin`, `developer` and `viewer` with `400 invalid role`. Capability enforcement (which gate each endpoint by role) was already aware of all five roles, so the bug was strictly on the assignment path. This shipped as part of the public Team launch but went unnoticed because the dashboard's default invite role is `developer` and most launch testing exercised owner/member rebalancing rather than fresh assignments. Two consequences are now closed:
+  - `POST /api/v1/workspaces/{id}/members` and `POST /api/v1/workspaces/{id}/users` accept all five roles per the docs.
+  - `PATCH /api/v1/workspaces/{id}/members/{userId}` can now move someone between roles other than just `owner ↔ member`.
+
+  Existing memberships are unchanged. Owners on Team workspaces who tried to invite a developer/admin/viewer and saw `400` should retry now that 0.6.2 is live.
+
+### Compose / image
+
+- Same v0.6.1 healthcheck-on-IPv6-only-hosts class of bug, but in `docker-compose.image.yml` instead of the image. The compose-level healthcheck overrides the image's, so self-hosters using Option 1 of the install guide were still hitting the crash-replace loop on hosts with `net.ipv6.bindv6only=1` even after pulling the v0.6.1 image. Updated the compose file to target `localhost` and bumped the start grace.
+- `SENDDOCK_LICENSE_ENDPOINT` no longer ships with a default that points at a non-existent host (`license.senddock.com`). The binary's own default (`https://api.lemonsqueezy.com/v1`) takes over when the env var is empty; deployments that need a custom endpoint can still set it explicitly.
+
 ## [0.6.1] — 2026-05-06
 
 ### Fixed
@@ -105,7 +120,8 @@ Earlier work and the foundation for the open-core release. See git history for t
 - Open-tracking pixel and unsubscribe links.
 - Initial dashboard, project switcher, settings UI.
 
-[Unreleased]: https://github.com/arkhe-systems/senddock/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/arkhe-systems/senddock/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/arkhe-systems/senddock/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/arkhe-systems/senddock/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/arkhe-systems/senddock/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/arkhe-systems/senddock/compare/v0.5.1...v0.5.2
