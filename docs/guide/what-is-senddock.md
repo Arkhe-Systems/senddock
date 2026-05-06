@@ -1,54 +1,57 @@
 # What is SendDock
 
-SendDock is an open-source, BYOSMTP (Bring Your Own SMTP) email marketing platform for developers and businesses that want full control over their email infrastructure.
+SendDock is an open-source, self-hostable email marketing and transactional email platform. You bring your own SMTP provider (Mailgun, SES, Postmark, Resend, your VPS, anything that speaks SMTP), point SendDock at it, and run unlimited sends from your own infrastructure with no per-email markup.
 
-## Key Principles
+## The model
 
-- **Self-hostable** — Install on your own server, keep your data private
-- **API-first** — Every feature works through the REST API
-- **No vendor lock-in** — Export your data, migrate freely, fork the code
-- **Open core** — Community edition is free and fully functional
+- **Open core, AGPL-3.0.** The Community edition is fully usable without a license.
+- **API-first.** Every dashboard action has a REST endpoint. Cookie auth for the UI, per-project API keys (`Authorization: Bearer sk_...`) for everything else.
+- **Single-binary Go backend + Vue dashboard, deployed by Docker Compose.** One container for the app, Postgres for storage, Redis for rate limits.
+- **Pro and Team are tier flags on the same binary.** Set `SENDDOCK_LICENSE_KEY` and the validator unlocks the corresponding endpoints. No separate build.
 
-## Architecture
+## How you use it
 
-SendDock is a monorepo with three components:
+1. Create a **workspace** (free for single-user; multi-member on Team).
+2. Create a **project** — the unit of isolation. Each project has its own SMTP credentials, subscribers, templates, API keys, suppression list and (optionally) bounce mailbox.
+3. Configure **SMTP** under the project's Settings.
+4. Add **subscribers** manually, via the API, or by [importing CSV/JSON](./subscribers#import) with email validation.
+5. Build **templates** in the visual editor or write raw HTML.
+6. **Send** — `/send` for transactional, `/send/batch` for fan-out, `/broadcast` for full-list campaigns. Suppressed addresses and bounced recipients are skipped automatically.
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Backend | Go (stdlib net/http) | REST API, auth, business logic |
-| Frontend | Vue 3 + TypeScript | Dashboard, template editor, settings |
-| Database | PostgreSQL | Data storage |
+## Community vs Pro vs Team
 
-### How it works
+| Feature | Community | Pro | Team |
+|---------|:---------:|:---:|:----:|
+| Projects, subscribers, sends | Unlimited | Unlimited | Unlimited |
+| BYO SMTP per project | ✓ | ✓ | ✓ |
+| HTML templates with variables | ✓ | ✓ | ✓ |
+| CSV/JSON import with email validation | ✓ | ✓ | ✓ |
+| Per-project [suppression list](./suppressions) | ✓ | ✓ | ✓ |
+| [Bounce ingestion](./bounces) (5xx + webhook + IMAP) | ✓ | ✓ | ✓ |
+| API keys with per-key rate limits | ✓ | ✓ | ✓ |
+| Open + click tracking | ✓ | ✓ | ✓ |
+| One-click unsubscribe (RFC 8058) | ✓ | ✓ | ✓ |
+| Webhook dispatcher (HMAC-signed, retried) | ✓ | ✓ | ✓ |
+| Scheduled campaigns | ✓ | ✓ | ✓ |
+| Single-user workspace | ✓ | ✓ | ✓ |
+| Basic stats endpoint | ✓ | ✓ | ✓ |
+| [Webhook management UI + API](./webhooks) | — | ✓ | ✓ |
+| [Pro Analytics dashboard](./analytics) (funnel, opens-over-time, top templates, top links, trend pills) | — | ✓ | ✓ |
+| [Audit log](./audit-log) | — | ✓ | ✓ |
+| [Multi-member workspaces](./workspaces) | — | — | ✓ |
+| Roles: `owner`, `admin`, `developer`, `viewer` | — | — | ✓ |
+| Admin "Create user" flow | — | — | ✓ |
 
-1. Create a **project** (isolated workspace)
-2. Configure **SMTP** (your email server credentials)
-3. Add **subscribers** (manually or via API)
-4. Build **templates** (visual editor or HTML code)
-5. **Send emails** — to individuals, broadcast to all, or direct transactional
+### Pricing (self-hosted license)
 
-## Community vs Pro
+| Plan | Monthly | Annual |
+|------|---------|--------|
+| Community | Free (AGPL-3.0) | — |
+| Pro | $9 | $90 |
+| Team | $29 | $290 |
 
-| Feature | Community | Pro |
-|---------|-----------|-----|
-| Projects | Unlimited | Unlimited |
-| Subscribers | Unlimited | Unlimited |
-| Email sending | Unlimited | Unlimited |
-| Template builder | Code + Visual | Code + Visual |
-| API keys | Yes | Yes |
-| Email logs | Yes | Yes |
-| Open tracking | Yes | Yes |
-| Click tracking | Yes | Yes |
-| One-click unsubscribe | Yes | Yes |
-| Scheduled campaigns | Yes | Yes |
-| Webhook dispatcher | Yes | Yes |
-| Webhook management UI/API | No | Yes |
-| Analytics | Basic stats endpoint | Full dashboard with charts and trends |
-| SMTP per project | 1 | Multiple + failover |
-| Team members | 1 admin | Unlimited + roles |
-| SSO/LDAP | No | Yes |
-| White-label | No | Yes |
+The license is checked against Lemon Squeezy on startup and re-validated periodically. With an empty `SENDDOCK_LICENSE_KEY` the binary stays in Community mode and Pro/Team endpoints return `402 Payment Required` until a valid key is set. See [Configuration](../self-hosting/configuration).
 
 ## License
 
-AGPL-3.0. Free to use and self-host. If you modify SendDock and offer it as a hosted service, you must open-source your modifications.
+The SendDock Core repository is **AGPL-3.0**. You can self-host, modify and redistribute. If you offer a modified version as a hosted service to third parties, you must publish your modifications. The Pro/Team feature set lives in a separate, non-public repository and is unlocked by a license key — it is not subject to AGPL.
