@@ -34,30 +34,9 @@ In the project's **Suppressions** tab you can:
 
 ## API
 
-### List
+The suppression list is managed from the dashboard (Project → **Suppressions** tab) and from the same endpoints under cookie auth — they require the `suppressions:write` capability and are not callable with a project-scoped API key.
 
-```bash
-curl -H "Authorization: Bearer sk_..." \
-  "https://your-instance.com/api/v1/projects/{project_id}/suppressions?reason=hard_bounce"
-```
-
-### Add
-
-```bash
-curl -X POST https://your-instance.com/api/v1/projects/{project_id}/suppressions \
-  -H "Authorization: Bearer sk_..." \
-  -H "Content-Type: application/json" \
-  -d '{"emails": ["user@example.com", "other@example.com"], "reason": "manual"}'
-```
-
-Returns the count of newly suppressed addresses (already-suppressed addresses are silently de-duplicated).
-
-### Remove
-
-```bash
-curl -X DELETE https://your-instance.com/api/v1/projects/{project_id}/suppressions/{suppression_id} \
-  -H "Authorization: Bearer sk_..."
-```
+The full request and response shape for `GET / POST / DELETE /api/v1/projects/{id}/suppressions` lives in the [Suppressions API reference](/api/suppressions). The bounce sources documented in [Bounces](./bounces) write to the same list automatically — you usually only call these endpoints by hand for one-off corrections (a typo'd address that bounced once but should still receive sends, an explicit blocklist you imported from another tool).
 
 ## Interaction with broadcast
 
