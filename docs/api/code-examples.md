@@ -322,6 +322,14 @@ requests.post(
 ).raise_for_status()
 ```
 
+```java [Java]
+var body = """
+    {"template_id":"YOUR_TEMPLATE_ID"}
+    """;
+// Same HttpClient setup as the first example.
+// POST to /projects/{YOUR_PROJECT_ID}/broadcast.
+```
+
 ```csharp [.NET / C#]
 await http.PostAsJsonAsync(
     $"projects/{YOUR_PROJECT_ID}/broadcast",
@@ -379,6 +387,26 @@ if res.status_code == 409:
     pass
 else:
     res.raise_for_status()
+```
+
+```java [Java]
+var body = """
+    {"email":"user@example.com","name":"John Doe"}
+    """;
+
+var req = HttpRequest.newBuilder()
+    .uri(URI.create(YOUR_BASE_URL + "/api/v1/projects/" + YOUR_PROJECT_ID + "/subscribers"))
+    .header("Authorization", "Bearer " + YOUR_API_KEY)
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(body))
+    .build();
+
+var res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
+if (res.statusCode() == 409) {
+    // already exists
+} else if (res.statusCode() >= 400) {
+    throw new RuntimeException(res.body());
+}
 ```
 
 ```csharp [.NET / C#]
@@ -462,6 +490,33 @@ for sub in all_subscribers():
     print(sub["email"])
 ```
 
+```java [Java]
+// Requires Jackson (com.fasterxml.jackson.databind) for JSON parsing —
+// the JDK has no built-in JSON. Gson works the same way.
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+var mapper = new ObjectMapper();
+var http = HttpClient.newHttpClient();
+int limit = 100, offset = 0;
+
+while (true) {
+    var req = HttpRequest.newBuilder()
+        .uri(URI.create(YOUR_BASE_URL + "/api/v1/projects/" + YOUR_PROJECT_ID
+                        + "/subscribers?limit=" + limit + "&offset=" + offset))
+        .header("Authorization", "Bearer " + YOUR_API_KEY)
+        .build();
+    var res = http.send(req, HttpResponse.BodyHandlers.ofString());
+    JsonNode page = mapper.readTree(res.body());
+    JsonNode subs = page.get("subscribers");
+    for (JsonNode sub : subs) {
+        System.out.println(sub.get("email").asText());
+    }
+    offset += subs.size();
+    if (offset >= page.get("total").asInt() || subs.isEmpty()) break;
+}
+```
+
 ```csharp [.NET / C#]
 int limit = 100, offset = 0;
 while (true) {
@@ -500,7 +555,7 @@ The endpoint returns `{ "subscribers": [...], "total": N }`. Use `total` (not th
 
 Every webhook delivery includes an `X-SendDock-Signature: t=<unix>,v1=<hex>` header. Recompute the HMAC over `<t>.<raw_body>` with your webhook's secret and compare in constant time. Reject anything older than ~5 minutes for replay protection.
 
-The [Webhooks guide](../guide/webhooks#verifying-the-signature) has Node.js and Go versions; here are Python, Java, C# and PHP.
+The [Webhooks guide](../guide/webhooks#verifying-the-signature) has minimal Node.js, Go and Python versions. The implementations below add timestamp-skew protection so a captured request can't be replayed indefinitely — Python, Java, C# and PHP.
 
 ::: code-group
 
