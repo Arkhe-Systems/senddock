@@ -10,19 +10,21 @@ Go to **Subscribers** in the project sidebar and click **+ Add Subscriber**. Pro
 
 ### Via the API
 
-For programmatic ingestion of multiple subscribers (e.g. from a CRM sync, an existing user database, or a CSV upload in your own UI), use [`POST /api/v1/projects/{id}/subscribers/import`](/api/subscribers#bulk-import) — it accepts both cookie auth and `Authorization: Bearer sk_...` API keys, takes an array of rows, and runs them through the same email validation as the dashboard import.
+For programmatic ingestion of multiple subscribers (e.g. from a CRM sync, an existing user database, or a CSV upload in your own UI), use [`POST /api/v1/projects/{id}/subscribers/import`](/api/subscribers#bulk-import) — it accepts both cookie auth and `Authorization: Bearer sk_...` API keys, takes a top-level JSON array, and runs every row through the same email validation as the dashboard import.
 
 ```bash
 curl -X POST https://your-instance.com/api/v1/projects/{id}/subscribers/import \
   -H "Authorization: Bearer sk_your_api_key" \
   -H "Content-Type: application/json" \
-  -d '{"rows": [
+  -d '[
     {"email": "user@example.com", "name": "John Doe"},
     {"email": "other@example.com", "name": "Jane Smith"}
-  ]}'
+  ]'
 ```
 
-The single-recipient `POST /subscribers` is cookie-only and used by the dashboard's "+ Add Subscriber" button — for a one-shot programmatic add, just send a one-row import.
+The body is the array itself — **not** wrapped in `{ "rows": [...] }`. Pass `?validate_mx=false` and/or `?validate_disposable=false` as query params to relax validation for sources you already trust.
+
+The single-recipient `POST /subscribers` is cookie-only and used by the dashboard's "+ Add Subscriber" button — for a one-shot programmatic add, just send a one-row import array.
 
 For waitlist forms on landing pages, use the public [`/waitlist` endpoint](/api/subscribers#waitlist-public) — no auth required, and it sets the subscriber's status to `pending` instead of `active`.
 
@@ -43,15 +45,16 @@ Every row goes through three checks before it lands in the database:
 2. **MX record** — SendDock resolves the domain's MX records. Domains with no MX (typo, dead domain) are rejected.
 3. **Disposable-domain block-list** — a built-in list of throwaway providers (Mailinator, 10minutemail, etc.) is rejected by default.
 
-Rows that fail any check are skipped. The **import results modal** shows five outcome cards:
+Rows that fail any check are skipped. The **import results modal** breaks the input down into:
 
-- **Imported** — added to the project.
-- **Updated** — already existed, name/status was refreshed.
-- **Duplicates** — appeared more than once in the same file.
-- **Suppressed** — on the project's [suppression list](./suppressions); skipped.
-- **Rejected** — failed validation. Each rejected row is listed below with the reason (`invalid_syntax`, `no_mx`, `disposable`).
+- **Imported** — new subscribers actually inserted.
+- **Duplicates** — emails that already exist on the project. Silently skipped (not re-fetched, not updated). Re-importing the same file is therefore safe.
+- **Suppressed** — emails on the project's [suppression list](./suppressions); skipped without insert.
+- **Rejected** — failed validation. Each rejected row is listed below with the reason (`syntax_invalid`, `no_mx`, `disposable`).
 
-You can fix rejected rows in your source file and re-import — already-imported rows are deduplicated, so re-running the same file is safe.
+The five counts plus `imported` sum exactly to the number of rows your file had — every input row is accounted for.
+
+You can fix rejected rows in your source file and re-import. Existing rows are deduplicated, so re-running the same file just makes the new rows go through and the rest count as duplicates.
 
 ## Subscriber Status
 
