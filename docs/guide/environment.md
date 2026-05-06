@@ -18,7 +18,17 @@ All configuration is done via environment variables. Copy `.env.example` to `.en
 | `FRONTEND_URL` | Frontend URL for CORS headers | `http://localhost:5173` |
 | `PUBLIC_URL` | Public URL of this instance, used to build unsubscribe and tracking links inside outgoing emails. Leave blank in single-binary deploys to fall back to `FRONTEND_URL`. | _falls back to `FRONTEND_URL`_ |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
-| `SENDDOCK_LICENSE_KEY` | Pro license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only) regardless of `DEPLOYMENT_MODE`. See [Pro license](/self-hosting/configuration#pro-license). | — |
+| `SENDDOCK_LICENSE_KEY` | Pro / Team license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only) regardless of `DEPLOYMENT_MODE`. See [Pro license](/self-hosting/configuration#plans-and-licensing). | — |
+
+## Advanced overrides
+
+You almost never need these — they're escape hatches for non-default deployments.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SENDDOCK_LICENSE_ENDPOINT` | Override the Lemon Squeezy API root the validator hits. Useful when running against Lemon Squeezy's test mode (`https://api.lemonsqueezy.com/v1` is the production default; test mode uses the same URL but a different key). | `https://api.lemonsqueezy.com/v1` |
+| `FRONTEND_DIST_PATH` | Filesystem path to the built frontend SPA (`index.html` and assets). The official Docker image sets this to `/app/frontend/dist`. Override only if you serve the SPA from a custom location. | `./frontend/dist` |
+| `DISPOSABLE_DOMAINS_FILE` | Path to a newline-separated list of disposable email domains used by the import validator. Built-in list ships with the binary; setting this replaces it (does not extend). | _built-in_ |
 
 ::: tip Why PUBLIC_URL?
 Outgoing emails contain links like the unsubscribe URL and the open-tracking pixel. SendDock cannot guess what URL recipients will see — it has to be told. In most single-binary deploys (Go binary serves both the API and the SPA), `PUBLIC_URL` and `FRONTEND_URL` are the same value, so you can leave `PUBLIC_URL` blank and only set `FRONTEND_URL`.
@@ -33,15 +43,13 @@ Set `PUBLIC_URL` explicitly when:
 
 ### self-hosted (default)
 
-- Public registration is disabled
-- First user created via setup screen becomes admin
-- Single user only (team members require Pro)
+- Public sign-up endpoints are not mounted; the only path to the first user is the **Setup** screen on first boot.
+- Single-user by default. Adding more users requires the **Team** license, which unlocks the admin "Create user" flow on workspaces (see [Workspaces](./workspaces)).
 
 ### cloud
 
-- Public registration enabled at `/api/v1/auth/register`
-- Multiple users, each with their own account
-- Plan-based limits (for senddock.dev managed hosting)
+- Public sign-up endpoints are mounted — used by the senddock.dev managed product, not by self-host installs.
+- Multi-user accounts with plan-based limits.
 
 ## Example .env
 

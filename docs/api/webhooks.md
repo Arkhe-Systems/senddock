@@ -2,7 +2,7 @@
 
 Manage webhook endpoints and inspect their delivery history. Cookie auth required.
 
-Every endpoint on this page returns `402 Payment Required` (`{"error":"license required for webhooks"}`) when the deployment has no valid `SENDDOCK_LICENSE_KEY`. This applies the same way to self-hosted and cloud — see [Configuration → Pro license](/self-hosting/configuration#pro-license).
+Every endpoint on this page returns `402 Payment Required` (`{"error":"license required for webhooks"}`) when the deployment has no valid `SENDDOCK_LICENSE_KEY`. This applies the same way to self-hosted and cloud — see [Configuration → Pro license](/self-hosting/configuration#plans-and-licensing).
 
 For payload format, signature verification, retry policy and event reference, see the [Webhooks guide](/guide/webhooks).
 
@@ -24,7 +24,7 @@ POST /api/v1/projects/{id}/webhooks
 | `url` | yes | Absolute http/https URL of your endpoint. |
 | `events` | no | Subset of allowed event types. Omit or pass `[]` to subscribe to **all** events. |
 
-Allowed events: `email.sent`, `email.failed`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`.
+Allowed events: `email.sent`, `email.failed`, `email.bounced`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`.
 
 **Response — 201 Created**
 

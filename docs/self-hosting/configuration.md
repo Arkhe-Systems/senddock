@@ -45,7 +45,7 @@ Before exposing to the internet:
 
 If anything misbehaves after going live, see [Troubleshooting](/self-hosting/troubleshooting).
 
-## Plans & licensing
+## Plans and licensing
 
 SendDock is open-core: the AGPL-3.0 **Community** edition does everything most one-person operations need, and two paid tiers (**Pro** and **Team**) add features for analytics and team collaboration. All paid tiers are unlocked through a single environment variable validated against [Lemon Squeezy](https://lemonsqueezy.com).
 
