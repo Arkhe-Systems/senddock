@@ -1,6 +1,6 @@
 # Email Sending API
 
-Email endpoints accept both cookie auth and API key auth (`Authorization: Bearer sk_...`).
+`/send`, `/send/batch` and `/broadcast` accept both cookie auth and API key auth (`Authorization: Bearer sk_...`). `/smtp/test` is cookie-only.
 
 ## Send
 
@@ -55,11 +55,19 @@ Sends a one-off email without a template. All three fields are required.
 {"message": "sent"}
 ```
 
-Or for subscriber sends:
+For the subscriber-send variant (`subscriber_id` + `template_id`):
 
 ```json
 {"sent": 1, "failed": 0}
 ```
+
+When the recipient is on the project's [suppression list](./suppressions), the endpoint **does not** error — it returns `200 OK` with:
+
+```json
+{"message": "suppressed", "suppressed": 1}
+```
+
+The send is recorded with status `suppressed` in the email log; no SMTP attempt is made. This is the same shape as the failure-counted version below — when present, `suppressed` always counts in addition to `sent` + `failed`.
 
 ## Batch Send
 
@@ -84,8 +92,10 @@ Sends a template to multiple recipients in one request. Each recipient can have 
 **Response**
 
 ```json
-{"sent": 3, "failed": 0}
+{"sent": 3, "failed": 0, "suppressed": 1}
 ```
+
+`suppressed` is omitted when zero. Recipients on the project's suppression list are skipped without an SMTP attempt and do **not** count towards `failed`.
 
 ## Broadcast
 
@@ -104,16 +114,24 @@ Variables are replaced per subscriber. The `{{unsubscribe_url}}` is injected aut
 **Response**
 
 ```json
-{"sent": 150, "failed": 2}
+{"sent": 150, "failed": 2, "suppressed": 8}
 ```
+
+`suppressed` is the count of subscribers skipped because they were on the project's suppression list. They do **not** count towards `failed`. Field is omitted when zero.
 
 ## Unsubscribe
 
 ```
-GET /unsubscribe/{projectId}/{subscriberId}
+GET  /unsubscribe/{projectId}/{subscriberId}
+POST /unsubscribe/{projectId}/{subscriberId}
 ```
 
-Public endpoint (no auth required). Shows a confirmation page and sets the subscriber's status to `unsubscribed`. The URL is auto-generated and injected via `{{unsubscribe_url}}` in broadcast and subscriber sends.
+Public endpoints (no auth required). The URL is auto-generated and injected via `{{unsubscribe_url}}` in broadcast and subscriber sends; it is HMAC-signed against `JWT_SECRET` so it can't be forged or reused for a different recipient.
+
+- **`GET`** — renders a confirmation page and (on the same request) flips the subscriber's status to `unsubscribed`. Used by anyone who clicks the unsubscribe link in an email.
+- **`POST`** — same effect, no UI. Used by Gmail / Outlook for [RFC 8058](https://www.rfc-editor.org/rfc/rfc8058) **one-click unsubscribe**: the email's `List-Unsubscribe-Post: List-Unsubscribe=One-Click` header tells the client to POST to the URL when the user clicks the inbox-level unsubscribe button. Returns `204 No Content` on success.
+
+In both cases the subscriber is also added to the project [suppression list](./suppressions) with reason `unsubscribed`, so subsequent sends from `/send`, `/send/batch` and `/broadcast` skip them.
 
 ## Test SMTP
 
@@ -126,10 +144,10 @@ Sends a test email to verify SMTP configuration. Cookie auth only.
 ## Open Tracking
 
 ```
-GET /t/{logId}.gif
+GET /t/{logId}
 ```
 
-Public endpoint (no auth required). Returns a 1x1 transparent GIF pixel. This pixel is automatically injected into emails sent to subscribers and via broadcast. When the recipient's email client loads the image, SendDock records the `opened_at` timestamp on the corresponding email log entry. Only the first open is recorded.
+Public endpoint (no auth required, no file extension on the path). Returns a 1×1 transparent GIF in the response body with `Content-Type: image/gif`. This pixel is automatically injected into emails sent to subscribers and via broadcast. When the recipient's email client loads the image, SendDock records the `opened_at` timestamp on the corresponding email log entry. Only the first open is recorded.
 
 ## Click Tracking
 
