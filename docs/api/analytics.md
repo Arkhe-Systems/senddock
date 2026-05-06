@@ -2,7 +2,7 @@
 
 A single endpoint backs the entire Analytics dashboard. Cookie auth required.
 
-Returns `402 Payment Required` in cloud mode without a valid `SENDDOCK_LICENSE_KEY`. See [Analytics guide](/guide/analytics) for what each field is used for, and [Configuration → Pro license](/self-hosting/configuration#pro-license) for the license behavior.
+Returns `402 Payment Required` in cloud mode without a valid `SENDDOCK_LICENSE_KEY`. See [Analytics guide](/guide/analytics) for what each field is used for, and [Configuration → Pro license](/self-hosting/configuration#plans-and-licensing) for the license behavior.
 
 ## Overview
 

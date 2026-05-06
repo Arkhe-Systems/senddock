@@ -10,7 +10,7 @@ Every example uses three placeholders — replace them once and the rest works:
 | `YOUR_API_KEY` | A project-scoped API key (`sk_…`). Create one in **Settings → API Keys**, see the [API Keys API](./api-keys). |
 | `YOUR_PROJECT_ID` | The project UUID. It's the segment after `/projects/` in the dashboard URL. |
 
-The API root is always `${YOUR_BASE_URL}/api/v1`. Authentication is `Authorization: Bearer ${YOUR_API_KEY}` for every endpoint that supports API keys (sending, broadcast, batch, subscribers/import). Cookie-only endpoints are noted on each [reference page](./authentication#endpoints-supporting-api-key-auth).
+The API root is always `${YOUR_BASE_URL}/api/v1`. Authentication is `Authorization: Bearer ${YOUR_API_KEY}` for every endpoint that supports API keys (sending, broadcast, batch, subscribers/import). Cookie-only endpoints are noted on each reference page — full list at [Authentication → Endpoints that accept API keys](./authentication#endpoints-that-accept-api-keys).
 
 All request and response bodies are `application/json` unless stated otherwise.
 
@@ -214,7 +214,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 
 ## Batch send
 
-Send the same template to many recipients with per-recipient variables. Up to ~5,000 recipients per call is comfortable; for full lists use [Broadcast](#broadcast).
+Send the same template to many recipients with per-recipient variables. Up to ~5,000 recipients per call is comfortable; for full lists use [Broadcast](#broadcast-to-all-subscribers).
 
 ::: code-group
 

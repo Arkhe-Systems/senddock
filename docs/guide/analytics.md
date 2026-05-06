@@ -71,4 +71,4 @@ Analytics is gated by `SENDDOCK_LICENSE_KEY`:
 - An empty `SENDDOCK_LICENSE_KEY` leaves Pro locked. The Analytics dashboard returns `402 Payment Required`, which the UI renders as a paywall card linking to pricing. This applies to both self-hosted and cloud deployments — Core stays fully usable, Pro requires a license.
 - A valid license unlocks Analytics. The validator caches its last successful result for 24 hours, so brief network blips with Lemon Squeezy don't lock you out.
 
-See [Configuration → Pro license](/self-hosting/configuration#pro-license) for the env var.
+See [Configuration → Pro license](/self-hosting/configuration#plans-and-licensing) for the env var.

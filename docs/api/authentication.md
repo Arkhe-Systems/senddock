@@ -7,7 +7,7 @@ SendDock has two auth schemes for two audiences:
 
 Two more public endpoints have their own credentials (no Bearer header, no cookie):
 
-- **Webhook delivery signatures** — outbound HTTP POSTs to your URL carry `X-SendDock-Signature: t=...,v1=...`. Verify with HMAC-SHA256. See [Webhooks API → Verifying signatures](./webhooks#verifying-the-signature).
+- **Webhook delivery signatures** — outbound HTTP POSTs to your URL carry `X-SendDock-Signature: t=...,v1=...`. Verify with HMAC-SHA256. See [Webhooks guide → Verifying the signature](../guide/webhooks#verifying-the-signature).
 - **Bounce webhook ingest** — `POST /webhooks/bounces/{projectId}?token=...` uses a per-project URL token. See [Bounces API → Public ingest endpoint](./bounces#public-ingest-endpoint).
 
 ## API key auth (recommended)

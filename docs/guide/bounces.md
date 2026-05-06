@@ -86,7 +86,7 @@ The poller never deletes messages — it only flags them as read.
 }
 ```
 
-Signed with `X-SendDock-Signature: sha256=<hex>` over the raw body, using the webhook's secret. See [Webhooks](./webhooks#verifying-signatures).
+Signed with `X-SendDock-Signature: t=<unix>,v1=<hex>` over `<t>.<raw_body>`, using the webhook's secret. See [Webhooks → Verifying the signature](./webhooks#verifying-the-signature).
 
 ## Why this matters
 

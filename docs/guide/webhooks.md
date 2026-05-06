@@ -237,4 +237,4 @@ If you want to inspect what SendDock is sending without writing a handler, point
 
 Webhook **management** (CRUD endpoints, the UI section) is gated by `SENDDOCK_LICENSE_KEY` in cloud mode. The **dispatcher** runs in Core regardless of license — webhooks created before a license expires keep firing — but new webhooks cannot be created without a valid key.
 
-An empty `SENDDOCK_LICENSE_KEY` keeps the management UI / API locked regardless of deployment mode — but the Core dispatcher keeps running, so any webhooks created earlier (from a Pro-licensed snapshot) continue firing. See [Configuration → Pro license](/self-hosting/configuration#pro-license).
+An empty `SENDDOCK_LICENSE_KEY` keeps the management UI / API locked regardless of deployment mode — but the Core dispatcher keeps running, so any webhooks created earlier (from a Pro-licensed snapshot) continue firing. See [Configuration → Pro license](/self-hosting/configuration#plans-and-licensing).
