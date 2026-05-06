@@ -242,3 +242,43 @@ func FromCampaigns(campaigns []db.Campaign) []Campaign {
 	}
 	return result
 }
+
+type Broadcast struct {
+	ID              string          `json:"id"`
+	ProjectID       string          `json:"project_id"`
+	TemplateID      string          `json:"template_id"`
+	Subject         string          `json:"subject"`
+	Variables       json.RawMessage `json:"variables"`
+	Status          string          `json:"status"`
+	TotalRecipients int32           `json:"total_recipients"`
+	SentCount       int32           `json:"sent_count"`
+	FailedCount     int32           `json:"failed_count"`
+	SuppressedCount int32           `json:"suppressed_count"`
+	StartedAt       string          `json:"started_at"`
+	FinishedAt      *string         `json:"finished_at"`
+}
+
+func FromBroadcast(b db.Broadcast) Broadcast {
+	return Broadcast{
+		ID:              b.ID.String(),
+		ProjectID:       b.ProjectID.String(),
+		TemplateID:      b.TemplateID.String(),
+		Subject:         b.Subject,
+		Variables:       b.Variables,
+		Status:          b.Status,
+		TotalRecipients: b.TotalRecipients,
+		SentCount:       b.SentCount,
+		FailedCount:     b.FailedCount,
+		SuppressedCount: b.SuppressedCount,
+		StartedAt:       b.StartedAt.UTC().Format(time.RFC3339),
+		FinishedAt:      nullTime(b.FinishedAt),
+	}
+}
+
+func FromBroadcasts(broadcasts []db.Broadcast) []Broadcast {
+	result := make([]Broadcast, len(broadcasts))
+	for i, b := range broadcasts {
+		result[i] = FromBroadcast(b)
+	}
+	return result
+}

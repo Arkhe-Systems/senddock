@@ -301,6 +301,25 @@ func (s *EmailService) RecoverInProgressBroadcasts(ctx context.Context) error {
 	return s.queries.MarkInProgressBroadcastsInterrupted(ctx)
 }
 
+func (s *EmailService) ListBroadcasts(ctx context.Context, projectID string, limit, offset int32) ([]db.Broadcast, int64, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return nil, 0, errors.New("invalid project id")
+	}
+
+	rows, err := s.queries.ListBroadcastsByProject(ctx, db.ListBroadcastsByProjectParams{
+		ProjectID: pid,
+		Limit:     limit,
+		Offset:    offset,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	count, _ := s.queries.CountBroadcastsByProject(ctx, pid)
+	return rows, count, nil
+}
+
 func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, htmlBody string) error {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {

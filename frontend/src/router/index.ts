@@ -81,6 +81,11 @@ const router = createRouter({
           component: () => import('@/views/project/CampaignsSection.vue'),
         },
         {
+          path: 'broadcasts',
+          name: 'project-broadcasts',
+          component: () => import('@/views/project/BroadcastsSection.vue'),
+        },
+        {
           path: 'analytics',
           name: 'project-analytics',
           component: () => import('@/views/project/AnalyticsSection.vue'),
