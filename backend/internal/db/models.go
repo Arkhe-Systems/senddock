@@ -36,6 +36,21 @@ type AuditLog struct {
 	CreatedAt  time.Time
 }
 
+type Broadcast struct {
+	ID              uuid.UUID
+	ProjectID       uuid.UUID
+	TemplateID      uuid.UUID
+	Subject         string
+	Variables       json.RawMessage
+	Status          string
+	TotalRecipients int32
+	SentCount       int32
+	FailedCount     int32
+	SuppressedCount int32
+	StartedAt       time.Time
+	FinishedAt      sql.NullTime
+}
+
 type Campaign struct {
 	ID          uuid.UUID
 	ProjectID   uuid.UUID

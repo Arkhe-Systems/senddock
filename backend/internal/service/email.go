@@ -241,13 +241,28 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		baseSubject = subjectOverride
 	}
 
+	variablesJSON := campaignVars
+	if len(variablesJSON) == 0 {
+		variablesJSON = []byte("{}")
+	}
+
+	broadcast, err := s.queries.CreateBroadcast(ctx, db.CreateBroadcastParams{
+		ProjectID:       pid,
+		TemplateID:      tid,
+		Subject:         baseSubject,
+		Variables:       variablesJSON,
+		TotalRecipients: int32(total),
+	})
+	if err != nil {
+		return SendResult{}, fmt.Errorf("create broadcast: %w", err)
+	}
+
 	go func() {
 		bgCtx := context.Background()
-		suppressed := 0
 		for _, sub := range subscribers {
 			if s.suppressions != nil && s.suppressions.IsSuppressed(bgCtx, pid, sub.Email) {
 				s.logSuppressed(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, baseSubject)
-				suppressed++
+				_ = s.queries.IncrementBroadcastSuppressed(bgCtx, broadcast.ID)
 				continue
 			}
 
@@ -265,12 +280,25 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 			unsubURL := s.unsubURL(pid.String(), sub.ID.String())
 			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-			s.trackAndSend(bgCtx, project, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
+			if err := s.trackAndSend(bgCtx, project, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL); err != nil {
+				_ = s.queries.IncrementBroadcastFailed(bgCtx, broadcast.ID)
+			} else {
+				_ = s.queries.IncrementBroadcastSent(bgCtx, broadcast.ID)
+			}
 		}
-		log.Printf("Broadcast to %d subscribers completed for project %s (%d suppressed)", total-suppressed, pid.String(), suppressed)
+
+		if err := s.queries.MarkBroadcastCompleted(bgCtx, broadcast.ID); err != nil {
+			log.Printf("broadcast %s: failed to mark completed: %v", broadcast.ID, err)
+			return
+		}
+		log.Printf("Broadcast %s completed for project %s (total=%d)", broadcast.ID, pid.String(), total)
 	}()
 
 	return SendResult{Sent: total}, nil
+}
+
+func (s *EmailService) RecoverInProgressBroadcasts(ctx context.Context) error {
+	return s.queries.MarkInProgressBroadcastsInterrupted(ctx)
 }
 
 func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, htmlBody string) error {
@@ -351,7 +379,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL)
 }
 
-func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, status, from, to string) ([]db.EmailLog, int64, error) {
+func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, status, from, to, search string) ([]db.EmailLog, int64, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, 0, errors.New("invalid project id")
@@ -369,7 +397,9 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 		}
 	}
 
-	if status != "" || !fromTime.IsZero() || !toTime.IsZero() {
+	search = strings.TrimSpace(search)
+
+	if status != "" || !fromTime.IsZero() || !toTime.IsZero() || search != "" {
 		logs, err := s.queries.ListEmailLogsByProjectFiltered(ctx, db.ListEmailLogsByProjectFilteredParams{
 			ProjectID: pid,
 			Limit:     limit,
@@ -377,6 +407,7 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 			Column4:   status,
 			Column5:   fromTime,
 			Column6:   toTime,
+			Column7:   search,
 		})
 		if err != nil {
 			return nil, 0, err
@@ -387,6 +418,7 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 			Column2:   status,
 			Column3:   fromTime,
 			Column4:   toTime,
+			Column5:   search,
 		})
 
 		return logs, count, nil
