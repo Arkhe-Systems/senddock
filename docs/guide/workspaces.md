@@ -29,7 +29,7 @@ A few notes:
 
 - **Developer** is the role for the rest of your team's services. They can call `/send` from a backend job for password resets and one-off transactional emails, but they can't broadcast to your subscriber list, edit your branded templates, or rotate API keys.
 - **Viewer** is read-only — useful for support staff who need to look up an email log or analytics chart without any risk of writing.
-- **API keys are project-scoped, not user-scoped.** Anyone with a key has full project access on the API surface that supports keys (sending, broadcast, batch). Roles only constrain UI / cookie-auth users, so carve up developer access by what API keys you hand out, not by what role they have.
+- **API keys are project-scoped, not user-scoped.** Anyone with a key has full access on the five endpoints that accept keys: `/send`, `/send/batch`, `/broadcast`, `/subscribers/import`, `/stats`. Roles only constrain cookie-auth users (the dashboard), so carve up backend access by which API keys you hand out — not by which role you give a teammate.
 - The system always guarantees at least one owner — the last owner cannot be removed or demoted.
 
 ## Default workspace
@@ -73,7 +73,7 @@ For self-hosted, public registration is disabled — so the *only* way for a new
 
 ## Changing roles & removing members
 
-Owners can change any member's role from the inline `Role` select in the members table. Demoting the last owner to `member` is rejected — the workspace would have no owner left.
+Owners can change any member's role from the inline `Role` select in the members table. Demoting the last owner to any non-owner role is rejected — the workspace would have no owner left.
 
 Removing a member revokes their access to every project in the workspace. The audit log records the action with the workspace ID and the affected user ID under `workspace.member_removed`.
 

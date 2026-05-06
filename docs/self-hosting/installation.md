@@ -96,7 +96,7 @@ The image is the same in all cases. The license key, validated against a hosted 
 ```yaml
 services:
   senddock:
-    image: ghcr.io/arkhe-systems/senddock:0.5.2
+    image: ghcr.io/arkhe-systems/senddock:0.6.1
 ```
 
 See available tags on [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock). Only versioned tags (`X.Y.Z`, `X.Y`, `X`) and `:latest` are public — pre-release builds (`:dev`) live in a separate, private package and are not intended for end users.
