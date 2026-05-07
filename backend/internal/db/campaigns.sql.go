@@ -246,26 +246,26 @@ func (q *Queries) UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) 
 
 const updateCampaignStatus = `-- name: UpdateCampaignStatus :exec
 UPDATE campaigns SET
-    status = $2,
-    sent_at = CASE WHEN $2 = 'sent' THEN NOW() ELSE sent_at END,
-    sent_count = $3,
-    failed_count = $4
-WHERE id = $1
+    status = $1::text,
+    sent_at = CASE WHEN $1::text = 'sent' THEN NOW() ELSE sent_at END,
+    sent_count = $2,
+    failed_count = $3
+WHERE id = $4
 `
 
 type UpdateCampaignStatusParams struct {
-	ID          uuid.UUID
 	Status      string
 	SentCount   int32
 	FailedCount int32
+	ID          uuid.UUID
 }
 
 func (q *Queries) UpdateCampaignStatus(ctx context.Context, arg UpdateCampaignStatusParams) error {
 	_, err := q.db.ExecContext(ctx, updateCampaignStatus,
-		arg.ID,
 		arg.Status,
 		arg.SentCount,
 		arg.FailedCount,
+		arg.ID,
 	)
 	return err
 }

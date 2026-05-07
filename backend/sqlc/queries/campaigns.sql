@@ -18,11 +18,11 @@ ORDER BY scheduled_at ASC;
 
 -- name: UpdateCampaignStatus :exec
 UPDATE campaigns SET
-    status = $2,
-    sent_at = CASE WHEN $2 = 'sent' THEN NOW() ELSE sent_at END,
-    sent_count = $3,
-    failed_count = $4
-WHERE id = $1;
+    status = @status::text,
+    sent_at = CASE WHEN @status::text = 'sent' THEN NOW() ELSE sent_at END,
+    sent_count = @sent_count,
+    failed_count = @failed_count
+WHERE id = @id;
 
 -- name: ClaimCampaignForExecution :execrows
 UPDATE campaigns SET status = 'sending'
