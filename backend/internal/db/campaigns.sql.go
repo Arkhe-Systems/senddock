@@ -68,8 +68,8 @@ func (q *Queries) CreateCampaign(ctx context.Context, arg CreateCampaignParams) 
 	return i, err
 }
 
-const deleteCampaign = `-- name: DeleteCampaign :exec
-DELETE FROM campaigns WHERE id = $1 AND project_id = $2 AND status = 'scheduled'
+const deleteCampaign = `-- name: DeleteCampaign :execrows
+DELETE FROM campaigns WHERE id = $1 AND project_id = $2
 `
 
 type DeleteCampaignParams struct {
@@ -77,9 +77,12 @@ type DeleteCampaignParams struct {
 	ProjectID uuid.UUID
 }
 
-func (q *Queries) DeleteCampaign(ctx context.Context, arg DeleteCampaignParams) error {
-	_, err := q.db.ExecContext(ctx, deleteCampaign, arg.ID, arg.ProjectID)
-	return err
+func (q *Queries) DeleteCampaign(ctx context.Context, arg DeleteCampaignParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteCampaign, arg.ID, arg.ProjectID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getCampaignByID = `-- name: GetCampaignByID :one

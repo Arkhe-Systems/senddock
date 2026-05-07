@@ -28,8 +28,8 @@ WHERE id = @id;
 UPDATE campaigns SET status = 'sending'
 WHERE id = $1 AND status = 'scheduled';
 
--- name: DeleteCampaign :exec
-DELETE FROM campaigns WHERE id = $1 AND project_id = $2 AND status = 'scheduled';
+-- name: DeleteCampaign :execrows
+DELETE FROM campaigns WHERE id = $1 AND project_id = $2;
 
 -- name: UpdateCampaign :one
 UPDATE campaigns SET

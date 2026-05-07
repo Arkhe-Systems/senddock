@@ -91,10 +91,17 @@ func (s *CampaignService) Delete(ctx context.Context, campaignID, projectID stri
 	if err != nil {
 		return errors.New("invalid project id")
 	}
-	return s.queries.DeleteCampaign(ctx, db.DeleteCampaignParams{
+	rows, err := s.queries.DeleteCampaign(ctx, db.DeleteCampaignParams{
 		ID:        cid,
 		ProjectID: pid,
 	})
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errors.New("campaign not found")
+	}
+	return nil
 }
 
 func (s *CampaignService) GetPending(ctx context.Context) ([]db.Campaign, error) {
