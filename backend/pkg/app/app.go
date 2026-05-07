@@ -215,7 +215,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	emailHandler := handler.NewEmailHandler(emailService, projectService, a.cache)
 
 	campaignService := service.NewCampaignService(queries)
-	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
+	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, a.worker, cfg.PublicURL)
 
 	trackingHandler := handler.NewTrackingHandler(queries, emailService, a.webhooks)
 

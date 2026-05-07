@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log"
+	"runtime/debug"
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
@@ -23,15 +24,20 @@ func (w *CampaignWorker) Start() {
 		defer ticker.Stop()
 
 		for range ticker.C {
-			w.processPending()
+			w.tick()
 		}
 	}()
 	log.Println("Campaign worker started (checking every 30s)")
 }
 
-func (w *CampaignWorker) processPending() {
-	ctx := context.Background()
+func (w *CampaignWorker) tick() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("campaign worker tick panic: %v\n%s", r, debug.Stack())
+		}
+	}()
 
+	ctx := context.Background()
 	campaigns, err := w.queries.GetPendingCampaigns(ctx)
 	if err != nil {
 		log.Printf("campaign worker: list pending failed: %v", err)
@@ -39,11 +45,17 @@ func (w *CampaignWorker) processPending() {
 	}
 
 	for _, campaign := range campaigns {
-		w.executeCampaign(ctx, campaign)
+		w.ExecuteCampaign(ctx, campaign)
 	}
 }
 
-func (w *CampaignWorker) executeCampaign(ctx context.Context, campaign db.Campaign) {
+func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campaign) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("campaign %s: execute panic: %v\n%s", campaign.ID, r, debug.Stack())
+		}
+	}()
+
 	claimed, err := w.queries.ClaimCampaignForExecution(ctx, campaign.ID)
 	if err != nil {
 		log.Printf("campaign %s: claim failed: %v", campaign.ID, err)
@@ -66,7 +78,7 @@ func (w *CampaignWorker) executeCampaign(ctx context.Context, campaign db.Campai
 	status := "sent"
 	if runErr != nil {
 		status = "failed"
-		log.Printf("campaign %s failed: %v", campaign.ID, runErr)
+		log.Printf("campaign %s: broadcast failed: %v", campaign.ID, runErr)
 	}
 
 	if err := w.queries.UpdateCampaignStatus(ctx, db.UpdateCampaignStatusParams{
