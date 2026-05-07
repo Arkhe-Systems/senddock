@@ -13,6 +13,19 @@ import (
 	"github.com/google/uuid"
 )
 
+const claimCampaignForExecution = `-- name: ClaimCampaignForExecution :execrows
+UPDATE campaigns SET status = 'sending'
+WHERE id = $1 AND status = 'scheduled'
+`
+
+func (q *Queries) ClaimCampaignForExecution(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimCampaignForExecution, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const createCampaign = `-- name: CreateCampaign :one
 INSERT INTO campaigns (project_id, template_id, name, subject, scheduled_at, variables)
 VALUES ($1, $2, $3, $4, $5, $6)
