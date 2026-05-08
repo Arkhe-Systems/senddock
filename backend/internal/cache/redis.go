@@ -63,18 +63,23 @@ func (r *Redis) Delete(ctx context.Context, keys ...string) {
 	r.client.Del(ctx, keys...)
 }
 
+// incrementWithTTLScript atomically INCRs a key and sets its TTL only on
+// creation. Setting TTL on every increment caused counters to never expire
+// while requests trickled in, turning per-window rate limits into permanent
+// counters that eventually exceeded the threshold.
+var incrementWithTTLScript = redis.NewScript(`
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+`)
+
 func (r *Redis) Increment(ctx context.Context, key string, ttl time.Duration) (int64, error) {
 	if r == nil {
 		return 0, nil
 	}
-	pipe := r.client.Pipeline()
-	incr := pipe.Incr(ctx, key)
-	pipe.Expire(ctx, key, ttl)
-	_, err := pipe.Exec(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return incr.Val(), nil
+	return incrementWithTTLScript.Run(ctx, r.client, []string{key}, int(ttl.Seconds())).Int64()
 }
 
 func (r *Redis) Close() {

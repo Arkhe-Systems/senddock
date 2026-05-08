@@ -3,17 +3,19 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
 type Config struct {
-	Port           string
-	DatabaseUrl    string
-	RedisUrl       string
-	JWTSecret      string
-	FrontendURL    string
-	PublicURL      string
-	DeploymentMode string
+	Port               string
+	DatabaseUrl        string
+	RedisUrl           string
+	JWTSecret          string
+	FrontendURL        string
+	PublicURL          string
+	DeploymentMode     string
+	RateLimitPerMinute int64
 }
 
 func Load() Config {
@@ -30,14 +32,28 @@ func Load() Config {
 	}
 
 	return Config{
-		Port:           getEnv("PORT", "8080"),
-		DatabaseUrl:    getEnv("DATABASE_URL", ""),
-		RedisUrl:       getEnv("REDIS_URL", ""),
-		JWTSecret:      getEnv("JWT_SECRET", ""),
-		FrontendURL:    frontendURL,
-		PublicURL:      publicURL,
-		DeploymentMode: mode,
+		Port:               getEnv("PORT", "8080"),
+		DatabaseUrl:        getEnv("DATABASE_URL", ""),
+		RedisUrl:           getEnv("REDIS_URL", ""),
+		JWTSecret:          getEnv("JWT_SECRET", ""),
+		FrontendURL:        frontendURL,
+		PublicURL:          publicURL,
+		DeploymentMode:     mode,
+		RateLimitPerMinute: getEnvInt64("RATE_LIMIT_PER_MINUTE", 600),
 	}
+}
+
+func getEnvInt64(key string, fallback int64) int64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || n <= 0 {
+		log.Printf("Invalid %s=%q, using default %d", key, value, fallback)
+		return fallback
+	}
+	return n
 }
 
 func (c Config) IsSelfHosted() bool {
