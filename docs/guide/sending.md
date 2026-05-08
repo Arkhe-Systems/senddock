@@ -128,6 +128,29 @@ To enable broadcasts:
 
 `/send` (single-recipient transactional) and `/send/batch` continue to work without `PUBLIC_URL`, since their use cases are typically internal apps and explicit recipient lists, not list emails.
 
+### How a broadcast actually runs
+
+When you call `/broadcast` (or a scheduled campaign reaches its time), SendDock returns immediately with the total recipient count. The actual sending happens through a **persistent per-recipient queue**, not inline:
+
+1. A `broadcasts` row is created with `status=sending` and `total_recipients=N`.
+2. One row per recipient is inserted into `broadcast_jobs` with `status=pending`.
+3. Five worker goroutines pull jobs concurrently using `SELECT … FOR UPDATE SKIP LOCKED`, so jobs never get sent twice even with multiple workers (or multiple SendDock instances on the same database).
+4. As each job finishes, the worker increments the broadcast's `sent_count`, `failed_count`, or `suppressed_count`. When the queue drains, the broadcast flips to `status=completed` and any linked campaign moves from `sending` to `sent` with the real counts.
+
+This design has three consequences worth knowing:
+
+- **Server restart mid-send is safe.** Jobs that were in `sending` when the process died are rescheduled to `retry` on the next startup; nothing is lost and nothing is double-sent.
+- **Per-recipient retries with exponential backoff.** Transient errors (DNS failures, network timeouts, SMTP 4xx) reschedule the job — backoff steps are 30s, 2m, 8m, 30m, 1h. After 5 attempts the job is marked `failed`. SMTP 5xx bounces are *not* retried (they are tagged `bounced` and the recipient is added to the suppression list immediately).
+- **Live progress is visible while sending.** The Newsletters list, Broadcasts tab, and the "broadcasts in flight" panel in Pro Analytics all read counts from the live broadcast row, refreshing every 5 seconds while at least one broadcast is in flight. You see `42/213 → 87/213 → 213/213`, not a sudden jump at the end.
+
+If you need to inspect the queue directly:
+
+```sql
+SELECT status, COUNT(*) FROM broadcast_jobs WHERE broadcast_id = '...' GROUP BY status;
+```
+
+Statuses are `pending`, `retry`, `sending`, `sent`, `failed`, `bounced`, `suppressed`.
+
 ## Scheduled Campaigns
 
 For recurring or scheduled sends, use **Campaigns** instead of sending directly. A campaign ties a template to a scheduled time and broadcasts it to all active subscribers when the time arrives.
