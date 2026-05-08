@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -87,7 +88,16 @@ func (q *Queries) DeleteCampaign(ctx context.Context, arg DeleteCampaignParams) 
 }
 
 const getCampaignByID = `-- name: GetCampaignByID :one
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id FROM campaigns WHERE id = $1 AND project_id = $2
+SELECT
+    c.id, c.project_id, c.template_id, c.name, c.subject,
+    c.scheduled_at, c.sent_at, c.created_at, c.status,
+    COALESCE(b.sent_count, c.sent_count)::int AS sent_count,
+    COALESCE(b.failed_count, c.failed_count)::int AS failed_count,
+    c.variables,
+    c.broadcast_id
+FROM campaigns c
+LEFT JOIN broadcasts b ON b.id = c.broadcast_id
+WHERE c.id = $1 AND c.project_id = $2
 `
 
 type GetCampaignByIDParams struct {
@@ -95,22 +105,38 @@ type GetCampaignByIDParams struct {
 	ProjectID uuid.UUID
 }
 
-func (q *Queries) GetCampaignByID(ctx context.Context, arg GetCampaignByIDParams) (Campaign, error) {
+type GetCampaignByIDRow struct {
+	ID          uuid.UUID
+	ProjectID   uuid.UUID
+	TemplateID  uuid.UUID
+	Name        string
+	Subject     string
+	ScheduledAt time.Time
+	SentAt      sql.NullTime
+	CreatedAt   time.Time
+	Status      string
+	SentCount   int32
+	FailedCount int32
+	Variables   json.RawMessage
+	BroadcastID uuid.NullUUID
+}
+
+func (q *Queries) GetCampaignByID(ctx context.Context, arg GetCampaignByIDParams) (GetCampaignByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getCampaignByID, arg.ID, arg.ProjectID)
-	var i Campaign
+	var i GetCampaignByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.ProjectID,
 		&i.TemplateID,
 		&i.Name,
-		&i.Status,
+		&i.Subject,
 		&i.ScheduledAt,
 		&i.SentAt,
+		&i.CreatedAt,
+		&i.Status,
 		&i.SentCount,
 		&i.FailedCount,
-		&i.CreatedAt,
 		&i.Variables,
-		&i.Subject,
 		&i.BroadcastID,
 	)
 	return i, err
@@ -160,33 +186,57 @@ func (q *Queries) GetPendingCampaigns(ctx context.Context) ([]Campaign, error) {
 }
 
 const listCampaignsByProject = `-- name: ListCampaignsByProject :many
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id FROM campaigns
-WHERE project_id = $1
-ORDER BY created_at DESC
+SELECT
+    c.id, c.project_id, c.template_id, c.name, c.subject,
+    c.scheduled_at, c.sent_at, c.created_at, c.status,
+    COALESCE(b.sent_count, c.sent_count)::int AS sent_count,
+    COALESCE(b.failed_count, c.failed_count)::int AS failed_count,
+    c.variables,
+    c.broadcast_id
+FROM campaigns c
+LEFT JOIN broadcasts b ON b.id = c.broadcast_id
+WHERE c.project_id = $1
+ORDER BY c.created_at DESC
 `
 
-func (q *Queries) ListCampaignsByProject(ctx context.Context, projectID uuid.UUID) ([]Campaign, error) {
+type ListCampaignsByProjectRow struct {
+	ID          uuid.UUID
+	ProjectID   uuid.UUID
+	TemplateID  uuid.UUID
+	Name        string
+	Subject     string
+	ScheduledAt time.Time
+	SentAt      sql.NullTime
+	CreatedAt   time.Time
+	Status      string
+	SentCount   int32
+	FailedCount int32
+	Variables   json.RawMessage
+	BroadcastID uuid.NullUUID
+}
+
+func (q *Queries) ListCampaignsByProject(ctx context.Context, projectID uuid.UUID) ([]ListCampaignsByProjectRow, error) {
 	rows, err := q.db.QueryContext(ctx, listCampaignsByProject, projectID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Campaign
+	var items []ListCampaignsByProjectRow
 	for rows.Next() {
-		var i Campaign
+		var i ListCampaignsByProjectRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ProjectID,
 			&i.TemplateID,
 			&i.Name,
-			&i.Status,
+			&i.Subject,
 			&i.ScheduledAt,
 			&i.SentAt,
+			&i.CreatedAt,
+			&i.Status,
 			&i.SentCount,
 			&i.FailedCount,
-			&i.CreatedAt,
 			&i.Variables,
-			&i.Subject,
 			&i.BroadcastID,
 		); err != nil {
 			return nil, err

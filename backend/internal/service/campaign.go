@@ -79,7 +79,29 @@ func (s *CampaignService) ListByProject(ctx context.Context, projectID string) (
 	if err != nil {
 		return nil, errors.New("invalid project id")
 	}
-	return s.queries.ListCampaignsByProject(ctx, pid)
+	rows, err := s.queries.ListCampaignsByProject(ctx, pid)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]db.Campaign, len(rows))
+	for i, r := range rows {
+		out[i] = db.Campaign{
+			ID:          r.ID,
+			ProjectID:   r.ProjectID,
+			TemplateID:  r.TemplateID,
+			Name:        r.Name,
+			Subject:     r.Subject,
+			ScheduledAt: r.ScheduledAt,
+			SentAt:      r.SentAt,
+			CreatedAt:   r.CreatedAt,
+			Status:      r.Status,
+			SentCount:   r.SentCount,
+			FailedCount: r.FailedCount,
+			Variables:   r.Variables,
+			BroadcastID: r.BroadcastID,
+		}
+	}
+	return out, nil
 }
 
 func (s *CampaignService) Delete(ctx context.Context, campaignID, projectID string) error {
