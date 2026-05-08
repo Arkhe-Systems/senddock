@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/cache"
@@ -40,7 +41,8 @@ type App struct {
 	eitherAuth       func(http.Handler) http.Handler
 	rateLimiter      *middleware.RateLimiter
 
-	worker       *service.CampaignWorker
+	worker          *service.CampaignWorker
+	broadcastWorker *service.BroadcastWorker
 	webhooks     *webhooks.Service
 	suppressions *service.SuppressionService
 	audit        *service.AuditService
@@ -49,6 +51,8 @@ type App struct {
 	projects     *service.ProjectService
 
 	server *http.Server
+
+	dbHealthLastSuccess atomic.Int64
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -93,9 +97,16 @@ func New(cfg config.Config) (*App, error) {
 	suppressionService := service.NewSuppressionService(queries)
 	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks, suppressionService)
 	a.worker = service.NewCampaignWorker(queries, emailService)
+	a.broadcastWorker = service.NewBroadcastWorker(queries, emailService)
 	a.suppressions = suppressionService
 	a.audit = service.NewAuditService(queries)
 	a.bouncePoller = service.NewBounceIMAPPoller(queries, suppressionService, cfg.JWTSecret)
+
+	recoveryCtx, cancelRecovery := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := emailService.RecoverInProgressBroadcasts(recoveryCtx); err != nil {
+		log.Printf("broadcast recovery: %v", err)
+	}
+	cancelRecovery()
 
 	a.registerCoreRoutes(emailService)
 	a.serveFrontend()
@@ -128,7 +139,9 @@ func (a *App) WithAPIAuth(h http.Handler) http.Handler {
 }
 
 func (a *App) Run(ctx context.Context) error {
+	a.startDBHealthMonitor(ctx)
 	a.worker.Start()
+	a.broadcastWorker.Start(ctx)
 	a.webhooks.Start(ctx)
 	a.bouncePoller.Start(ctx)
 
@@ -170,6 +183,36 @@ func (a *App) Run(ctx context.Context) error {
 	}
 }
 
+func (a *App) startDBHealthMonitor(ctx context.Context) {
+	pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := a.conn.PingContext(pingCtx); err == nil {
+		a.dbHealthLastSuccess.Store(time.Now().Unix())
+	} else {
+		log.Printf("startup db ping failed: %v", err)
+	}
+	cancel()
+
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				pctx, pcancel := context.WithTimeout(context.Background(), 5*time.Second)
+				err := a.conn.PingContext(pctx)
+				pcancel()
+				if err != nil {
+					log.Printf("background db ping failed: %v", err)
+					continue
+				}
+				a.dbHealthLastSuccess.Store(time.Now().Unix())
+			}
+		}
+	}()
+}
+
 func (a *App) Close() error {
 	if a.cache != nil {
 		a.cache.Close()
@@ -209,7 +252,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	emailHandler := handler.NewEmailHandler(emailService, projectService, a.cache)
 
 	campaignService := service.NewCampaignService(queries)
-	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, cfg.PublicURL)
+	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, a.worker, cfg.PublicURL)
 
 	trackingHandler := handler.NewTrackingHandler(queries, emailService, a.webhooks)
 
@@ -232,14 +275,14 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		if err := a.conn.PingContext(ctx); err != nil {
+		last := a.dbHealthLastSuccess.Load()
+		ageSec := time.Now().Unix() - last
+		if last == 0 || ageSec > 60 {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]string{"status": "db_unreachable", "error": err.Error()})
+			json.NewEncoder(w).Encode(map[string]any{"status": "db_unreachable", "last_db_check_age_s": ageSec})
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		json.NewEncoder(w).Encode(map[string]any{"status": "ok", "last_db_check_age_s": ageSec})
 	})
 
 	mux.HandleFunc("GET /api/v1/setup/status", setupHandler.Status)
@@ -316,6 +359,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("POST /api/v1/projects/{id}/broadcast", eitherAuth(http.HandlerFunc(emailHandler.Broadcast)))
 	mux.Handle("POST /api/v1/projects/{id}/send/batch", eitherAuth(http.HandlerFunc(emailHandler.BatchSend)))
 	mux.Handle("GET /api/v1/projects/{id}/logs", authMW(http.HandlerFunc(emailHandler.Logs)))
+	mux.Handle("GET /api/v1/projects/{id}/logs/export.csv", authMW(http.HandlerFunc(emailHandler.LogsExport)))
+	mux.Handle("GET /api/v1/projects/{id}/broadcasts", authMW(http.HandlerFunc(emailHandler.ListBroadcasts)))
 	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
 
 	mux.HandleFunc("GET /unsubscribe/{id}/{subscriberId}", emailHandler.UnsubscribePage)

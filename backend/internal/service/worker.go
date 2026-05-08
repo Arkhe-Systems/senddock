@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"log"
+	"runtime/debug"
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/google/uuid"
 )
 
 type CampaignWorker struct {
@@ -23,47 +25,77 @@ func (w *CampaignWorker) Start() {
 		defer ticker.Stop()
 
 		for range ticker.C {
-			w.processPending()
+			w.tick()
 		}
 	}()
 	log.Println("Campaign worker started (checking every 30s)")
 }
 
-func (w *CampaignWorker) processPending() {
-	ctx := context.Background()
+func (w *CampaignWorker) tick() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("campaign worker tick panic: %v\n%s", r, debug.Stack())
+		}
+	}()
 
+	ctx := context.Background()
 	campaigns, err := w.queries.GetPendingCampaigns(ctx)
 	if err != nil {
+		log.Printf("campaign worker: list pending failed: %v", err)
 		return
 	}
 
 	for _, campaign := range campaigns {
-		w.executeCampaign(ctx, campaign)
+		w.ExecuteCampaign(ctx, campaign)
 	}
 }
 
-func (w *CampaignWorker) executeCampaign(ctx context.Context, campaign db.Campaign) {
-	log.Printf("Executing campaign %s: %s", campaign.ID.String(), campaign.Name)
+func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campaign) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("campaign %s: execute panic: %v\n%s", campaign.ID, r, debug.Stack())
+		}
+	}()
 
-	w.queries.UpdateCampaignStatus(ctx, db.UpdateCampaignStatusParams{
-		ID:     campaign.ID,
-		Status: "sending",
-	})
-
-	result, err := w.emailService.Broadcast(ctx, campaign.ProjectID.String(), campaign.TemplateID.String(), campaign.Subject, campaign.Variables)
-
-	status := "sent"
+	claimed, err := w.queries.ClaimCampaignForExecution(ctx, campaign.ID)
 	if err != nil {
-		status = "failed"
-		log.Printf("Campaign %s failed: %v", campaign.ID.String(), err)
+		log.Printf("campaign %s: claim failed: %v", campaign.ID, err)
+		return
+	}
+	if claimed == 0 {
+		return
 	}
 
-	w.queries.UpdateCampaignStatus(ctx, db.UpdateCampaignStatusParams{
-		ID:          campaign.ID,
-		Status:      status,
-		SentCount:   int32(result.Sent),
-		FailedCount: int32(result.Failed),
-	})
+	log.Printf("Executing campaign %s: %s", campaign.ID, campaign.Name)
 
-	log.Printf("Campaign %s completed: %d sent, %d failed", campaign.ID.String(), result.Sent, result.Failed)
+	result, runErr := w.emailService.Broadcast(
+		ctx,
+		campaign.ProjectID.String(),
+		campaign.TemplateID.String(),
+		campaign.Subject,
+		campaign.Variables,
+	)
+
+	if runErr != nil {
+		log.Printf("campaign %s: broadcast failed: %v", campaign.ID, runErr)
+		if err := w.queries.UpdateCampaignStatus(ctx, db.UpdateCampaignStatusParams{
+			ID:          campaign.ID,
+			Status:      "failed",
+			SentCount:   0,
+			FailedCount: 0,
+		}); err != nil {
+			log.Printf("campaign %s: marking failed: %v", campaign.ID, err)
+		}
+		return
+	}
+
+	if result.BroadcastID != nil {
+		if err := w.queries.SetCampaignBroadcast(ctx, db.SetCampaignBroadcastParams{
+			ID:          campaign.ID,
+			BroadcastID: uuid.NullUUID{UUID: *result.BroadcastID, Valid: true},
+		}); err != nil {
+			log.Printf("campaign %s: link to broadcast %s failed: %v", campaign.ID, *result.BroadcastID, err)
+		}
+	}
+	log.Printf("Campaign %s linked to broadcast %v (%d recipients enqueued)", campaign.ID, result.BroadcastID, result.Sent)
 }

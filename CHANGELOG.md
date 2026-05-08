@@ -11,6 +11,26 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.4] — 2026-05-08
+
+### Added
+
+- **Per-recipient broadcast queue with retries (#41).** Broadcasts and scheduled campaigns no longer run in a single goroutine that loses everything on restart. Each recipient is enqueued as a row in a new `broadcast_jobs` table; five worker goroutines drain it concurrently using `SELECT … FOR UPDATE SKIP LOCKED`. Transient SMTP errors (4xx, network, DNS) reschedule the job with exponential backoff (30s, 2m, 8m, 30m, 1h), capping at five attempts before the recipient is marked `failed`. SMTP 5xx bounces are not retried — they are tagged `bounced` and the recipient is added to the suppression list. A backend restart mid-broadcast resets jobs that were in `sending` to `retry` so sending resumes from where it left off, with no recipient sent to twice and none silently dropped.
+- **Live progress for newsletters and broadcasts.** The Newsletters list shows `sent_count` / `failed_count` updating every five seconds while a campaign is in `sending`, instead of jumping from `0/0` to the final number at the end. Same goes for the Broadcasts tab progress bars.
+- **"Broadcasts in flight" panel on Pro Analytics (#41).** When at least one broadcast is actively sending, a card appears at the top of the Analytics dashboard with a live progress bar per broadcast, elapsed time, and per-status counters. Polls every five seconds and disappears as soon as the queue drains.
+- **Email Logs filters and CSV export (#44).** Status filter is now a row of clickable chips (Sent / Failed / Bounced / Suppressed) with status-tinted highlight. Added a Template dropdown to filter logs to a single template's sends. New `GET /api/v1/projects/{id}/logs/export.csv` endpoint and **Export CSV** button (top right of Logs) downloads every row matching the active filters — no `limit`/`offset`. Columns: id, recipient, subject, status, error, sent_at, opened_at, clicked_at, template_id, subscriber_id.
+- **Dark color-scheme on native date pickers.** All `<input type="date">` widgets across the app now render their popup in dark mode in Chromium and Firefox, matching the rest of the UI.
+
+### Fixed
+
+- **`/health` no longer kills the container on transient Postgres latency.** v0.6.3 introduced a synchronous 2-second `PingContext` on every `/health` call. When Postgres took >2s for any reason (slow disk, GC pause, momentary IO contention shared with neighbors on a small VPS), healthcheck failed five times in a row over ~3 minutes and the orchestrator killed the container — only to start a new one which had the same problem. The endpoint is now backed by a background goroutine that pings Postgres every 10s with a 5s timeout and stores the last-success Unix timestamp atomically. `/health` reads the atomic and returns `503` only if no successful ping has happened in the last 60 seconds. Single blips no longer trigger crash-replace loops; sustained Postgres outages still surface to the orchestrator.
+- **Newsletter shown as `sent` with `213/0` immediately on schedule.** With the new queue, `EmailService.Broadcast` returns in milliseconds (only enqueues), so the campaign worker — which used to call `Broadcast` and immediately mark the campaign as `sent` with the upfront recipient count — was claiming the campaign was finished before any recipient had been sent to. Campaigns now stay in `sending`, linked to their broadcast via a new `campaigns.broadcast_id` FK; when the broadcast worker drains the queue it cascades the real `sent_count` / `failed_count` back to the linked campaign and flips its status to `sent` with `sent_at` set.
+
+### Documentation
+
+- **New Docker Swarm / Dokploy troubleshooting section.** Documents the recurring "all services on the same host stop talking to each other" pattern — usually caused by accumulated dead containers and orphan services confusing the embedded DNS resolver `127.0.0.11:53`, which makes every service on the overlay network fail to resolve names simultaneously. Includes diagnostic commands and a safe cleanup sequence (`docker service rm` orphans, `docker container prune`, `docker network prune`) plus an explicit warning never to use `volume prune` or `system prune -a`.
+- **Tag-cache `Image is up to date` workaround.** When Dokploy or Docker Swarm refuses to pull a new image because the tag (`:dev`, `:latest`) appears unchanged locally, enable Clean Cache in the UI or use `docker service update --force --image …` from the host.
+
 ## [0.6.3] — 2026-05-06
 
 ### Fixed

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -13,13 +14,15 @@ import (
 type CampaignHandler struct {
 	campaignService *service.CampaignService
 	projectService  *service.ProjectService
+	worker          *service.CampaignWorker
 	publicURL       string
 }
 
-func NewCampaignHandler(campaignService *service.CampaignService, projectService *service.ProjectService, publicURL string) *CampaignHandler {
+func NewCampaignHandler(campaignService *service.CampaignService, projectService *service.ProjectService, worker *service.CampaignWorker, publicURL string) *CampaignHandler {
 	return &CampaignHandler{
 		campaignService: campaignService,
 		projectService:  projectService,
+		worker:          worker,
 		publicURL:       publicURL,
 	}
 }
@@ -95,6 +98,10 @@ func (h *CampaignHandler) Create(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return
+	}
+
+	if h.worker != nil && !scheduledAt.After(time.Now().Add(1*time.Minute)) {
+		go h.worker.ExecuteCampaign(context.Background(), campaign)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

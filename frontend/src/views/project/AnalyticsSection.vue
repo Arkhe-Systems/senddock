@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
@@ -8,6 +8,16 @@ interface OpenBucket { bucket: string; opens: number }
 interface TemplateStat { template_id: string; name: string; sends: number }
 interface StatusBucket { status: string; count: number }
 interface LinkStat { url: string; clicks: number }
+interface BroadcastInFlight {
+    id: string
+    subject: string
+    total: number
+    sent: number
+    failed: number
+    suppressed: number
+    remaining: number
+    started_at: string
+}
 interface PeriodMetrics {
     total_sent: number
     total_failed: number
@@ -36,6 +46,7 @@ interface Overview {
     active_subscribers: number
     sends_by_status: StatusBucket[] | null
     previous: PeriodMetrics
+    broadcasts_in_flight: BroadcastInFlight[] | null
 }
 
 const props = defineProps<{ project: Project }>()
@@ -78,6 +89,44 @@ function presetWindow(p: Preset): { from: Date; to: Date } | null {
 const opensByDay = computed(() => overview.value?.opens_series ?? [])
 const topTemplates = computed(() => overview.value?.top_templates ?? [])
 const topClickedLinks = computed(() => overview.value?.top_clicked_links ?? [])
+const broadcastsInFlight = computed(() => overview.value?.broadcasts_in_flight ?? [])
+
+function progressPct(b: BroadcastInFlight): number {
+    if (b.total <= 0) return 0
+    const done = b.sent + b.failed + b.suppressed
+    return Math.min(100, Math.round((done / b.total) * 100))
+}
+
+function fmtElapsed(startedAt: string): string {
+    const s = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+    if (s < 60) return `${s}s`
+    if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`
+    const h = Math.floor(s / 3600)
+    return `${h}h ${Math.floor((s % 3600) / 60)}m`
+}
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function startPollingIfNeeded() {
+    if (pollTimer) return
+    if (broadcastsInFlight.value.length === 0) return
+    pollTimer = setInterval(async () => {
+        if (broadcastsInFlight.value.length === 0) {
+            stopPolling()
+            return
+        }
+        await load()
+    }, 5000)
+}
+
+function stopPolling() {
+    if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+    }
+}
+
+onBeforeUnmount(() => stopPolling())
 const maxLinkClicks = computed(() => topClickedLinks.value.reduce((m, l) => Math.max(m, l.clicks), 0) || 1)
 
 const totalSendsCurrent = computed(() => {
@@ -239,12 +288,13 @@ const insights = computed(() => {
 })
 
 async function load() {
-    loading.value = true
+    if (!pollTimer) loading.value = true
     errorState.value = 'none'
     try {
         const params = new URLSearchParams({ from: fromISO.value, to: toISO.value })
         const url = `/projects/${props.project.id}/analytics/overview?${params.toString()}`
         overview.value = await api<Overview>(url)
+        startPollingIfNeeded()
     } catch (e) {
         const msg = e instanceof Error ? e.message : ''
         if (msg.includes('license required')) errorState.value = 'paywall'
@@ -478,6 +528,44 @@ onMounted(() => applyPreset(preset.value))
                             <span>{{ clickRateTrend.pct.toFixed(0) }}%</span>
                         </span>
                         <span class="text-xs text-zinc-500">{{ rangeLabel() }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="broadcastsInFlight.length > 0" class="bg-zinc-900 border border-blue-500/30 rounded-xl p-5 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="relative flex h-2.5 w-2.5">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                        </span>
+                        <h2 class="text-sm font-semibold text-white">
+                            {{ broadcastsInFlight.length === 1 ? '1 broadcast in flight' : `${broadcastsInFlight.length} broadcasts in flight` }}
+                        </h2>
+                    </div>
+                    <span class="text-xs text-zinc-500">Live · refreshing every 5s</span>
+                </div>
+                <div class="space-y-3">
+                    <div v-for="b in broadcastsInFlight" :key="b.id" class="bg-zinc-950 border border-zinc-800 rounded-lg p-4">
+                        <div class="flex items-start justify-between gap-3 mb-2">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-medium text-white truncate">{{ b.subject || '(no subject)' }}</p>
+                                <p class="text-xs text-zinc-500 mt-0.5">Started {{ fmtElapsed(b.started_at) }} ago</p>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <p class="text-sm font-semibold text-white tabular-nums">{{ b.sent + b.failed + b.suppressed }} / {{ b.total }}</p>
+                                <p class="text-xs text-zinc-500">{{ progressPct(b) }}%</p>
+                            </div>
+                        </div>
+                        <div class="h-2 bg-zinc-900 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-500 transition-all duration-500" :style="{ width: progressPct(b) + '%' }"></div>
+                        </div>
+                        <div class="flex items-center gap-4 mt-2 text-xs">
+                            <span class="text-emerald-400 tabular-nums">✓ {{ b.sent }} sent</span>
+                            <span v-if="b.failed > 0" class="text-red-400 tabular-nums">✗ {{ b.failed }} failed</span>
+                            <span v-if="b.suppressed > 0" class="text-zinc-500 tabular-nums">⊘ {{ b.suppressed }} suppressed</span>
+                            <span v-if="b.remaining > 0" class="text-zinc-500 tabular-nums ml-auto">{{ b.remaining }} pending</span>
+                        </div>
                     </div>
                 </div>
             </div>

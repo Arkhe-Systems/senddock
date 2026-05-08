@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import { useAppStore } from '@/stores/app'
@@ -192,6 +192,23 @@ const showDeleteModal = ref(false)
 const campaignToDelete = ref<Campaign | null>(null)
 const deleteLoading = ref(false)
 
+const deleteMessage = computed(() => {
+    const c = campaignToDelete.value
+    if (!c) return ''
+    switch (c.status) {
+        case 'scheduled':
+            return `Delete "${c.name}"? This permanently cancels the scheduled send.`
+        case 'sending':
+            return `Delete "${c.name}"? This row is marked as sending — emails already in flight will continue to be delivered, but the campaign will disappear from this list.`
+        case 'sent':
+            return `Delete "${c.name}"? Removes it from this list. The emails already sent and the broadcast history are kept.`
+        case 'failed':
+            return `Delete "${c.name}"? Removes the failed campaign from this list.`
+        default:
+            return `Delete "${c.name}"?`
+    }
+})
+
 function confirmDelete(c: Campaign) {
     campaignToDelete.value = c
     showDeleteModal.value = true
@@ -217,6 +234,35 @@ async function handleDelete() {
 function varLabel(v: string | undefined) {
     return '{{' + (v ?? '') + '}}'
 }
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function startPollingIfNeeded() {
+    if (pollTimer) return
+    if (!campaigns.value.some(c => c.status === 'sending')) return
+    pollTimer = setInterval(async () => {
+        if (!campaigns.value.some(c => c.status === 'sending')) {
+            stopPolling()
+            return
+        }
+        try {
+            const res = await api<Campaign[] | null>(`/projects/${props.project.id}/campaigns`)
+            campaigns.value = res || []
+        } catch {
+            // poll keeps running; next tick will retry
+        }
+    }, 5000)
+}
+
+function stopPolling() {
+    if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+    }
+}
+
+watch(campaigns, () => startPollingIfNeeded(), { deep: false })
+onBeforeUnmount(() => stopPolling())
 
 onMounted(loadData)
 </script>
@@ -274,13 +320,13 @@ onMounted(loadData)
                             <span class="text-green-400">{{ c.sent_count }}</span> / 
                             <span :class="c.failed_count > 0 ? 'text-red-400' : 'text-zinc-500'">{{ c.failed_count }}</span>
                         </td>
-                        <td class="px-4 py-3 text-right space-x-3">
+                        <td class="px-4 py-3 text-right space-x-3 whitespace-nowrap">
                             <button v-if="c.status === 'scheduled'" @click="openEditModal(c)"
-                                class="text-xs text-zinc-500 hover:text-white transition cursor-pointer opacity-0 group-hover:opacity-100">
+                                class="text-xs text-zinc-400 hover:text-white transition cursor-pointer">
                                 Edit
                             </button>
-                            <button v-if="c.status === 'scheduled'" @click="confirmDelete(c)"
-                                class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer opacity-0 group-hover:opacity-100">
+                            <button @click="confirmDelete(c)"
+                                class="text-xs text-zinc-400 hover:text-red-400 transition cursor-pointer">
                                 Delete
                             </button>
                         </td>
@@ -382,7 +428,7 @@ onMounted(loadData)
         <AppConfirmModal
             :show="showDeleteModal"
             title="Delete campaign"
-            :message="campaignToDelete ? `Delete ${campaignToDelete.name}? This permanently cancels the scheduled send.` : ''"
+            :message="deleteMessage"
             confirmLabel="Delete"
             danger
             :loading="deleteLoading"

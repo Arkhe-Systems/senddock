@@ -6,6 +6,7 @@ import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppPagination from '@/components/ui/AppPagination.vue'
 
 interface Suppression {
     id: string
@@ -34,7 +35,7 @@ const loading = ref(true)
 
 const reasonFilter = ref('')
 const page = ref(0)
-const limit = 50
+const limit = ref(50)
 
 const showAddModal = ref(false)
 const newEmails = ref('')
@@ -52,8 +53,8 @@ async function fetchList() {
     loading.value = true
     try {
         const params = new URLSearchParams({
-            limit: String(limit),
-            offset: String(page.value * limit),
+            limit: String(limit.value),
+            offset: String(page.value * limit.value),
         })
         if (reasonFilter.value) params.set('reason', reasonFilter.value)
         const res = await api<{ suppressions: Suppression[] | null, total: number }>(
@@ -216,17 +217,12 @@ onMounted(fetchList)
             </table>
         </div>
 
-        <div v-if="!loading && total > limit" class="flex justify-between items-center mt-4">
-            <button @click="page--; fetchList()" :disabled="page === 0"
-                class="px-3 py-1.5 text-sm text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                Previous
-            </button>
-            <span class="text-xs text-zinc-500">Page {{ page + 1 }} of {{ Math.ceil(total / limit) }}</span>
-            <button @click="page++; fetchList()" :disabled="(page + 1) * limit >= total"
-                class="px-3 py-1.5 text-sm text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                Next
-            </button>
-        </div>
+        <AppPagination
+            v-if="!loading"
+            v-model:page="page"
+            v-model:limit="limit"
+            :total="total"
+            @change="fetchList" />
 
         <AppModal :show="showAddModal" title="Add to suppression list" size="lg" @close="showAddModal = false">
             <form @submit.prevent="submitAdd" class="space-y-4">
