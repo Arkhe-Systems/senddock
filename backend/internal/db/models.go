@@ -51,6 +51,20 @@ type Broadcast struct {
 	FinishedAt      sql.NullTime
 }
 
+type BroadcastJob struct {
+	ID             uuid.UUID
+	BroadcastID    uuid.UUID
+	ProjectID      uuid.UUID
+	SubscriberID   uuid.UUID
+	RecipientEmail string
+	Status         string
+	Attempts       int32
+	LastError      sql.NullString
+	ScheduledAt    time.Time
+	CompletedAt    sql.NullTime
+	CreatedAt      time.Time
+}
+
 type Campaign struct {
 	ID          uuid.UUID
 	ProjectID   uuid.UUID
