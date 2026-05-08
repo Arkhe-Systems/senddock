@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/google/uuid"
 )
 
 type CampaignWorker struct {
@@ -75,22 +76,26 @@ func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campai
 		campaign.Variables,
 	)
 
-	status := "sent"
 	if runErr != nil {
-		status = "failed"
 		log.Printf("campaign %s: broadcast failed: %v", campaign.ID, runErr)
-	}
-
-	if err := w.queries.UpdateCampaignStatus(ctx, db.UpdateCampaignStatusParams{
-		ID:          campaign.ID,
-		Status:      status,
-		SentCount:   int32(result.Sent),
-		FailedCount: int32(result.Failed),
-	}); err != nil {
-		log.Printf("campaign %s: final status update failed (status=%s, sent=%d, failed=%d): %v",
-			campaign.ID, status, result.Sent, result.Failed, err)
+		if err := w.queries.UpdateCampaignStatus(ctx, db.UpdateCampaignStatusParams{
+			ID:          campaign.ID,
+			Status:      "failed",
+			SentCount:   0,
+			FailedCount: 0,
+		}); err != nil {
+			log.Printf("campaign %s: marking failed: %v", campaign.ID, err)
+		}
 		return
 	}
 
-	log.Printf("Campaign %s completed: %d sent, %d failed", campaign.ID, result.Sent, result.Failed)
+	if result.BroadcastID != nil {
+		if err := w.queries.SetCampaignBroadcast(ctx, db.SetCampaignBroadcastParams{
+			ID:          campaign.ID,
+			BroadcastID: uuid.NullUUID{UUID: *result.BroadcastID, Valid: true},
+		}); err != nil {
+			log.Printf("campaign %s: link to broadcast %s failed: %v", campaign.ID, *result.BroadcastID, err)
+		}
+	}
+	log.Printf("Campaign %s linked to broadcast %v (%d recipients enqueued)", campaign.ID, result.BroadcastID, result.Sent)
 }

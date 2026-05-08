@@ -28,6 +28,20 @@ WHERE id = @id;
 UPDATE campaigns SET status = 'sending'
 WHERE id = $1 AND status = 'scheduled';
 
+-- name: SetCampaignBroadcast :exec
+UPDATE campaigns SET broadcast_id = @broadcast_id WHERE id = @id;
+
+-- name: MarkCampaignDoneFromBroadcast :exec
+UPDATE campaigns
+SET status = 'sent',
+    sent_count = b.sent_count,
+    failed_count = b.failed_count,
+    sent_at = NOW()
+FROM broadcasts b
+WHERE campaigns.broadcast_id = b.id
+  AND b.id = @broadcast_id
+  AND campaigns.status = 'sending';
+
 -- name: DeleteCampaign :execrows
 DELETE FROM campaigns WHERE id = $1 AND project_id = $2;
 

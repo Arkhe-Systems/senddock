@@ -78,6 +78,7 @@ type Campaign struct {
 	CreatedAt   time.Time
 	Variables   json.RawMessage
 	Subject     string
+	BroadcastID uuid.NullUUID
 }
 
 type EmailClick struct {
