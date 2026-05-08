@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import { useAppStore } from '@/stores/app'
@@ -234,6 +234,35 @@ async function handleDelete() {
 function varLabel(v: string | undefined) {
     return '{{' + (v ?? '') + '}}'
 }
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function startPollingIfNeeded() {
+    if (pollTimer) return
+    if (!campaigns.value.some(c => c.status === 'sending')) return
+    pollTimer = setInterval(async () => {
+        if (!campaigns.value.some(c => c.status === 'sending')) {
+            stopPolling()
+            return
+        }
+        try {
+            const res = await api<Campaign[] | null>(`/projects/${props.project.id}/campaigns`)
+            campaigns.value = res || []
+        } catch {
+            // silent on poll errors
+        }
+    }, 5000)
+}
+
+function stopPolling() {
+    if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+    }
+}
+
+watch(campaigns, () => startPollingIfNeeded(), { deep: false })
+onBeforeUnmount(() => stopPolling())
 
 onMounted(loadData)
 </script>
