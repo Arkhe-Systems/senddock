@@ -249,7 +249,7 @@ function startPollingIfNeeded() {
             const res = await api<Campaign[] | null>(`/projects/${props.project.id}/campaigns`)
             campaigns.value = res || []
         } catch {
-            // silent on poll errors
+            // poll keeps running; next tick will retry
         }
     }, 5000)
 }

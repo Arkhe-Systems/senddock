@@ -174,10 +174,22 @@ Cookie auth only.
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `status` | Filter by delivery status. Valid: `sent`, `failed`, `bounced`, `suppressed`. | `?status=bounced` |
+| `template_id` | Restrict to logs that came from one template | `?template_id=...` |
 | `from` | Inclusive lower bound on `sent_at` (RFC 3339) | `?from=2026-01-01T00:00:00Z` |
 | `to` | Inclusive upper bound on `sent_at` (RFC 3339) | `?to=2026-02-01T00:00:00Z` |
+| `q` | Free-text match against `to_email` or `subject` (case-insensitive) | `?q=welcome` |
 | `limit` | Page size (default 50, max 200) | `?limit=100` |
 | `offset` | Pagination offset | `?offset=50` |
+
+### Export to CSV
+
+```
+GET /api/v1/projects/{id}/logs/export.csv
+```
+
+Same query parameters as `/logs` (no `limit`/`offset` — every matching row is exported). Returns `text/csv` with a `Content-Disposition: attachment` header so browsers download it directly. Columns: `id, to_email, subject, status, error, sent_at, opened_at, clicked_at, template_id, subscriber_id`.
+
+Cookie auth only.
 
 Example with filters:
 
