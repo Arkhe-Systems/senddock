@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { api } from '@/api/client'
+import { api, getApiBase } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import AppPagination from '@/components/ui/AppPagination.vue'
 
@@ -16,15 +16,28 @@ interface EmailLog {
     sent_at: string
 }
 
+interface Template { id: string; name: string }
+
+const STATUS_CHIPS: { value: string; label: string; classes: string }[] = [
+    { value: '', label: 'All', classes: '' },
+    { value: 'sent', label: 'Sent', classes: 'data-[active]:bg-green-500/15 data-[active]:text-green-400 data-[active]:border-green-500/40' },
+    { value: 'failed', label: 'Failed', classes: 'data-[active]:bg-red-500/15 data-[active]:text-red-400 data-[active]:border-red-500/40' },
+    { value: 'bounced', label: 'Bounced', classes: 'data-[active]:bg-orange-500/15 data-[active]:text-orange-400 data-[active]:border-orange-500/40' },
+    { value: 'suppressed', label: 'Suppressed', classes: 'data-[active]:bg-zinc-500/15 data-[active]:text-zinc-300 data-[active]:border-zinc-600' },
+]
+
 const props = defineProps<{ project: Project }>()
 
 const logs = ref<EmailLog[]>([])
+const templates = ref<Template[]>([])
 const total = ref(0)
 const loading = ref(true)
+const exporting = ref(false)
 const page = ref(0)
 const limit = ref(25)
 
 const filterStatus = ref('')
+const filterTemplateId = ref('')
 const filterFrom = ref('')
 const filterTo = ref('')
 const filterSearch = ref('')
@@ -32,17 +45,22 @@ const expandedId = ref<string | null>(null)
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
+function buildFilterParams(): URLSearchParams {
+    const params = new URLSearchParams()
+    if (filterStatus.value) params.set('status', filterStatus.value)
+    if (filterTemplateId.value) params.set('template_id', filterTemplateId.value)
+    if (filterFrom.value) params.set('from', new Date(filterFrom.value).toISOString())
+    if (filterTo.value) params.set('to', new Date(filterTo.value + 'T23:59:59').toISOString())
+    if (filterSearch.value.trim()) params.set('q', filterSearch.value.trim())
+    return params
+}
+
 async function fetchLogs() {
     loading.value = true
     try {
-        const params = new URLSearchParams({
-            limit: String(limit.value),
-            offset: String(page.value * limit.value),
-        })
-        if (filterStatus.value) params.set('status', filterStatus.value)
-        if (filterFrom.value) params.set('from', new Date(filterFrom.value).toISOString())
-        if (filterTo.value) params.set('to', new Date(filterTo.value + 'T23:59:59').toISOString())
-        if (filterSearch.value.trim()) params.set('q', filterSearch.value.trim())
+        const params = buildFilterParams()
+        params.set('limit', String(limit.value))
+        params.set('offset', String(page.value * limit.value))
 
         const res = await api<{ logs: EmailLog[] | null, total: number }>(
             `/projects/${props.project.id}/logs?${params.toString()}`,
@@ -56,10 +74,24 @@ async function fetchLogs() {
     }
 }
 
+async function fetchTemplates() {
+    try {
+        const res = await api<Template[] | null>(`/projects/${props.project.id}/templates`)
+        templates.value = res || []
+    } catch {
+        templates.value = []
+    }
+}
+
 function applyFilters() {
     page.value = 0
     expandedId.value = null
     fetchLogs()
+}
+
+function setStatus(v: string) {
+    filterStatus.value = v
+    applyFilters()
 }
 
 function onSearchInput() {
@@ -69,6 +101,7 @@ function onSearchInput() {
 
 function clearFilters() {
     filterStatus.value = ''
+    filterTemplateId.value = ''
     filterFrom.value = ''
     filterTo.value = ''
     filterSearch.value = ''
@@ -77,17 +110,44 @@ function clearFilters() {
     fetchLogs()
 }
 
+async function exportCSV() {
+    exporting.value = true
+    try {
+        const params = buildFilterParams()
+        const url = `${getApiBase()}/projects/${props.project.id}/logs/export.csv?${params.toString()}`
+        const res = await fetch(url, { credentials: 'include' })
+        if (!res.ok) throw new Error('export failed')
+        const blob = await res.blob()
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]
+            ?? `email-logs-${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(link.href)
+    } catch {
+        // silent: button shows loading state, user retries
+    } finally {
+        exporting.value = false
+    }
+}
+
 function toggleExpand(id: string) {
     expandedId.value = expandedId.value === id ? null : id
 }
 
 const hasFilters = () =>
     filterStatus.value !== '' ||
+    filterTemplateId.value !== '' ||
     filterFrom.value !== '' ||
     filterTo.value !== '' ||
     filterSearch.value.trim() !== ''
 
-onMounted(fetchLogs)
+onMounted(() => {
+    fetchLogs()
+    fetchTemplates()
+})
 </script>
 
 <template>
@@ -97,6 +157,25 @@ onMounted(fetchLogs)
                 <h1 class="text-2xl font-bold text-white">Email Logs</h1>
                 <p class="text-sm text-zinc-500 mt-1">{{ total }} total</p>
             </div>
+            <button @click="exportCSV" :disabled="exporting"
+                class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-700 rounded-lg text-white hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ exporting ? 'Exporting…' : 'Export CSV' }}
+            </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+            <button v-for="chip in STATUS_CHIPS" :key="chip.value"
+                :data-active="filterStatus === chip.value || null"
+                @click="setStatus(chip.value)"
+                :class="[
+                    'px-3 py-1 text-xs rounded-full border transition cursor-pointer',
+                    filterStatus === chip.value
+                        ? 'bg-zinc-700 text-white border-zinc-600'
+                        : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700',
+                    chip.classes,
+                ]">
+                {{ chip.label }}
+            </button>
         </div>
 
         <div class="flex flex-wrap items-end gap-3 mb-6">
@@ -110,14 +189,11 @@ onMounted(fetchLogs)
                     class="w-full px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600" />
             </div>
             <div>
-                <label class="block text-xs text-zinc-500 mb-1">Status</label>
-                <select v-model="filterStatus" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white">
-                    <option value="">All</option>
-                    <option value="sent">Sent</option>
-                    <option value="failed">Failed</option>
-                    <option value="bounced">Bounced</option>
-                    <option value="suppressed">Suppressed</option>
+                <label class="block text-xs text-zinc-500 mb-1">Template</label>
+                <select v-model="filterTemplateId" @change="applyFilters"
+                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white max-w-[200px] truncate">
+                    <option value="">All templates</option>
+                    <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
                 </select>
             </div>
             <div>

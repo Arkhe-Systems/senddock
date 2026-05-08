@@ -32,6 +32,7 @@ AND ($2::text = '' OR status = $2::text)
 AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
 AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
 AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%')
+AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $6::uuid)
 `
 
 type CountEmailLogsByProjectFilteredParams struct {
@@ -40,6 +41,7 @@ type CountEmailLogsByProjectFilteredParams struct {
 	Column3   time.Time
 	Column4   time.Time
 	Column5   string
+	Column6   uuid.UUID
 }
 
 func (q *Queries) CountEmailLogsByProjectFiltered(ctx context.Context, arg CountEmailLogsByProjectFilteredParams) (int64, error) {
@@ -49,6 +51,7 @@ func (q *Queries) CountEmailLogsByProjectFiltered(ctx context.Context, arg Count
 		arg.Column3,
 		arg.Column4,
 		arg.Column5,
+		arg.Column6,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -219,6 +222,68 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 	return items, nil
 }
 
+const listEmailLogsByProjectExport = `-- name: ListEmailLogsByProjectExport :many
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at FROM email_logs
+WHERE project_id = $1
+AND ($2::text = '' OR status = $2::text)
+AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
+AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
+AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%')
+AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $6::uuid)
+ORDER BY sent_at DESC
+`
+
+type ListEmailLogsByProjectExportParams struct {
+	ProjectID uuid.UUID
+	Column2   string
+	Column3   time.Time
+	Column4   time.Time
+	Column5   string
+	Column6   uuid.UUID
+}
+
+func (q *Queries) ListEmailLogsByProjectExport(ctx context.Context, arg ListEmailLogsByProjectExportParams) ([]EmailLog, error) {
+	rows, err := q.db.QueryContext(ctx, listEmailLogsByProjectExport,
+		arg.ProjectID,
+		arg.Column2,
+		arg.Column3,
+		arg.Column4,
+		arg.Column5,
+		arg.Column6,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EmailLog
+	for rows.Next() {
+		var i EmailLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.SubscriberID,
+			&i.TemplateID,
+			&i.ToEmail,
+			&i.Subject,
+			&i.Status,
+			&i.Error,
+			&i.SentAt,
+			&i.OpenedAt,
+			&i.ClickedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEmailLogsByProjectFiltered = `-- name: ListEmailLogsByProjectFiltered :many
 SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at FROM email_logs
 WHERE project_id = $1
@@ -226,6 +291,7 @@ AND ($4::text = '' OR status = $4::text)
 AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
 AND ($6::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $6)
 AND ($7::text = '' OR to_email ILIKE '%' || $7::text || '%' OR subject ILIKE '%' || $7::text || '%')
+AND ($8::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $8::uuid)
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3
 `
@@ -238,6 +304,7 @@ type ListEmailLogsByProjectFilteredParams struct {
 	Column5   time.Time
 	Column6   time.Time
 	Column7   string
+	Column8   uuid.UUID
 }
 
 func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEmailLogsByProjectFilteredParams) ([]EmailLog, error) {
@@ -249,6 +316,7 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 		arg.Column5,
 		arg.Column6,
 		arg.Column7,
+		arg.Column8,
 	)
 	if err != nil {
 		return nil, err

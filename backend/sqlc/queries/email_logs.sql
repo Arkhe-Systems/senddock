@@ -16,6 +16,7 @@ AND ($4::text = '' OR status = $4::text)
 AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
 AND ($6::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $6)
 AND ($7::text = '' OR to_email ILIKE '%' || $7::text || '%' OR subject ILIKE '%' || $7::text || '%')
+AND ($8::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $8::uuid)
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3;
 
@@ -25,7 +26,18 @@ WHERE project_id = $1
 AND ($2::text = '' OR status = $2::text)
 AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
 AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
-AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%');
+AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%')
+AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $6::uuid);
+
+-- name: ListEmailLogsByProjectExport :many
+SELECT * FROM email_logs
+WHERE project_id = $1
+AND ($2::text = '' OR status = $2::text)
+AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
+AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
+AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%')
+AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $6::uuid)
+ORDER BY sent_at DESC;
 
 -- name: CountEmailLogsByProject :one
 SELECT COUNT(*) FROM email_logs WHERE project_id = $1;

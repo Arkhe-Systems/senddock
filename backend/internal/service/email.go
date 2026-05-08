@@ -447,62 +447,101 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL)
 }
 
-func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, status, from, to, search string) ([]db.EmailLog, int64, error) {
+type LogFilters struct {
+	Status     string
+	From       string
+	To         string
+	Search     string
+	TemplateID string
+}
+
+func (f LogFilters) parse() (string, time.Time, time.Time, string, uuid.UUID) {
+	var fromTime, toTime time.Time
+	if f.From != "" {
+		if t, err := time.Parse(time.RFC3339, f.From); err == nil {
+			fromTime = t
+		}
+	}
+	if f.To != "" {
+		if t, err := time.Parse(time.RFC3339, f.To); err == nil {
+			toTime = t
+		}
+	}
+	tid := uuid.Nil
+	if f.TemplateID != "" {
+		if u, err := uuid.Parse(f.TemplateID); err == nil {
+			tid = u
+		}
+	}
+	return strings.TrimSpace(f.Status), fromTime, toTime, strings.TrimSpace(f.Search), tid
+}
+
+func (f LogFilters) isEmpty() bool {
+	status, fromT, toT, search, tid := f.parse()
+	return status == "" && fromT.IsZero() && toT.IsZero() && search == "" && tid == uuid.Nil
+}
+
+func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, filters LogFilters) ([]db.EmailLog, int64, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, 0, errors.New("invalid project id")
 	}
 
-	var fromTime, toTime time.Time
-	if from != "" {
-		if t, err := time.Parse(time.RFC3339, from); err == nil {
-			fromTime = t
-		}
-	}
-	if to != "" {
-		if t, err := time.Parse(time.RFC3339, to); err == nil {
-			toTime = t
-		}
-	}
-
-	search = strings.TrimSpace(search)
-
-	if status != "" || !fromTime.IsZero() || !toTime.IsZero() || search != "" {
-		logs, err := s.queries.ListEmailLogsByProjectFiltered(ctx, db.ListEmailLogsByProjectFilteredParams{
+	if filters.isEmpty() {
+		logs, err := s.queries.ListEmailLogsByProject(ctx, db.ListEmailLogsByProjectParams{
 			ProjectID: pid,
 			Limit:     limit,
 			Offset:    offset,
-			Column4:   status,
-			Column5:   fromTime,
-			Column6:   toTime,
-			Column7:   search,
 		})
 		if err != nil {
 			return nil, 0, err
 		}
-
-		count, _ := s.queries.CountEmailLogsByProjectFiltered(ctx, db.CountEmailLogsByProjectFilteredParams{
-			ProjectID: pid,
-			Column2:   status,
-			Column3:   fromTime,
-			Column4:   toTime,
-			Column5:   search,
-		})
-
+		count, _ := s.queries.CountEmailLogsByProject(ctx, pid)
 		return logs, count, nil
 	}
 
-	logs, err := s.queries.ListEmailLogsByProject(ctx, db.ListEmailLogsByProjectParams{
+	status, fromT, toT, search, tid := filters.parse()
+
+	logs, err := s.queries.ListEmailLogsByProjectFiltered(ctx, db.ListEmailLogsByProjectFilteredParams{
 		ProjectID: pid,
 		Limit:     limit,
 		Offset:    offset,
+		Column4:   status,
+		Column5:   fromT,
+		Column6:   toT,
+		Column7:   search,
+		Column8:   tid,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
 
-	count, _ := s.queries.CountEmailLogsByProject(ctx, pid)
+	count, _ := s.queries.CountEmailLogsByProjectFiltered(ctx, db.CountEmailLogsByProjectFilteredParams{
+		ProjectID: pid,
+		Column2:   status,
+		Column3:   fromT,
+		Column4:   toT,
+		Column5:   search,
+		Column6:   tid,
+	})
+
 	return logs, count, nil
+}
+
+func (s *EmailService) ExportLogs(ctx context.Context, projectID string, filters LogFilters) ([]db.EmailLog, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return nil, errors.New("invalid project id")
+	}
+	status, fromT, toT, search, tid := filters.parse()
+	return s.queries.ListEmailLogsByProjectExport(ctx, db.ListEmailLogsByProjectExportParams{
+		ProjectID: pid,
+		Column2:   status,
+		Column3:   fromT,
+		Column4:   toT,
+		Column5:   search,
+		Column6:   tid,
+	})
 }
 
 func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[string]int64, error) {
