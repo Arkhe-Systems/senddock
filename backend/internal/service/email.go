@@ -230,12 +230,6 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 
 	total := len(subscribers)
 
-	var customVars map[string]string
-	if len(campaignVars) > 0 {
-		_ = json.Unmarshal(campaignVars, &customVars)
-	}
-
-	templateBody := ensureUnsubscribeFooter(template.HtmlBody)
 	baseSubject := template.Subject
 	if subjectOverride != "" {
 		baseSubject = subjectOverride
@@ -257,44 +251,97 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		return SendResult{}, fmt.Errorf("create broadcast: %w", err)
 	}
 
-	go func() {
-		bgCtx := context.Background()
-		for _, sub := range subscribers {
-			if s.suppressions != nil && s.suppressions.IsSuppressed(bgCtx, pid, sub.Email) {
-				s.logSuppressed(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, baseSubject)
-				_ = s.queries.IncrementBroadcastSuppressed(bgCtx, broadcast.ID)
-				continue
-			}
+	type jobRow struct {
+		SubscriberID   uuid.UUID `json:"subscriber_id"`
+		RecipientEmail string    `json:"recipient_email"`
+	}
+	jobs := make([]jobRow, 0, total)
+	for _, sub := range subscribers {
+		jobs = append(jobs, jobRow{SubscriberID: sub.ID, RecipientEmail: sub.Email})
+	}
+	jobsJSON, err := json.Marshal(jobs)
+	if err != nil {
+		return SendResult{}, fmt.Errorf("marshal jobs: %w", err)
+	}
 
-			body := templateBody
-			subject := baseSubject
+	if err := s.queries.BulkInsertBroadcastJobs(ctx, db.BulkInsertBroadcastJobsParams{
+		BroadcastID: broadcast.ID,
+		ProjectID:   pid,
+		Jobs:        jobsJSON,
+	}); err != nil {
+		return SendResult{}, fmt.Errorf("enqueue broadcast jobs: %w", err)
+	}
 
-			for k, v := range customVars {
-				body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
-				subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
-			}
-
-			body = replaceVariables(body, sub)
-			subject = replaceVariablesSimple(subject, sub)
-
-			unsubURL := s.unsubURL(pid.String(), sub.ID.String())
-			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
-
-			if err := s.trackAndSend(bgCtx, project, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL); err != nil {
-				_ = s.queries.IncrementBroadcastFailed(bgCtx, broadcast.ID)
-			} else {
-				_ = s.queries.IncrementBroadcastSent(bgCtx, broadcast.ID)
-			}
-		}
-
-		if err := s.queries.MarkBroadcastCompleted(bgCtx, broadcast.ID); err != nil {
-			log.Printf("broadcast %s: failed to mark completed: %v", broadcast.ID, err)
-			return
-		}
-		log.Printf("Broadcast %s completed for project %s (total=%d)", broadcast.ID, pid.String(), total)
-	}()
-
+	log.Printf("Broadcast %s enqueued: %d jobs for project %s", broadcast.ID, total, pid.String())
 	return SendResult{Sent: total}, nil
+}
+
+type BroadcastJobOutcome int
+
+const (
+	BroadcastJobOutcomeSent BroadcastJobOutcome = iota
+	BroadcastJobOutcomeSuppressed
+	BroadcastJobOutcomeBounced
+	BroadcastJobOutcomeTransientError
+)
+
+func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob, broadcast db.Broadcast) (BroadcastJobOutcome, error) {
+	project, err := s.queries.GetProjectByIDOnly(ctx, job.ProjectID)
+	if err != nil {
+		return BroadcastJobOutcomeTransientError, fmt.Errorf("project lookup: %w", err)
+	}
+	if !project.SmtpHost.Valid || !project.SmtpUser.Valid || !project.SmtpPasswordEncrypted.Valid {
+		return BroadcastJobOutcomeTransientError, errors.New("smtp not configured")
+	}
+
+	template, err := s.queries.GetTemplateByID(ctx, db.GetTemplateByIDParams{ID: broadcast.TemplateID, ProjectID: job.ProjectID})
+	if err != nil {
+		return BroadcastJobOutcomeTransientError, fmt.Errorf("template lookup: %w", err)
+	}
+
+	sub, err := s.queries.GetSubscriberByID(ctx, db.GetSubscriberByIDParams{ID: job.SubscriberID, ProjectID: job.ProjectID})
+	if err != nil {
+		return BroadcastJobOutcomeBounced, fmt.Errorf("subscriber not found: %w", err)
+	}
+
+	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, job.ProjectID, sub.Email) {
+		s.logSuppressed(ctx, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, broadcast.Subject)
+		return BroadcastJobOutcomeSuppressed, nil
+	}
+
+	var customVars map[string]string
+	if len(broadcast.Variables) > 0 {
+		_ = json.Unmarshal(broadcast.Variables, &customVars)
+	}
+
+	body := ensureUnsubscribeFooter(template.HtmlBody)
+	subject := broadcast.Subject
+	if subject == "" {
+		subject = template.Subject
+	}
+
+	for k, v := range customVars {
+		body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
+		subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
+	}
+
+	body = replaceVariables(body, sub)
+	subject = replaceVariablesSimple(subject, sub)
+
+	unsubURL := s.unsubURL(job.ProjectID.String(), sub.ID.String())
+	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
+
+	sendErr := s.trackAndSend(ctx, project, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, subject, body, unsubURL)
+	if sendErr == nil {
+		return BroadcastJobOutcomeSent, nil
+	}
+
+	var bounce *BounceError
+	if errors.As(sendErr, &bounce) {
+		return BroadcastJobOutcomeBounced, sendErr
+	}
+
+	return BroadcastJobOutcomeTransientError, sendErr
 }
 
 func (s *EmailService) RecoverInProgressBroadcasts(ctx context.Context) error {

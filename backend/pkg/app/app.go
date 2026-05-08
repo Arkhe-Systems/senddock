@@ -41,7 +41,8 @@ type App struct {
 	eitherAuth       func(http.Handler) http.Handler
 	rateLimiter      *middleware.RateLimiter
 
-	worker       *service.CampaignWorker
+	worker          *service.CampaignWorker
+	broadcastWorker *service.BroadcastWorker
 	webhooks     *webhooks.Service
 	suppressions *service.SuppressionService
 	audit        *service.AuditService
@@ -96,6 +97,7 @@ func New(cfg config.Config) (*App, error) {
 	suppressionService := service.NewSuppressionService(queries)
 	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks, suppressionService)
 	a.worker = service.NewCampaignWorker(queries, emailService)
+	a.broadcastWorker = service.NewBroadcastWorker(queries, emailService)
 	a.suppressions = suppressionService
 	a.audit = service.NewAuditService(queries)
 	a.bouncePoller = service.NewBounceIMAPPoller(queries, suppressionService, cfg.JWTSecret)
@@ -139,6 +141,7 @@ func (a *App) WithAPIAuth(h http.Handler) http.Handler {
 func (a *App) Run(ctx context.Context) error {
 	a.startDBHealthMonitor(ctx)
 	a.worker.Start()
+	a.broadcastWorker.Start(ctx)
 	a.webhooks.Start(ctx)
 	a.bouncePoller.Start(ctx)
 
