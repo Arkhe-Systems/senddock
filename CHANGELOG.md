@@ -11,6 +11,17 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.5] — 2026-05-08
+
+### Fixed
+
+- **Rate-limit counter never expired, eventually `429`-ing the container's own healthcheck and triggering a crash loop ~5 hours after every restart.** `Redis.Increment` reset the key's TTL on every call (`INCR` followed unconditionally by `EXPIRE`). Any IP that kept hitting the server — including `::1` from the Dockerfile's own `wget /health` healthcheck firing every 30s — kept the key alive forever, so the counter was effectively cumulative instead of per-window. After ~5 hours of healthchecks (600 hits ÷ 2/min), the counter crossed the 600 req/min threshold and `/health` started returning `429 Too Many Requests`. wget's `-q … || exit 1` turned that into exit 1, swarm killed the "unhealthy" container after 5 retries, the new container started fresh, and the cycle repeated. Increment now uses an atomic Lua script that only sets the TTL when the key is created (`count == 1`), giving a real fixed-window counter.
+- **`/health` was wrapped by the rate limiter, CORS, and body-size middlewares.** Healthchecks must never be subject to client-facing throttles or origin checks. `/health` is now mounted on a separate root mux that bypasses all middleware; everything else still goes through the full pipeline. Defense-in-depth alongside the Increment fix above.
+
+### Added
+
+- **`RATE_LIMIT_PER_MINUTE` env var (default `600`).** Used to be hard-coded. Lower it on small deployments or raise it for high-traffic apps without rebuilding the image.
+
 ## [0.6.4] — 2026-05-08
 
 ### Added
