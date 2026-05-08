@@ -29,7 +29,13 @@ make migrate
 
 ## Redis
 
-Redis is used for per-project rate limiting on `/send`, `/send/batch` and `/broadcast`, and for caching the GitHub releases response that powers the "update available" badge in the dashboard. Port `6380` by default. Self-hosted instances exposed to the internet should run Redis even if you don't think you need it for caching, specifically so the rate limits stay enforced.
+Redis powers three things:
+
+1. **Global per-IP rate limiter.** `600` requests per rolling 60s window by default (every HTTP endpoint except `/health`). Tune with [`RATE_LIMIT_PER_MINUTE`](/guide/environment#optional).
+2. **Per-project rate limits on the sending endpoints** — `/send` (60 req/min), `/send/batch` (10 req/min), `/broadcast` (5 req/min). These are hard-coded.
+3. **Cache for the GitHub releases response** that drives the "update available" badge in the dashboard.
+
+Port `6380` by default. Self-hosted instances exposed to the internet should run Redis even if you don't think you need it for caching, specifically so the rate limits stay enforced — without Redis both limiters are no-ops.
 
 ## Security Checklist
 
@@ -40,7 +46,7 @@ Before exposing to the internet:
 - [ ] Set `FRONTEND_URL` to your actual domain (used for CORS)
 - [ ] Set `PUBLIC_URL` to the same domain (used for unsubscribe + tracking links inside emails)
 - [ ] Use HTTPS via reverse proxy — `Secure` cookies are set automatically when `FRONTEND_URL` starts with `https://`
-- [ ] Run with Redis enabled — without it the per-project rate limits on `/send`, `/send/batch` and `/broadcast` are bypassed
+- [ ] Run with Redis enabled — without it the global per-IP rate limit is bypassed
 - [ ] Keep SendDock updated
 
 If anything misbehaves after going live, see [Troubleshooting](/self-hosting/troubleshooting).

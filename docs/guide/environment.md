@@ -19,6 +19,7 @@ All configuration is done via environment variables. Copy `.env.example` to `.en
 | `PUBLIC_URL` | Public URL of this instance, used to build unsubscribe and tracking links inside outgoing emails. Leave blank in single-binary deploys to fall back to `FRONTEND_URL`. | _falls back to `FRONTEND_URL`_ |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
 | `SENDDOCK_LICENSE_KEY` | Pro / Team license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only) regardless of `DEPLOYMENT_MODE`. See [Pro license](/self-hosting/configuration#plans-and-licensing). | — |
+| `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the **global** rate limiter (rolling 60s fixed window, applied to every HTTP endpoint except `/health`). Independent from the hard-coded per-project sending limits on `/send`, `/send/batch`, `/broadcast` (those are not configurable). Lower this on small deployments behind a single egress IP; raise it for high-traffic apps. Only enforced when `REDIS_URL` is set. | `600` |
 
 ## Advanced overrides
 
