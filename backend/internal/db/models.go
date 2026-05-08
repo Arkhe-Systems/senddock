@@ -36,6 +36,35 @@ type AuditLog struct {
 	CreatedAt  time.Time
 }
 
+type Broadcast struct {
+	ID              uuid.UUID
+	ProjectID       uuid.UUID
+	TemplateID      uuid.UUID
+	Subject         string
+	Variables       json.RawMessage
+	Status          string
+	TotalRecipients int32
+	SentCount       int32
+	FailedCount     int32
+	SuppressedCount int32
+	StartedAt       time.Time
+	FinishedAt      sql.NullTime
+}
+
+type BroadcastJob struct {
+	ID             uuid.UUID
+	BroadcastID    uuid.UUID
+	ProjectID      uuid.UUID
+	SubscriberID   uuid.UUID
+	RecipientEmail string
+	Status         string
+	Attempts       int32
+	LastError      sql.NullString
+	ScheduledAt    time.Time
+	CompletedAt    sql.NullTime
+	CreatedAt      time.Time
+}
+
 type Campaign struct {
 	ID          uuid.UUID
 	ProjectID   uuid.UUID
@@ -49,6 +78,7 @@ type Campaign struct {
 	CreatedAt   time.Time
 	Variables   json.RawMessage
 	Subject     string
+	BroadcastID uuid.NullUUID
 }
 
 type EmailClick struct {

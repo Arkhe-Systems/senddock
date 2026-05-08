@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"html"
@@ -12,7 +14,29 @@ import (
 	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
+	"github.com/google/uuid"
 )
+
+func nullStr(v sql.NullString) string {
+	if !v.Valid {
+		return ""
+	}
+	return v.String
+}
+
+func nullTimeStr(v sql.NullTime) string {
+	if !v.Valid {
+		return ""
+	}
+	return v.Time.UTC().Format(time.RFC3339)
+}
+
+func nullUUIDStr(v uuid.NullUUID) string {
+	if !v.Valid {
+		return ""
+	}
+	return v.UUID.String()
+}
 
 const (
 	maxBatchRecipients     = 500
@@ -308,11 +332,15 @@ func (h *EmailHandler) Logs(w http.ResponseWriter, r *http.Request) {
 		offset = int32(v)
 	}
 
-	status := r.URL.Query().Get("status")
-	from := r.URL.Query().Get("from")
-	to := r.URL.Query().Get("to")
+	filters := service.LogFilters{
+		Status:     r.URL.Query().Get("status"),
+		From:       r.URL.Query().Get("from"),
+		To:         r.URL.Query().Get("to"),
+		Search:     r.URL.Query().Get("q"),
+		TemplateID: r.URL.Query().Get("template_id"),
+	}
 
-	logs, total, err := h.emailService.GetLogs(r.Context(), projectID, limit, offset, status, from, to)
+	logs, total, err := h.emailService.GetLogs(r.Context(), projectID, limit, offset, filters)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -324,6 +352,88 @@ func (h *EmailHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"logs":  response.FromEmailLogs(logs),
 		"total": total,
+	})
+}
+
+func (h *EmailHandler) LogsExport(w http.ResponseWriter, r *http.Request) {
+	projectID, err := h.verifyAccess(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	filters := service.LogFilters{
+		Status:     r.URL.Query().Get("status"),
+		From:       r.URL.Query().Get("from"),
+		To:         r.URL.Query().Get("to"),
+		Search:     r.URL.Query().Get("q"),
+		TemplateID: r.URL.Query().Get("template_id"),
+	}
+
+	logs, err := h.emailService.ExportLogs(r.Context(), projectID, filters)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	filename := "email-logs-" + time.Now().UTC().Format("20060102-150405") + ".csv"
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"id", "to_email", "subject", "status", "error", "sent_at", "opened_at", "clicked_at", "template_id", "subscriber_id"})
+	for _, l := range logs {
+		row := []string{
+			l.ID.String(),
+			l.ToEmail,
+			l.Subject,
+			l.Status,
+			nullStr(l.Error),
+			l.SentAt.UTC().Format(time.RFC3339),
+			nullTimeStr(l.OpenedAt),
+			nullTimeStr(l.ClickedAt),
+			nullUUIDStr(l.TemplateID),
+			nullUUIDStr(l.SubscriberID),
+		}
+		_ = cw.Write(row)
+	}
+	cw.Flush()
+}
+
+func (h *EmailHandler) ListBroadcasts(w http.ResponseWriter, r *http.Request) {
+	projectID, err := h.verifyAccess(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	limit := int32(50)
+	offset := int32(0)
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 200 {
+		limit = int32(v)
+	}
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+		offset = int32(v)
+	}
+
+	broadcasts, total, err := h.emailService.ListBroadcasts(r.Context(), projectID, limit, offset)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"broadcasts": response.FromBroadcasts(broadcasts),
+		"total":      total,
 	})
 }
 

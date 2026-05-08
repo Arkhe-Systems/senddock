@@ -240,6 +240,65 @@ Common causes:
 - Migration failure — usually a Postgres password mismatch, see the section above on credential mismatches.
 - `JWT_SECRET must be at least 32 characters` — re-run with `--reset` to regenerate.
 
+## Docker Swarm / Dokploy
+
+### All services suddenly stop talking to each other ("the whole stack went down at once")
+
+**Symptom:** Multiple services on the same Swarm host (your SendDock backend, Postgres, Redis, often also unrelated apps) become unreachable at the same time. The backend logs show `dial tcp: lookup <service-name> on 127.0.0.11:53: no such host` for hostnames that *do* exist. Containers exit cleanly (`Exited (0)`) every 2-3 minutes in a crash-replace loop, even though individual processes were healthy. Restarting the affected services manually brings everything back temporarily, only for the same outage to return hours or days later.
+
+**Cause:** Docker Swarm corruption from accumulated dead containers and orphaned services on the same host. The embedded DNS resolver `127.0.0.11:53` (which is how containers find each other by service name on the `dokploy-network` overlay or any overlay network) keeps stale references for every service that was created and then deleted, plus every dead-but-not-pruned container record. Past a certain threshold the resolver intermittently fails to resolve names that actually exist — and because all services on the same overlay use the same resolver, **they all fail simultaneously**, which masquerades as a "the database died" issue when it is really a swarm-state issue.
+
+This is **not** specific to SendDock — any Dokploy / Docker Swarm host accumulating long-lived deployments is vulnerable, especially if you have created and destroyed services repeatedly during development.
+
+**Diagnose:** SSH to the host and check for accumulated dead containers and orphan services:
+
+```bash
+# count Dead containers (zero is healthy; tens or hundreds means the swarm is full of corpses)
+docker ps -aq --filter 'status=dead' | wc -l
+
+# any service that consumes CPU continuously even when idle is a crash-loop suspect
+docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
+
+# if you find services here that you do not recognize or whose database has been deleted,
+# they are orphans
+docker service ls --format 'table {{.Name}}\t{{.Replicas}}\t{{.Image}}'
+```
+
+A single container chewing >10% CPU continuously while doing nothing useful is almost always a crash-loop pinned to a missing dependency (deleted database, deleted Redis, etc.).
+
+**Fix:**
+
+1. **Remove orphan services first** — anything in `docker service ls` that no longer has its database / dependencies. From the Dokploy UI if it still appears there, otherwise:
+   ```bash
+   docker service rm <orphan-service-name>
+   ```
+2. **Force-kill any container that survives** (sometimes an old container outlives its service if it stops responding to SIGTERM):
+   ```bash
+   docker rm -f <container-id>
+   ```
+3. **Prune dead containers and unused networks** (safe — does not touch volumes, images, or running services):
+   ```bash
+   docker container prune -f
+   docker network prune -f
+   ```
+4. **Do not** run `docker volume prune` or `docker system prune -a` — those will delete Postgres data and the SendDock image you just built.
+
+After cleanup, the embedded DNS resolver returns to a stable state and the recurring "the whole stack went down" pattern stops.
+
+### Repeated Dokploy "Image is up to date" deploys do not pick up a new build
+
+**Symptom:** You triggered a new image build, but Dokploy logs say `Status: Image is up to date for ghcr.io/...:dev` and the running container still serves the old code. The Dokploy webhook returns success.
+
+**Cause:** Docker is caching the image manifest by tag, not by digest. When the registry tag (`:dev`, `:latest`) is reused, `docker pull` looks at the local cache first, sees a tag with that name, and skips the pull. The new manifest never reaches the host.
+
+**Fix:** In the Dokploy UI for the application, toggle on **Clean Cache** in **General** before clicking **Deploy** or **Rebuild**. That forces an unconditional pull. From the host directly, the same effect:
+
+```bash
+docker service update --force --image ghcr.io/your-org/your-image:dev <service-name>
+```
+
+The `--force` flag rotates the task even when the image reference appears unchanged, and combined with `--image` triggers a manifest re-pull.
+
 ## Redis
 
 ### Do I need Redis?

@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { api } from '@/api/client'
+import { api, getApiBase } from '@/api/client'
 import type { Project } from '@/stores/projects'
+import AppPagination from '@/components/ui/AppPagination.vue'
 
 interface EmailLog {
     id: string
+    project_id: string
+    subscriber_id: string | null
+    template_id: string | null
     to_email: string
     subject: string
     status: string
@@ -12,27 +16,55 @@ interface EmailLog {
     sent_at: string
 }
 
+interface Template { id: string; name: string }
+
+const STATUS_CHIPS: { value: string; label: string; classes: string }[] = [
+    { value: '', label: 'All', classes: '' },
+    { value: 'sent', label: 'Sent', classes: 'data-[active]:bg-green-500/15 data-[active]:text-green-400 data-[active]:border-green-500/40' },
+    { value: 'failed', label: 'Failed', classes: 'data-[active]:bg-red-500/15 data-[active]:text-red-400 data-[active]:border-red-500/40' },
+    { value: 'bounced', label: 'Bounced', classes: 'data-[active]:bg-orange-500/15 data-[active]:text-orange-400 data-[active]:border-orange-500/40' },
+    { value: 'suppressed', label: 'Suppressed', classes: 'data-[active]:bg-zinc-500/15 data-[active]:text-zinc-300 data-[active]:border-zinc-600' },
+]
+
 const props = defineProps<{ project: Project }>()
 
 const logs = ref<EmailLog[]>([])
+const templates = ref<Template[]>([])
 const total = ref(0)
 const loading = ref(true)
+const exporting = ref(false)
 const page = ref(0)
-const limit = 25
+const limit = ref(25)
 
 const filterStatus = ref('')
+const filterTemplateId = ref('')
 const filterFrom = ref('')
 const filterTo = ref('')
+const filterSearch = ref('')
+const expandedId = ref<string | null>(null)
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+function buildFilterParams(): URLSearchParams {
+    const params = new URLSearchParams()
+    if (filterStatus.value) params.set('status', filterStatus.value)
+    if (filterTemplateId.value) params.set('template_id', filterTemplateId.value)
+    if (filterFrom.value) params.set('from', new Date(filterFrom.value).toISOString())
+    if (filterTo.value) params.set('to', new Date(filterTo.value + 'T23:59:59').toISOString())
+    if (filterSearch.value.trim()) params.set('q', filterSearch.value.trim())
+    return params
+}
 
 async function fetchLogs() {
     loading.value = true
     try {
-        let url = `/projects/${props.project.id}/logs?limit=${limit}&offset=${page.value * limit}`
-        if (filterStatus.value) url += `&status=${filterStatus.value}`
-        if (filterFrom.value) url += `&from=${new Date(filterFrom.value).toISOString()}`
-        if (filterTo.value) url += `&to=${new Date(filterTo.value + 'T23:59:59').toISOString()}`
+        const params = buildFilterParams()
+        params.set('limit', String(limit.value))
+        params.set('offset', String(page.value * limit.value))
 
-        const res = await api<{ logs: EmailLog[] | null, total: number }>(url)
+        const res = await api<{ logs: EmailLog[] | null, total: number }>(
+            `/projects/${props.project.id}/logs?${params.toString()}`,
+        )
         logs.value = res.logs || []
         total.value = res.total
     } catch {
@@ -42,20 +74,80 @@ async function fetchLogs() {
     }
 }
 
+async function fetchTemplates() {
+    try {
+        const res = await api<Template[] | null>(`/projects/${props.project.id}/templates`)
+        templates.value = res || []
+    } catch {
+        templates.value = []
+    }
+}
+
 function applyFilters() {
     page.value = 0
+    expandedId.value = null
     fetchLogs()
+}
+
+function setStatus(v: string) {
+    filterStatus.value = v
+    applyFilters()
+}
+
+function onSearchInput() {
+    if (searchTimer) clearTimeout(searchTimer)
+    searchTimer = setTimeout(applyFilters, 300)
 }
 
 function clearFilters() {
     filterStatus.value = ''
+    filterTemplateId.value = ''
     filterFrom.value = ''
     filterTo.value = ''
+    filterSearch.value = ''
     page.value = 0
+    expandedId.value = null
     fetchLogs()
 }
 
-onMounted(fetchLogs)
+async function exportCSV() {
+    exporting.value = true
+    try {
+        const params = buildFilterParams()
+        const url = `${getApiBase()}/projects/${props.project.id}/logs/export.csv?${params.toString()}`
+        const res = await fetch(url, { credentials: 'include' })
+        if (!res.ok) throw new Error('export failed')
+        const blob = await res.blob()
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]
+            ?? `email-logs-${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(link.href)
+    } catch {
+        // silent: button shows loading state, user retries
+    } finally {
+        exporting.value = false
+    }
+}
+
+function toggleExpand(id: string) {
+    expandedId.value = expandedId.value === id ? null : id
+}
+
+const hasFilters = () =>
+    filterStatus.value !== '' ||
+    filterTemplateId.value !== '' ||
+    filterFrom.value !== '' ||
+    filterTo.value !== '' ||
+    filterSearch.value.trim() !== ''
+
+onMounted(() => {
+    fetchLogs()
+    fetchTemplates()
+})
 </script>
 
 <template>
@@ -65,18 +157,43 @@ onMounted(fetchLogs)
                 <h1 class="text-2xl font-bold text-white">Email Logs</h1>
                 <p class="text-sm text-zinc-500 mt-1">{{ total }} total</p>
             </div>
+            <button @click="exportCSV" :disabled="exporting"
+                class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-700 rounded-lg text-white hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ exporting ? 'Exporting…' : 'Export CSV' }}
+            </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+            <button v-for="chip in STATUS_CHIPS" :key="chip.value"
+                :data-active="filterStatus === chip.value || null"
+                @click="setStatus(chip.value)"
+                :class="[
+                    'px-3 py-1 text-xs rounded-full border transition cursor-pointer',
+                    filterStatus === chip.value
+                        ? 'bg-zinc-700 text-white border-zinc-600'
+                        : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700',
+                    chip.classes,
+                ]">
+                {{ chip.label }}
+            </button>
         </div>
 
         <div class="flex flex-wrap items-end gap-3 mb-6">
+            <div class="flex-1 min-w-[220px] max-w-md">
+                <label class="block text-xs text-zinc-500 mb-1">Search</label>
+                <input
+                    v-model="filterSearch"
+                    @input="onSearchInput"
+                    type="text"
+                    placeholder="email or subject..."
+                    class="w-full px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600" />
+            </div>
             <div>
-                <label class="block text-xs text-zinc-500 mb-1">Status</label>
-                <select v-model="filterStatus" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white">
-                    <option value="">All</option>
-                    <option value="sent">Sent</option>
-                    <option value="failed">Failed</option>
-                    <option value="bounced">Bounced</option>
-                    <option value="suppressed">Suppressed</option>
+                <label class="block text-xs text-zinc-500 mb-1">Template</label>
+                <select v-model="filterTemplateId" @change="applyFilters"
+                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white max-w-[200px] truncate">
+                    <option value="">All templates</option>
+                    <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
                 </select>
             </div>
             <div>
@@ -89,7 +206,7 @@ onMounted(fetchLogs)
                 <input v-model="filterTo" type="date" @change="applyFilters"
                     class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white" />
             </div>
-            <button v-if="filterStatus || filterFrom || filterTo" @click="clearFilters"
+            <button v-if="hasFilters()" @click="clearFilters"
                 class="px-3 py-1.5 text-sm text-zinc-500 hover:text-white transition cursor-pointer">
                 Clear
             </button>
@@ -101,6 +218,7 @@ onMounted(fetchLogs)
             <table class="w-full min-w-[640px]">
                 <thead>
                     <tr class="border-b border-zinc-800">
+                        <th class="w-8"></th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">To</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Subject</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Status</th>
@@ -109,7 +227,12 @@ onMounted(fetchLogs)
                 </thead>
                 <tbody>
                     <template v-for="log in logs" :key="log.id">
-                        <tr class="border-b border-zinc-800 last:border-0">
+                        <tr
+                            @click="toggleExpand(log.id)"
+                            class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 cursor-pointer transition-colors">
+                            <td class="px-3 py-3 text-zinc-500">
+                                <span class="inline-block transition-transform" :class="expandedId === log.id ? 'rotate-90' : ''">›</span>
+                            </td>
                             <td class="px-4 py-3 text-sm text-white">{{ log.to_email }}</td>
                             <td class="px-4 py-3 text-sm text-zinc-400">{{ log.subject || '(no subject)' }}</td>
                             <td class="px-4 py-3">
@@ -125,19 +248,40 @@ onMounted(fetchLogs)
                             </td>
                             <td class="px-4 py-3 text-sm text-zinc-500">{{ new Date(log.sent_at).toLocaleString() }}</td>
                         </tr>
-                        <tr v-if="log.status === 'failed' && log.error">
-                            <td colspan="4" class="px-4 py-2 bg-red-500/5">
-                                <p class="text-xs text-red-400">{{ log.error }}</p>
-                            </td>
-                        </tr>
-                        <tr v-if="log.status === 'bounced' && log.error">
-                            <td colspan="4" class="px-4 py-2 bg-orange-500/5">
-                                <p class="text-xs text-orange-400">{{ log.error }}</p>
-                            </td>
-                        </tr>
-                        <tr v-if="log.status === 'suppressed' && log.error">
-                            <td colspan="4" class="px-4 py-2 bg-zinc-800/30">
-                                <p class="text-xs text-zinc-500">{{ log.error }}</p>
+                        <tr v-if="expandedId === log.id" class="border-b border-zinc-800 last:border-0 bg-zinc-950/60">
+                            <td></td>
+                            <td colspan="4" class="px-4 py-4">
+                                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                                    <div>
+                                        <dt class="text-zinc-500 uppercase tracking-wide font-medium">Log ID</dt>
+                                        <dd class="text-zinc-300 font-mono break-all">{{ log.id }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-zinc-500 uppercase tracking-wide font-medium">Sent at</dt>
+                                        <dd class="text-zinc-300 font-mono">{{ new Date(log.sent_at).toISOString() }}</dd>
+                                    </div>
+                                    <div v-if="log.subscriber_id">
+                                        <dt class="text-zinc-500 uppercase tracking-wide font-medium">Subscriber</dt>
+                                        <dd class="text-zinc-300 font-mono break-all">{{ log.subscriber_id }}</dd>
+                                    </div>
+                                    <div v-if="log.template_id">
+                                        <dt class="text-zinc-500 uppercase tracking-wide font-medium">Template</dt>
+                                        <dd class="text-zinc-300 font-mono break-all">{{ log.template_id }}</dd>
+                                    </div>
+                                </dl>
+                                <div v-if="log.error" class="mt-3 pt-3 border-t border-zinc-800">
+                                    <p class="text-xs text-zinc-500 uppercase tracking-wide font-medium mb-1">
+                                        {{ log.status === 'suppressed' ? 'Reason' : 'Error' }}
+                                    </p>
+                                    <p :class="[
+                                        'text-xs whitespace-pre-wrap break-words',
+                                        log.status === 'failed' && 'text-red-400',
+                                        log.status === 'bounced' && 'text-orange-400',
+                                        log.status === 'suppressed' && 'text-zinc-400',
+                                    ]">
+                                        {{ log.error }}
+                                    </p>
+                                </div>
                             </td>
                         </tr>
                     </template>
@@ -149,16 +293,10 @@ onMounted(fetchLogs)
             <p class="text-zinc-400">No logs found.</p>
         </div>
 
-        <div v-if="total > limit" class="flex items-center justify-between mt-4">
-            <button @click="page--; fetchLogs()" :disabled="page === 0"
-                class="text-sm text-zinc-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                Previous
-            </button>
-            <span class="text-sm text-zinc-500">Page {{ page + 1 }} of {{ Math.ceil(total / limit) }}</span>
-            <button @click="page++; fetchLogs()" :disabled="(page + 1) * limit >= total"
-                class="text-sm text-zinc-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                Next
-            </button>
-        </div>
+        <AppPagination
+            v-model:page="page"
+            v-model:limit="limit"
+            :total="total"
+            @change="fetchLogs" />
     </div>
 </template>

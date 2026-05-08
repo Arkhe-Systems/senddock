@@ -90,9 +90,10 @@ func (s *EmailService) unsubURL(projectID, subscriberID string) string {
 }
 
 type SendResult struct {
-	Sent       int `json:"sent"`
-	Failed     int `json:"failed"`
-	Suppressed int `json:"suppressed,omitempty"`
+	Sent        int        `json:"sent"`
+	Failed      int        `json:"failed"`
+	Suppressed  int        `json:"suppressed,omitempty"`
+	BroadcastID *uuid.UUID `json:"broadcast_id,omitempty"`
 }
 
 var ErrRecipientSuppressed = errors.New("recipient is on the project suppression list")
@@ -230,47 +231,142 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 
 	total := len(subscribers)
 
-	var customVars map[string]string
-	if len(campaignVars) > 0 {
-		_ = json.Unmarshal(campaignVars, &customVars)
-	}
-
-	templateBody := ensureUnsubscribeFooter(template.HtmlBody)
 	baseSubject := template.Subject
 	if subjectOverride != "" {
 		baseSubject = subjectOverride
 	}
 
-	go func() {
-		bgCtx := context.Background()
-		suppressed := 0
-		for _, sub := range subscribers {
-			if s.suppressions != nil && s.suppressions.IsSuppressed(bgCtx, pid, sub.Email) {
-				s.logSuppressed(bgCtx, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, baseSubject)
-				suppressed++
-				continue
-			}
+	variablesJSON := campaignVars
+	if len(variablesJSON) == 0 {
+		variablesJSON = []byte("{}")
+	}
 
-			body := templateBody
-			subject := baseSubject
+	broadcast, err := s.queries.CreateBroadcast(ctx, db.CreateBroadcastParams{
+		ProjectID:       pid,
+		TemplateID:      tid,
+		Subject:         baseSubject,
+		Variables:       variablesJSON,
+		TotalRecipients: int32(total),
+	})
+	if err != nil {
+		return SendResult{}, fmt.Errorf("create broadcast: %w", err)
+	}
 
-			for k, v := range customVars {
-				body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
-				subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
-			}
+	type jobRow struct {
+		SubscriberID   uuid.UUID `json:"subscriber_id"`
+		RecipientEmail string    `json:"recipient_email"`
+	}
+	jobs := make([]jobRow, 0, total)
+	for _, sub := range subscribers {
+		jobs = append(jobs, jobRow{SubscriberID: sub.ID, RecipientEmail: sub.Email})
+	}
+	jobsJSON, err := json.Marshal(jobs)
+	if err != nil {
+		return SendResult{}, fmt.Errorf("marshal jobs: %w", err)
+	}
 
-			body = replaceVariables(body, sub)
-			subject = replaceVariablesSimple(subject, sub)
+	if err := s.queries.BulkInsertBroadcastJobs(ctx, db.BulkInsertBroadcastJobsParams{
+		BroadcastID: broadcast.ID,
+		ProjectID:   pid,
+		Jobs:        jobsJSON,
+	}); err != nil {
+		return SendResult{}, fmt.Errorf("enqueue broadcast jobs: %w", err)
+	}
 
-			unsubURL := s.unsubURL(pid.String(), sub.ID.String())
-			body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
+	log.Printf("Broadcast %s enqueued: %d jobs for project %s", broadcast.ID, total, pid.String())
+	bid := broadcast.ID
+	return SendResult{Sent: total, BroadcastID: &bid}, nil
+}
 
-			s.trackAndSend(bgCtx, project, pid, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
-		}
-		log.Printf("Broadcast to %d subscribers completed for project %s (%d suppressed)", total-suppressed, pid.String(), suppressed)
-	}()
+type BroadcastJobOutcome int
 
-	return SendResult{Sent: total}, nil
+const (
+	BroadcastJobOutcomeSent BroadcastJobOutcome = iota
+	BroadcastJobOutcomeSuppressed
+	BroadcastJobOutcomeBounced
+	BroadcastJobOutcomeTransientError
+)
+
+func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob, broadcast db.Broadcast) (BroadcastJobOutcome, error) {
+	project, err := s.queries.GetProjectByIDOnly(ctx, job.ProjectID)
+	if err != nil {
+		return BroadcastJobOutcomeTransientError, fmt.Errorf("project lookup: %w", err)
+	}
+	if !project.SmtpHost.Valid || !project.SmtpUser.Valid || !project.SmtpPasswordEncrypted.Valid {
+		return BroadcastJobOutcomeTransientError, errors.New("smtp not configured")
+	}
+
+	template, err := s.queries.GetTemplateByID(ctx, db.GetTemplateByIDParams{ID: broadcast.TemplateID, ProjectID: job.ProjectID})
+	if err != nil {
+		return BroadcastJobOutcomeTransientError, fmt.Errorf("template lookup: %w", err)
+	}
+
+	sub, err := s.queries.GetSubscriberByID(ctx, db.GetSubscriberByIDParams{ID: job.SubscriberID, ProjectID: job.ProjectID})
+	if err != nil {
+		return BroadcastJobOutcomeBounced, fmt.Errorf("subscriber not found: %w", err)
+	}
+
+	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, job.ProjectID, sub.Email) {
+		s.logSuppressed(ctx, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, broadcast.Subject)
+		return BroadcastJobOutcomeSuppressed, nil
+	}
+
+	var customVars map[string]string
+	if len(broadcast.Variables) > 0 {
+		_ = json.Unmarshal(broadcast.Variables, &customVars)
+	}
+
+	body := ensureUnsubscribeFooter(template.HtmlBody)
+	subject := broadcast.Subject
+	if subject == "" {
+		subject = template.Subject
+	}
+
+	for k, v := range customVars {
+		body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
+		subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
+	}
+
+	body = replaceVariables(body, sub)
+	subject = replaceVariablesSimple(subject, sub)
+
+	unsubURL := s.unsubURL(job.ProjectID.String(), sub.ID.String())
+	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
+
+	sendErr := s.trackAndSend(ctx, project, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, subject, body, unsubURL)
+	if sendErr == nil {
+		return BroadcastJobOutcomeSent, nil
+	}
+
+	var bounce *BounceError
+	if errors.As(sendErr, &bounce) {
+		return BroadcastJobOutcomeBounced, sendErr
+	}
+
+	return BroadcastJobOutcomeTransientError, sendErr
+}
+
+func (s *EmailService) RecoverInProgressBroadcasts(ctx context.Context) error {
+	return s.queries.MarkInProgressBroadcastsInterrupted(ctx)
+}
+
+func (s *EmailService) ListBroadcasts(ctx context.Context, projectID string, limit, offset int32) ([]db.Broadcast, int64, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return nil, 0, errors.New("invalid project id")
+	}
+
+	rows, err := s.queries.ListBroadcastsByProject(ctx, db.ListBroadcastsByProjectParams{
+		ProjectID: pid,
+		Limit:     limit,
+		Offset:    offset,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	count, _ := s.queries.CountBroadcastsByProject(ctx, pid)
+	return rows, count, nil
 }
 
 func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, htmlBody string) error {
@@ -351,58 +447,101 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL)
 }
 
-func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, status, from, to string) ([]db.EmailLog, int64, error) {
+type LogFilters struct {
+	Status     string
+	From       string
+	To         string
+	Search     string
+	TemplateID string
+}
+
+func (f LogFilters) parse() (string, time.Time, time.Time, string, uuid.UUID) {
+	var fromTime, toTime time.Time
+	if f.From != "" {
+		if t, err := time.Parse(time.RFC3339, f.From); err == nil {
+			fromTime = t
+		}
+	}
+	if f.To != "" {
+		if t, err := time.Parse(time.RFC3339, f.To); err == nil {
+			toTime = t
+		}
+	}
+	tid := uuid.Nil
+	if f.TemplateID != "" {
+		if u, err := uuid.Parse(f.TemplateID); err == nil {
+			tid = u
+		}
+	}
+	return strings.TrimSpace(f.Status), fromTime, toTime, strings.TrimSpace(f.Search), tid
+}
+
+func (f LogFilters) isEmpty() bool {
+	status, fromT, toT, search, tid := f.parse()
+	return status == "" && fromT.IsZero() && toT.IsZero() && search == "" && tid == uuid.Nil
+}
+
+func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, filters LogFilters) ([]db.EmailLog, int64, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, 0, errors.New("invalid project id")
 	}
 
-	var fromTime, toTime time.Time
-	if from != "" {
-		if t, err := time.Parse(time.RFC3339, from); err == nil {
-			fromTime = t
-		}
-	}
-	if to != "" {
-		if t, err := time.Parse(time.RFC3339, to); err == nil {
-			toTime = t
-		}
-	}
-
-	if status != "" || !fromTime.IsZero() || !toTime.IsZero() {
-		logs, err := s.queries.ListEmailLogsByProjectFiltered(ctx, db.ListEmailLogsByProjectFilteredParams{
+	if filters.isEmpty() {
+		logs, err := s.queries.ListEmailLogsByProject(ctx, db.ListEmailLogsByProjectParams{
 			ProjectID: pid,
 			Limit:     limit,
 			Offset:    offset,
-			Column4:   status,
-			Column5:   fromTime,
-			Column6:   toTime,
 		})
 		if err != nil {
 			return nil, 0, err
 		}
-
-		count, _ := s.queries.CountEmailLogsByProjectFiltered(ctx, db.CountEmailLogsByProjectFilteredParams{
-			ProjectID: pid,
-			Column2:   status,
-			Column3:   fromTime,
-			Column4:   toTime,
-		})
-
+		count, _ := s.queries.CountEmailLogsByProject(ctx, pid)
 		return logs, count, nil
 	}
 
-	logs, err := s.queries.ListEmailLogsByProject(ctx, db.ListEmailLogsByProjectParams{
+	status, fromT, toT, search, tid := filters.parse()
+
+	logs, err := s.queries.ListEmailLogsByProjectFiltered(ctx, db.ListEmailLogsByProjectFilteredParams{
 		ProjectID: pid,
 		Limit:     limit,
 		Offset:    offset,
+		Column4:   status,
+		Column5:   fromT,
+		Column6:   toT,
+		Column7:   search,
+		Column8:   tid,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
 
-	count, _ := s.queries.CountEmailLogsByProject(ctx, pid)
+	count, _ := s.queries.CountEmailLogsByProjectFiltered(ctx, db.CountEmailLogsByProjectFilteredParams{
+		ProjectID: pid,
+		Column2:   status,
+		Column3:   fromT,
+		Column4:   toT,
+		Column5:   search,
+		Column6:   tid,
+	})
+
 	return logs, count, nil
+}
+
+func (s *EmailService) ExportLogs(ctx context.Context, projectID string, filters LogFilters) ([]db.EmailLog, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return nil, errors.New("invalid project id")
+	}
+	status, fromT, toT, search, tid := filters.parse()
+	return s.queries.ListEmailLogsByProjectExport(ctx, db.ListEmailLogsByProjectExportParams{
+		ProjectID: pid,
+		Column2:   status,
+		Column3:   fromT,
+		Column4:   toT,
+		Column5:   search,
+		Column6:   tid,
+	})
 }
 
 func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[string]int64, error) {

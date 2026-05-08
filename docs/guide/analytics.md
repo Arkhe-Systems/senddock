@@ -14,6 +14,7 @@ Open `https://your-instance.com/projects/{id}/analytics` to get:
 - **Opens over time** — a smoothed area chart whose granularity adapts to the range you pick (hourly under 24h, daily for ≤90d, weekly for ≤1y, monthly for longer).
 - **Top templates** and **Top clicked links** — bar lists ranked by sends and unique URL clicks respectively.
 - **Send status donut** — sent vs failed split, plus the total active subscribers count.
+- **Broadcasts in flight** — a live panel that appears at the top of the dashboard whenever there is at least one broadcast actively sending. It shows a progress bar per broadcast (`X / total`, percentage), elapsed time, and per-status counters (sent / failed / suppressed / pending). The panel polls `/analytics/overview` every five seconds while any broadcast is in flight and disappears as soon as the queue drains. Useful for watching large sends to 50k+ subscriber lists without leaving Analytics.
 
 All the chart math runs server-side. The dashboard is a thin renderer over a single `/analytics/overview` call.
 

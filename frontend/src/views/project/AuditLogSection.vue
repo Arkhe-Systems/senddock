@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
+import AppPagination from '@/components/ui/AppPagination.vue'
 
 interface AuditEntry {
     id: string
@@ -44,7 +45,7 @@ const filterAction = ref('')
 const filterFrom = ref('')
 const filterTo = ref('')
 const page = ref(0)
-const limit = 50
+const limit = ref(50)
 
 const summary = computed(() => `${total.value} ${total.value === 1 ? 'entry' : 'entries'}`)
 
@@ -54,7 +55,7 @@ async function fetchList() {
     loading.value = true
     errorState.value = 'none'
     try {
-        const params = new URLSearchParams({ limit: String(limit), offset: String(page.value * limit) })
+        const params = new URLSearchParams({ limit: String(limit.value), offset: String(page.value * limit.value) })
         if (filterAction.value) params.set('action', filterAction.value)
         if (filterFrom.value) params.set('from', new Date(filterFrom.value).toISOString())
         if (filterTo.value) params.set('to', new Date(filterTo.value + 'T23:59:59').toISOString())
@@ -183,17 +184,11 @@ onMounted(fetchList)
                 </table>
             </div>
 
-            <div v-if="total > limit" class="flex justify-between items-center mt-4">
-                <button @click="page--; fetchList()" :disabled="page === 0"
-                    class="px-3 py-1.5 text-sm text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                    Previous
-                </button>
-                <span class="text-xs text-zinc-500">Page {{ page + 1 }} of {{ Math.ceil(total / limit) }}</span>
-                <button @click="page++; fetchList()" :disabled="(page + 1) * limit >= total"
-                    class="px-3 py-1.5 text-sm text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                    Next
-                </button>
-            </div>
+            <AppPagination
+                v-model:page="page"
+                v-model:limit="limit"
+                :total="total"
+                @change="fetchList" />
         </template>
     </div>
 </template>

@@ -39,10 +39,14 @@ You can only delete or reschedule a campaign while its status is `scheduled`. Fr
 
 The campaign worker runs as part of the SendDock backend process. It polls every 30 seconds for campaigns whose `scheduled_at` time has passed and whose status is still `scheduled`. When it finds one, it:
 
-1. Sets the status to `sending`
-2. Loads the template and all active subscribers
-3. Sends the email to each subscriber (with variable replacement and unsubscribe URL injection)
-4. Sets the status to `sent` (or `failed` if errors occurred)
+1. Atomically claims the campaign (sets status to `sending`, prevents duplicate execution if multiple instances share a database)
+2. Creates a broadcast and enqueues one job per active subscriber into the `broadcast_jobs` table
+3. Links the campaign to that broadcast via `broadcast_id` and exits — actual sending is then driven by the broadcast worker pool
+4. When the broadcast worker drains the queue, it cascades the final `sent_count` / `failed_count` back to the campaign and flips its status to `sent`
+
+While the campaign is in `sending`, its `sent_count` and `failed_count` shown in the dashboard reflect the **live progress** of the underlying broadcast (read directly from the linked broadcast row each request). You will see the numbers climb in real time as the queue drains, not jump from 0 to total at the end.
+
+If the backend process is killed mid-broadcast, the campaign stays in `sending`, jobs that were `sending` get reset to `retry` on the next startup, and sending resumes from where it left off — no recipient is sent to twice and no recipient is silently dropped. See the **How a broadcast actually runs** section in [Sending emails](/guide/sending#how-a-broadcast-actually-runs) for queue mechanics and retry behavior.
 
 No additional configuration is needed -- the worker starts automatically with the backend.
 

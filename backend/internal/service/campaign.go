@@ -29,7 +29,7 @@ func (s *CampaignService) Create(ctx context.Context, projectID, templateID, nam
 		return db.Campaign{}, errors.New("invalid template id")
 	}
 
-	if scheduledAt.Before(time.Now()) {
+	if scheduledAt.Before(time.Now().Add(-1 * time.Minute)) {
 		return db.Campaign{}, errors.New("scheduled time must be in the future")
 	}
 
@@ -59,7 +59,7 @@ func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, tem
 		return db.Campaign{}, errors.New("invalid template id")
 	}
 
-	if scheduledAt.Before(time.Now()) {
+	if scheduledAt.Before(time.Now().Add(-1 * time.Minute)) {
 		return db.Campaign{}, errors.New("scheduled time must be in the future")
 	}
 
@@ -79,7 +79,29 @@ func (s *CampaignService) ListByProject(ctx context.Context, projectID string) (
 	if err != nil {
 		return nil, errors.New("invalid project id")
 	}
-	return s.queries.ListCampaignsByProject(ctx, pid)
+	rows, err := s.queries.ListCampaignsByProject(ctx, pid)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]db.Campaign, len(rows))
+	for i, r := range rows {
+		out[i] = db.Campaign{
+			ID:          r.ID,
+			ProjectID:   r.ProjectID,
+			TemplateID:  r.TemplateID,
+			Name:        r.Name,
+			Subject:     r.Subject,
+			ScheduledAt: r.ScheduledAt,
+			SentAt:      r.SentAt,
+			CreatedAt:   r.CreatedAt,
+			Status:      r.Status,
+			SentCount:   r.SentCount,
+			FailedCount: r.FailedCount,
+			Variables:   r.Variables,
+			BroadcastID: r.BroadcastID,
+		}
+	}
+	return out, nil
 }
 
 func (s *CampaignService) Delete(ctx context.Context, campaignID, projectID string) error {
@@ -91,10 +113,17 @@ func (s *CampaignService) Delete(ctx context.Context, campaignID, projectID stri
 	if err != nil {
 		return errors.New("invalid project id")
 	}
-	return s.queries.DeleteCampaign(ctx, db.DeleteCampaignParams{
+	rows, err := s.queries.DeleteCampaign(ctx, db.DeleteCampaignParams{
 		ID:        cid,
 		ProjectID: pid,
 	})
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errors.New("campaign not found")
+	}
+	return nil
 }
 
 func (s *CampaignService) GetPending(ctx context.Context) ([]db.Campaign, error) {
