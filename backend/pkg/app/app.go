@@ -91,7 +91,7 @@ func New(cfg config.Config) (*App, error) {
 	a.authMiddleware = middleware.Auth([]byte(cfg.JWTSecret))
 	a.apiKeyMiddleware = middleware.APIKey(queries)
 	a.eitherAuth = middleware.EitherAuth(a.authMiddleware, a.apiKeyMiddleware)
-	a.rateLimiter = middleware.NewRateLimiter(redisCache, 600, time.Minute)
+	a.rateLimiter = middleware.NewRateLimiter(redisCache, cfg.RateLimitPerMinute, time.Minute)
 
 	a.webhooks = webhooks.NewService(queries)
 	suppressionService := service.NewSuppressionService(queries)
@@ -153,9 +153,13 @@ func (a *App) Run(ctx context.Context) error {
 		),
 	)
 
+	rootMux := http.NewServeMux()
+	rootMux.HandleFunc("GET /health", a.healthHandler)
+	rootMux.Handle("/", wrapped)
+
 	a.server = &http.Server{
 		Addr:         "0.0.0.0:" + a.cfg.Port,
-		Handler:      wrapped,
+		Handler:      rootMux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -181,6 +185,18 @@ func (a *App) Run(ctx context.Context) error {
 	case err := <-errCh:
 		return err
 	}
+}
+
+func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	last := a.dbHealthLastSuccess.Load()
+	ageSec := time.Now().Unix() - last
+	if last == 0 || ageSec > 60 {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]any{"status": "db_unreachable", "last_db_check_age_s": ageSec})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "last_db_check_age_s": ageSec})
 }
 
 func (a *App) startDBHealthMonitor(ctx context.Context) {
@@ -272,18 +288,6 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux := a.mux
 	authMW := a.authMiddleware
 	eitherAuth := a.eitherAuth
-
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		last := a.dbHealthLastSuccess.Load()
-		ageSec := time.Now().Unix() - last
-		if last == 0 || ageSec > 60 {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]any{"status": "db_unreachable", "last_db_check_age_s": ageSec})
-			return
-		}
-		json.NewEncoder(w).Encode(map[string]any{"status": "ok", "last_db_check_age_s": ageSec})
-	})
 
 	mux.HandleFunc("GET /api/v1/setup/status", setupHandler.Status)
 	mux.HandleFunc("POST /api/v1/setup", setupHandler.Setup)
