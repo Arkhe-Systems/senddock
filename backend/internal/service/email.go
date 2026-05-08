@@ -90,9 +90,10 @@ func (s *EmailService) unsubURL(projectID, subscriberID string) string {
 }
 
 type SendResult struct {
-	Sent       int `json:"sent"`
-	Failed     int `json:"failed"`
-	Suppressed int `json:"suppressed,omitempty"`
+	Sent        int        `json:"sent"`
+	Failed      int        `json:"failed"`
+	Suppressed  int        `json:"suppressed,omitempty"`
+	BroadcastID *uuid.UUID `json:"broadcast_id,omitempty"`
 }
 
 var ErrRecipientSuppressed = errors.New("recipient is on the project suppression list")
@@ -273,7 +274,8 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 	}
 
 	log.Printf("Broadcast %s enqueued: %d jobs for project %s", broadcast.ID, total, pid.String())
-	return SendResult{Sent: total}, nil
+	bid := broadcast.ID
+	return SendResult{Sent: total, BroadcastID: &bid}, nil
 }
 
 type BroadcastJobOutcome int

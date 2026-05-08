@@ -29,7 +29,7 @@ func (q *Queries) ClaimCampaignForExecution(ctx context.Context, id uuid.UUID) (
 const createCampaign = `-- name: CreateCampaign :one
 INSERT INTO campaigns (project_id, template_id, name, subject, scheduled_at, variables)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject
+RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id
 `
 
 type CreateCampaignParams struct {
@@ -64,6 +64,7 @@ func (q *Queries) CreateCampaign(ctx context.Context, arg CreateCampaignParams) 
 		&i.CreatedAt,
 		&i.Variables,
 		&i.Subject,
+		&i.BroadcastID,
 	)
 	return i, err
 }
@@ -86,7 +87,7 @@ func (q *Queries) DeleteCampaign(ctx context.Context, arg DeleteCampaignParams) 
 }
 
 const getCampaignByID = `-- name: GetCampaignByID :one
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject FROM campaigns WHERE id = $1 AND project_id = $2
+SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id FROM campaigns WHERE id = $1 AND project_id = $2
 `
 
 type GetCampaignByIDParams struct {
@@ -110,12 +111,13 @@ func (q *Queries) GetCampaignByID(ctx context.Context, arg GetCampaignByIDParams
 		&i.CreatedAt,
 		&i.Variables,
 		&i.Subject,
+		&i.BroadcastID,
 	)
 	return i, err
 }
 
 const getPendingCampaigns = `-- name: GetPendingCampaigns :many
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject FROM campaigns
+SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id FROM campaigns
 WHERE status = 'scheduled' AND scheduled_at <= NOW()
 ORDER BY scheduled_at ASC
 `
@@ -142,6 +144,7 @@ func (q *Queries) GetPendingCampaigns(ctx context.Context) ([]Campaign, error) {
 			&i.CreatedAt,
 			&i.Variables,
 			&i.Subject,
+			&i.BroadcastID,
 		); err != nil {
 			return nil, err
 		}
@@ -157,7 +160,7 @@ func (q *Queries) GetPendingCampaigns(ctx context.Context) ([]Campaign, error) {
 }
 
 const listCampaignsByProject = `-- name: ListCampaignsByProject :many
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject FROM campaigns
+SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id FROM campaigns
 WHERE project_id = $1
 ORDER BY created_at DESC
 `
@@ -184,6 +187,7 @@ func (q *Queries) ListCampaignsByProject(ctx context.Context, projectID uuid.UUI
 			&i.CreatedAt,
 			&i.Variables,
 			&i.Subject,
+			&i.BroadcastID,
 		); err != nil {
 			return nil, err
 		}
@@ -198,6 +202,37 @@ func (q *Queries) ListCampaignsByProject(ctx context.Context, projectID uuid.UUI
 	return items, nil
 }
 
+const markCampaignDoneFromBroadcast = `-- name: MarkCampaignDoneFromBroadcast :exec
+UPDATE campaigns
+SET status = 'sent',
+    sent_count = b.sent_count,
+    failed_count = b.failed_count,
+    sent_at = NOW()
+FROM broadcasts b
+WHERE campaigns.broadcast_id = b.id
+  AND b.id = $1
+  AND campaigns.status = 'sending'
+`
+
+func (q *Queries) MarkCampaignDoneFromBroadcast(ctx context.Context, broadcastID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, markCampaignDoneFromBroadcast, broadcastID)
+	return err
+}
+
+const setCampaignBroadcast = `-- name: SetCampaignBroadcast :exec
+UPDATE campaigns SET broadcast_id = $1 WHERE id = $2
+`
+
+type SetCampaignBroadcastParams struct {
+	BroadcastID uuid.NullUUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetCampaignBroadcast(ctx context.Context, arg SetCampaignBroadcastParams) error {
+	_, err := q.db.ExecContext(ctx, setCampaignBroadcast, arg.BroadcastID, arg.ID)
+	return err
+}
+
 const updateCampaign = `-- name: UpdateCampaign :one
 UPDATE campaigns SET
     name = $3,
@@ -206,7 +241,7 @@ UPDATE campaigns SET
     scheduled_at = $6,
     variables = $7
 WHERE id = $1 AND project_id = $2 AND status = 'scheduled'
-RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject
+RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id
 `
 
 type UpdateCampaignParams struct {
@@ -243,6 +278,7 @@ func (q *Queries) UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) 
 		&i.CreatedAt,
 		&i.Variables,
 		&i.Subject,
+		&i.BroadcastID,
 	)
 	return i, err
 }

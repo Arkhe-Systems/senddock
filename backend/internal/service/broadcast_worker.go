@@ -149,6 +149,9 @@ func (w *BroadcastWorker) checkBroadcastCompletion(ctx context.Context, broadcas
 		log.Printf("broadcast %s: mark completed failed: %v", broadcastID, err)
 		return
 	}
+	if err := w.queries.MarkCampaignDoneFromBroadcast(ctx, broadcastID); err != nil {
+		log.Printf("broadcast %s: linked-campaign update failed: %v", broadcastID, err)
+	}
 	log.Printf("Broadcast %s completed", broadcastID)
 }
 
