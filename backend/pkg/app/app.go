@@ -153,8 +153,6 @@ func (a *App) Run(ctx context.Context) error {
 		),
 	)
 
-	// /health bypasses rate limiting and CORS so swarm/k8s healthchecks
-	// can never be throttled by client-facing throttles.
 	rootMux := http.NewServeMux()
 	rootMux.HandleFunc("GET /health", a.healthHandler)
 	rootMux.Handle("/", wrapped)
