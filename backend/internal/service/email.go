@@ -347,7 +347,7 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 }
 
 func (s *EmailService) RecoverInProgressBroadcasts(ctx context.Context) error {
-	return s.queries.MarkInProgressBroadcastsInterrupted(ctx)
+	return s.queries.ReconcileStuckBroadcasts(ctx)
 }
 
 func (s *EmailService) ListBroadcasts(ctx context.Context, projectID string, limit, offset int32) ([]db.Broadcast, int64, error) {

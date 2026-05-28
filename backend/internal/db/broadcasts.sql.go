@@ -177,11 +177,22 @@ func (q *Queries) MarkBroadcastCompleted(ctx context.Context, id uuid.UUID) erro
 	return err
 }
 
-const markInProgressBroadcastsInterrupted = `-- name: MarkInProgressBroadcastsInterrupted :exec
-UPDATE broadcasts SET status = 'interrupted', finished_at = NOW() WHERE status = 'sending'
+const reconcileStuckBroadcasts = `-- name: ReconcileStuckBroadcasts :exec
+UPDATE broadcasts b
+SET status = 'completed',
+    finished_at = COALESCE(b.finished_at, NOW())
+WHERE b.status IN ('sending', 'interrupted')
+  AND NOT EXISTS (
+    SELECT 1 FROM broadcast_jobs j
+    WHERE j.broadcast_id = b.id
+      AND j.status IN ('pending', 'retry', 'sending')
+  )
 `
 
-func (q *Queries) MarkInProgressBroadcastsInterrupted(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, markInProgressBroadcastsInterrupted)
+// Marks 'completed' any broadcast (status 'sending' or legacy 'interrupted')
+// whose per-recipient jobs have all settled. In-flight broadcasts whose jobs
+// the worker will pick up via ResetStuckSendingJobs stay 'sending'.
+func (q *Queries) ReconcileStuckBroadcasts(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, reconcileStuckBroadcasts)
 	return err
 }
