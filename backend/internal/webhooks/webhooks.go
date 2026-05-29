@@ -131,7 +131,7 @@ func (s *Service) tick(ctx context.Context) {
 }
 
 func (s *Service) deliver(ctx context.Context, delivery db.WebhookDelivery) {
-	hook, err := s.queries.GetWebhookByIDOnly(ctx, delivery.WebhookID)
+	hook, err := s.queries.GetWebhookForDispatchInternal(ctx, delivery.WebhookID)
 	if err != nil {
 		s.markFailed(ctx, delivery.ID, 0, "webhook lookup failed: "+err.Error())
 		return

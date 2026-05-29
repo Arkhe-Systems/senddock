@@ -134,6 +134,9 @@ func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, s
 }
 
 func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscriberID, templateID string) (SendResult, error) {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return SendResult{}, err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return SendResult{}, errors.New("invalid project id")
@@ -192,6 +195,9 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 }
 
 func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage) (SendResult, error) {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return SendResult{}, err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return SendResult{}, errors.New("invalid project id")
@@ -351,6 +357,9 @@ func (s *EmailService) RecoverInProgressBroadcasts(ctx context.Context) error {
 }
 
 func (s *EmailService) ListBroadcasts(ctx context.Context, projectID string, limit, offset int32) ([]db.Broadcast, int64, error) {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return nil, 0, err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, 0, errors.New("invalid project id")
@@ -370,6 +379,9 @@ func (s *EmailService) ListBroadcasts(ctx context.Context, projectID string, lim
 }
 
 func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, htmlBody string) error {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return errors.New("invalid project id")
@@ -393,6 +405,9 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 }
 
 func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string) error {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return errors.New("invalid project id")
@@ -482,6 +497,9 @@ func (f LogFilters) isEmpty() bool {
 }
 
 func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, filters LogFilters) ([]db.EmailLog, int64, error) {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return nil, 0, err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, 0, errors.New("invalid project id")
@@ -529,6 +547,9 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 }
 
 func (s *EmailService) GetLogDetail(ctx context.Context, projectID, logID string) (db.EmailLog, []db.ListEmailClicksByLogRow, error) {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return db.EmailLog{}, nil, err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return db.EmailLog{}, nil, errors.New("invalid project id")
@@ -551,6 +572,9 @@ func (s *EmailService) GetLogDetail(ctx context.Context, projectID, logID string
 }
 
 func (s *EmailService) ExportLogs(ctx context.Context, projectID string, filters LogFilters) ([]db.EmailLog, error) {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return nil, err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, errors.New("invalid project id")
@@ -567,6 +591,9 @@ func (s *EmailService) ExportLogs(ctx context.Context, projectID string, filters
 }
 
 func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[string]int64, error) {
+	if err := requireAuthorizedProject(ctx, projectID); err != nil {
+		return nil, err
+	}
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, errors.New("invalid project id")
