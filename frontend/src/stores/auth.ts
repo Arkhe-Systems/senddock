@@ -12,6 +12,7 @@ interface MeResponse {
     name: string
     plan: string
     created_at: string
+    totp_enabled: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -23,6 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
     const name = ref<string | null>(null)
     const plan = ref<string | null>(null)
     const createdAt = ref<string | null>(null)
+    const totpEnabled = ref(false)
 
     async function checkAuth() {
         const wasAuthenticated = isAuthenticated.value
@@ -35,6 +37,7 @@ export const useAuthStore = defineStore('auth', () => {
             name.value = me.name
             plan.value = me.plan
             createdAt.value = me.created_at
+            totpEnabled.value = me.totp_enabled
         } catch (e) {
             if (e instanceof ApiError && (e.status === 0 || e.status === 429 || e.status >= 500)) {
                 return
@@ -45,6 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
             name.value = null
             plan.value = null
             createdAt.value = null
+            totpEnabled.value = false
             if (wasAuthenticated) {
                 sessionExpired.value = true
             }
@@ -64,10 +68,30 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    async function login(email: string, password: string) {
-        await api<MessageResponse>('/auth/login', {
+    interface LoginResponse {
+        requires_2fa?: boolean
+        two_factor_token?: string
+        message?: string
+    }
+
+    async function login(email: string, password: string): Promise<{ requires_2fa: boolean; two_factor_token?: string }> {
+        const res = await api<LoginResponse>('/auth/login', {
             method: 'POST',
             body: { email, password },
+        })
+        if (res.requires_2fa) {
+            return { requires_2fa: true, two_factor_token: res.two_factor_token }
+        }
+        isAuthenticated.value = true
+        sessionExpired.value = false
+        api('/license/status').catch(() => {})
+        return { requires_2fa: false }
+    }
+
+    async function verifyTwoFactor(twoFactorToken: string, code: string) {
+        await api<MessageResponse>('/auth/2fa', {
+            method: 'POST',
+            body: { two_factor_token: twoFactorToken, code },
         })
         isAuthenticated.value = true
         sessionExpired.value = false
@@ -95,7 +119,8 @@ export const useAuthStore = defineStore('auth', () => {
         name.value = null
         plan.value = null
         createdAt.value = null
+        totpEnabled.value = false
     }
 
-    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, login, register, logout, checkAuth, refreshSession }
+    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, totpEnabled, login, register, logout, checkAuth, refreshSession, verifyTwoFactor }
 })

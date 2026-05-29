@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 	"unicode"
 
@@ -108,23 +109,79 @@ func (s *AuthService) bootstrapDefaultWorkspace(ctx context.Context, userID uuid
 	return err
 }
 
-func (s *AuthService) Login(ctx context.Context, email, password string) (AuthTokens, error) {
+type LoginResult struct {
+	Tokens         AuthTokens
+	Requires2FA    bool
+	TwoFactorToken string
+}
+
+func (s *AuthService) Login(ctx context.Context, email, password string) (LoginResult, error) {
 	user, err := s.queries.GetUserByEmail(ctx, email)
 	if err != nil {
-		return AuthTokens{}, errors.New("invalid credentials")
+		return LoginResult{}, errors.New("invalid credentials")
+	}
+
+	if !user.PasswordHash.Valid {
+		return LoginResult{}, errors.New("invalid credentials")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password))
 	if err != nil {
-		return AuthTokens{}, errors.New("invalid credentials")
+		return LoginResult{}, errors.New("invalid credentials")
 	}
 
-	token, err := s.generateTokens(ctx, user.ID)
+	if user.TotpEnabled {
+		twoFAToken, err := s.generateTwoFactorToken(user.ID)
+		if err != nil {
+			return LoginResult{}, err
+		}
+		return LoginResult{Requires2FA: true, TwoFactorToken: twoFAToken}, nil
+	}
+
+	tokens, err := s.generateTokens(ctx, user.ID)
 	if err != nil {
-		return AuthTokens{}, err
+		return LoginResult{}, err
+	}
+	return LoginResult{Tokens: tokens}, nil
+}
+
+func (s *AuthService) VerifyTwoFactor(ctx context.Context, twoFAToken, code string) (AuthTokens, error) {
+	userID, err := s.parseTwoFactorToken(twoFAToken)
+	if err != nil {
+		return AuthTokens{}, errors.New("two-factor session expired, please sign in again")
 	}
 
-	return token, nil
+	user, err := s.queries.GetUserById(ctx, userID)
+	if err != nil || !user.TotpEnabled || user.TotpSecret.String == "" {
+		return AuthTokens{}, errors.New("two-factor not configured for this account")
+	}
+
+	clean := strings.TrimSpace(code)
+	if IsLikelyRecoveryCode(clean) {
+		if err := s.consumeRecoveryCode(ctx, userID, clean); err != nil {
+			return AuthTokens{}, ErrInvalidRecoveryCode
+		}
+	} else {
+		if !ValidateTOTPCode(user.TotpSecret.String, clean) {
+			return AuthTokens{}, ErrInvalidTOTPCode
+		}
+	}
+
+	return s.generateTokens(ctx, userID)
+}
+
+func (s *AuthService) consumeRecoveryCode(ctx context.Context, userID uuid.UUID, raw string) error {
+	clean := normalizeRecoveryCode(raw)
+	rows, err := s.queries.ListUserRecoveryCodes(ctx, userID)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if bcrypt.CompareHashAndPassword([]byte(row.CodeHash), []byte(clean)) == nil {
+			return s.queries.MarkRecoveryCodeUsed(ctx, row.ID)
+		}
+	}
+	return ErrInvalidRecoveryCode
 }
 
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (AuthTokens, error) {
@@ -228,4 +285,154 @@ func generateRandomToken() (string, error) {
 func hashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
+}
+
+func (s *AuthService) generateTwoFactorToken(userID uuid.UUID) (string, error) {
+	claims := jwt.MapClaims{
+		"sub":  userID.String(),
+		"step": "2fa_pending",
+		"exp":  time.Now().Add(5 * time.Minute).Unix(),
+		"iat":  time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.jwtSecret)
+}
+
+func (s *AuthService) parseTwoFactorToken(raw string) (uuid.UUID, error) {
+	token, err := jwt.Parse(raw, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("invalid signing method")
+		}
+		return s.jwtSecret, nil
+	})
+	if err != nil || !token.Valid {
+		return uuid.Nil, errors.New("invalid token")
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return uuid.Nil, errors.New("invalid claims")
+	}
+	step, _ := claims["step"].(string)
+	if step != "2fa_pending" {
+		return uuid.Nil, errors.New("wrong token type")
+	}
+	sub, _ := claims["sub"].(string)
+	return uuid.Parse(sub)
+}
+
+func (s *AuthService) SetupTOTP(ctx context.Context, userID uuid.UUID) (TOTPSetup, error) {
+	user, err := s.queries.GetUserById(ctx, userID)
+	if err != nil {
+		return TOTPSetup{}, errors.New("user not found")
+	}
+	if user.TotpEnabled {
+		return TOTPSetup{}, errors.New("2fa already enabled — disable it first to regenerate")
+	}
+
+	setup, err := GenerateTOTPSetup(user.Email)
+	if err != nil {
+		return TOTPSetup{}, err
+	}
+
+	if err := s.queries.SetUserTotpSecret(ctx, db.SetUserTotpSecretParams{
+		ID:         userID,
+		TotpSecret: sql.NullString{String: setup.Secret, Valid: true},
+	}); err != nil {
+		return TOTPSetup{}, err
+	}
+
+	if err := s.replaceRecoveryCodes(ctx, userID, setup.RecoveryCodes); err != nil {
+		return TOTPSetup{}, err
+	}
+	return setup, nil
+}
+
+func (s *AuthService) VerifyTOTPSetup(ctx context.Context, userID uuid.UUID, code string) error {
+	user, err := s.queries.GetUserById(ctx, userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+	if !user.TotpSecret.Valid || user.TotpSecret.String == "" {
+		return errors.New("2fa setup not started — call setup first")
+	}
+	if user.TotpEnabled {
+		return errors.New("2fa already enabled")
+	}
+	if !ValidateTOTPCode(user.TotpSecret.String, code) {
+		return ErrInvalidTOTPCode
+	}
+	return s.queries.EnableUserTotp(ctx, userID)
+}
+
+func (s *AuthService) DisableTOTP(ctx context.Context, userID uuid.UUID, password, code string) error {
+	user, err := s.queries.GetUserById(ctx, userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+	if !user.TotpEnabled {
+		return errors.New("2fa is not enabled")
+	}
+	if !user.PasswordHash.Valid {
+		return errors.New("cannot disable 2fa on a passwordless account")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password)); err != nil {
+		return errors.New("current password is incorrect")
+	}
+
+	clean := strings.TrimSpace(code)
+	if IsLikelyRecoveryCode(clean) {
+		if err := s.consumeRecoveryCode(ctx, userID, clean); err != nil {
+			return ErrInvalidRecoveryCode
+		}
+	} else {
+		if !ValidateTOTPCode(user.TotpSecret.String, clean) {
+			return ErrInvalidTOTPCode
+		}
+	}
+
+	if err := s.queries.DisableUserTotp(ctx, userID); err != nil {
+		return err
+	}
+	return s.queries.DeleteUserRecoveryCodes(ctx, userID)
+}
+
+func (s *AuthService) RegenerateRecoveryCodes(ctx context.Context, userID uuid.UUID, code string) ([]string, error) {
+	user, err := s.queries.GetUserById(ctx, userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	if !user.TotpEnabled || user.TotpSecret.String == "" {
+		return nil, errors.New("2fa is not enabled")
+	}
+	if !ValidateTOTPCode(user.TotpSecret.String, strings.TrimSpace(code)) {
+		return nil, ErrInvalidTOTPCode
+	}
+
+	codes, err := generateRecoveryCodes(recoveryCodeN)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.replaceRecoveryCodes(ctx, userID, codes); err != nil {
+		return nil, err
+	}
+	return codes, nil
+}
+
+func (s *AuthService) replaceRecoveryCodes(ctx context.Context, userID uuid.UUID, codes []string) error {
+	if err := s.queries.DeleteUserRecoveryCodes(ctx, userID); err != nil {
+		return err
+	}
+	for _, raw := range codes {
+		hash, err := bcrypt.GenerateFromPassword([]byte(normalizeRecoveryCode(raw)), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		if err := s.queries.CreateRecoveryCode(ctx, db.CreateRecoveryCodeParams{
+			UserID:   userID,
+			CodeHash: string(hash),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
