@@ -28,3 +28,7 @@ UPDATE users SET monthly_emails_sent = 0,
     monthly_reset_at = date_trunc('month', NOW()) + INTERVAL '1 month',
     updated_at = NOW()
 WHERE id = $1;
+
+-- name: UpdateUserPassword :exec
+UPDATE users SET password_hash = $2, updated_at = NOW()
+WHERE id = $1;

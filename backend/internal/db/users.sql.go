@@ -190,6 +190,21 @@ func (q *Queries) ResetMonthlyUsage(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users SET password_hash = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID           uuid.UUID
+	PasswordHash sql.NullString
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
 const updateUserPlan = `-- name: UpdateUserPlan :exec
 UPDATE users SET plan = $2, plan_changed_at = NOW(), updated_at = NOW()
 WHERE id = $1
