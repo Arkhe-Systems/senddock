@@ -528,6 +528,28 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 	return logs, count, nil
 }
 
+func (s *EmailService) GetLogDetail(ctx context.Context, projectID, logID string) (db.EmailLog, []db.ListEmailClicksByLogRow, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.EmailLog{}, nil, errors.New("invalid project id")
+	}
+	lid, err := uuid.Parse(logID)
+	if err != nil {
+		return db.EmailLog{}, nil, errors.New("invalid log id")
+	}
+
+	log, err := s.queries.GetEmailLog(ctx, db.GetEmailLogParams{ID: lid, ProjectID: pid})
+	if err != nil {
+		return db.EmailLog{}, nil, errors.New("log not found")
+	}
+
+	clicks, err := s.queries.ListEmailClicksByLog(ctx, lid)
+	if err != nil {
+		return log, nil, nil
+	}
+	return log, clicks, nil
+}
+
 func (s *EmailService) ExportLogs(ctx context.Context, projectID string, filters LogFilters) ([]db.EmailLog, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {

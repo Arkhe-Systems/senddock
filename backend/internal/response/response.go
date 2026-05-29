@@ -152,6 +152,15 @@ type EmailLog struct {
 	Status       string  `json:"status"`
 	Error        *string `json:"error"`
 	SentAt       string  `json:"sent_at"`
+	OpenedAt     *string `json:"opened_at"`
+	ClickedAt    *string `json:"clicked_at"`
+}
+
+type EmailClick struct {
+	ID        string  `json:"id"`
+	URL       string  `json:"url"`
+	ClickedAt string  `json:"clicked_at"`
+	UserAgent *string `json:"user_agent"`
 }
 
 func nullUUID(nu uuid.NullUUID) *string {
@@ -173,7 +182,35 @@ func FromEmailLog(l db.EmailLog) EmailLog {
 		Status:       l.Status,
 		Error:        nullStr(l.Error),
 		SentAt:       l.SentAt.Format(time.RFC3339),
+		OpenedAt:     nullTimeStr(l.OpenedAt),
+		ClickedAt:    nullTimeStr(l.ClickedAt),
 	}
+}
+
+func nullTimeStr(t sql.NullTime) *string {
+	if !t.Valid {
+		return nil
+	}
+	s := t.Time.Format(time.RFC3339)
+	return &s
+}
+
+func FromEmailClicks(rows []db.ListEmailClicksByLogRow) []EmailClick {
+	out := make([]EmailClick, len(rows))
+	for i, c := range rows {
+		var ua *string
+		if c.UserAgent.Valid {
+			s := c.UserAgent.String
+			ua = &s
+		}
+		out[i] = EmailClick{
+			ID:        c.ID.String(),
+			URL:       c.Url,
+			ClickedAt: c.ClickedAt.Format(time.RFC3339),
+			UserAgent: ua,
+		}
+	}
+	return out
 }
 
 func FromEmailLogs(logs []db.EmailLog) []EmailLog {

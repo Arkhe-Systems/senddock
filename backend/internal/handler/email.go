@@ -355,6 +355,38 @@ func (h *EmailHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *EmailHandler) LogDetail(w http.ResponseWriter, r *http.Request) {
+	projectID, err := h.verifyAccess(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	logID := r.PathValue("logId")
+	if logID == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "log id required"})
+		return
+	}
+
+	log, clicks, err := h.emailService.GetLogDetail(r.Context(), projectID, logID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"log":    response.FromEmailLog(log),
+		"clicks": response.FromEmailClicks(clicks),
+	})
+}
+
 func (h *EmailHandler) LogsExport(w http.ResponseWriter, r *http.Request) {
 	projectID, err := h.verifyAccess(r)
 	if err != nil {

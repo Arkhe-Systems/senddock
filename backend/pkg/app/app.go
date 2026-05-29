@@ -434,6 +434,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("POST /api/v1/projects/{id}/send/batch", eitherAuth(http.HandlerFunc(emailHandler.BatchSend)))
 	mux.Handle("GET /api/v1/projects/{id}/logs", authMW(http.HandlerFunc(emailHandler.Logs)))
 	mux.Handle("GET /api/v1/projects/{id}/logs/export.csv", authMW(http.HandlerFunc(emailHandler.LogsExport)))
+	mux.Handle("GET /api/v1/projects/{id}/logs/{logId}", authMW(http.HandlerFunc(emailHandler.LogDetail)))
 	mux.Handle("GET /api/v1/projects/{id}/broadcasts", authMW(http.HandlerFunc(emailHandler.ListBroadcasts)))
 	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
 
