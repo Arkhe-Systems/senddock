@@ -24,18 +24,53 @@ const loading = ref(false)
 const appStore = useAppStore()
 const isCloud = computed(() => appStore.deploymentMode === 'cloud')
 
+const twoFactorToken = ref<string | null>(null)
+const twoFactorCode = ref('')
+const twoFactorError = ref('')
+const verifying = ref(false)
+
 async function handleLogin() {
     error.value = ''
     loading.value = true
 
     try {
-        await auth.login(email.value, password.value)
+        const result = await auth.login(email.value, password.value)
+        if (result.requires_2fa && result.two_factor_token) {
+            twoFactorToken.value = result.two_factor_token
+            twoFactorCode.value = ''
+            twoFactorError.value = ''
+            return
+        }
         router.push('/dashboard')
     } catch (e: any) {
         error.value = e.message
     } finally {
         loading.value = false
     }
+}
+
+async function handleVerify() {
+    twoFactorError.value = ''
+    if (!twoFactorToken.value || !twoFactorCode.value) {
+        twoFactorError.value = 'enter your authentication or recovery code'
+        return
+    }
+    verifying.value = true
+    try {
+        await auth.verifyTwoFactor(twoFactorToken.value, twoFactorCode.value)
+        router.push('/dashboard')
+    } catch (e: any) {
+        twoFactorError.value = e.message
+    } finally {
+        verifying.value = false
+    }
+}
+
+function backToLogin() {
+    twoFactorToken.value = null
+    twoFactorCode.value = ''
+    twoFactorError.value = ''
+    password.value = ''
 }
 </script>
 
@@ -63,9 +98,9 @@ async function handleLogin() {
                 <p class="text-zinc-400 mt-2">Sign in to your account</p>
             </div>
 
-            <AppAlert v-if="reason" :message="reasonMessages[reason] ?? ''" type="info" class="mb-4" />
+            <AppAlert v-if="reason && !twoFactorToken" :message="reasonMessages[reason] ?? ''" type="info" class="mb-4" />
 
-            <form @submit.prevent="handleLogin" class="space-y-4">
+            <form v-if="!twoFactorToken" @submit.prevent="handleLogin" class="space-y-4">
                 <AppAlert :message="error" />
                 <AppInput v-model="email" label="Email" type="email" placeholder="your@example.com" required />
                 <AppInput v-model="password" label="Password" type="password" placeholder="••••••••" required />
@@ -74,7 +109,38 @@ async function handleLogin() {
                 </AppButton>
             </form>
 
-            <p v-if="isCloud" class="text-center text-sm text-zinc-400 mt-6">
+            <form v-else @submit.prevent="handleVerify" class="space-y-5">
+                <div class="text-center">
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 mb-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-base font-semibold text-white">Two-factor authentication</h2>
+                    <p class="text-sm text-zinc-400 mt-1">
+                        Enter the 6-digit code from your authenticator app, or a recovery code.
+                    </p>
+                </div>
+
+                <input v-model="twoFactorCode" type="text" inputmode="text" autocomplete="one-time-code"
+                    maxlength="20" autofocus
+                    placeholder="000000"
+                    class="w-full px-4 py-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-center text-2xl font-mono tracking-[0.4em] placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition" />
+
+                <AppAlert :message="twoFactorError" />
+
+                <AppButton :loading="verifying">
+                    {{ verifying ? 'Verifying...' : 'Verify and sign in' }}
+                </AppButton>
+
+                <p class="text-center">
+                    <button type="button" @click="backToLogin" class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
+                        &larr; Use a different account
+                    </button>
+                </p>
+            </form>
+
+            <p v-if="isCloud && !twoFactorToken" class="text-center text-sm text-zinc-400 mt-6">
                 Don't have an account?
                 <RouterLink to="/register" class="text-white hover:text-zinc-300 underline">Create one</RouterLink>
             </p>

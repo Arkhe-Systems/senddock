@@ -115,7 +115,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := h.authService.Login(r.Context(), req.Email, req.Password)
+	result, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
@@ -123,8 +123,48 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setAuthCookies(w, tokens)
 	w.Header().Set("Content-Type", "application/json")
+	if result.Requires2FA {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]any{
+			"requires_2fa":     true,
+			"two_factor_token": result.TwoFactorToken,
+		})
+		return
+	}
+
+	setAuthCookies(w, result.Tokens)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "logged in"})
+}
+
+type twoFactorRequest struct {
+	TwoFactorToken string `json:"two_factor_token"`
+	Code           string `json:"code"`
+}
+
+func (h *AuthHandler) VerifyTwoFactor(w http.ResponseWriter, r *http.Request) {
+	var req twoFactorRequest
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
+		return
+	}
+	if req.TwoFactorToken == "" || req.Code == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "two_factor_token and code are required"})
+		return
+	}
+
+	tokens, err := h.authService.VerifyTwoFactor(r.Context(), req.TwoFactorToken, req.Code)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	setAuthCookies(w, tokens)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "logged in"})
 }

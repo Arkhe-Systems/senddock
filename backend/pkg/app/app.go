@@ -321,11 +321,12 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{
-			"user_id":    userID,
-			"email":      user.Email,
-			"name":       user.Name,
-			"plan":       user.Plan,
-			"created_at": user.CreatedAt,
+			"user_id":      userID,
+			"email":        user.Email,
+			"name":         user.Name,
+			"plan":         user.Plan,
+			"created_at":   user.CreatedAt,
+			"totp_enabled": user.TotpEnabled,
 		})
 	})))
 
@@ -368,7 +369,107 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 		json.NewEncoder(w).Encode(map[string]string{"message": "password updated"})
 	})))
 
+	mux.Handle("POST /api/v1/me/2fa/setup", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		uid, err := uuid.Parse(r.Context().Value(auth.UserIDKey).(string))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid user id"})
+			return
+		}
+		setup, err := authService.SetupTOTP(r.Context(), uid)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"secret":         setup.Secret,
+			"otpauth_url":    setup.OtpauthURL,
+			"recovery_codes": setup.RecoveryCodes,
+		})
+	})))
+
+	mux.Handle("POST /api/v1/me/2fa/verify", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		uid, err := uuid.Parse(r.Context().Value(auth.UserIDKey).(string))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid user id"})
+			return
+		}
+		var req struct {
+			Code string `json:"code"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Code == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "code required"})
+			return
+		}
+		if err := authService.VerifyTOTPSetup(r.Context(), uid, req.Code); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"message": "2fa enabled"})
+	})))
+
+	mux.Handle("POST /api/v1/me/2fa/disable", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		uid, err := uuid.Parse(r.Context().Value(auth.UserIDKey).(string))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid user id"})
+			return
+		}
+		var req struct {
+			Password string `json:"password"`
+			Code     string `json:"code"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Password == "" || req.Code == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "password and code required"})
+			return
+		}
+		if err := authService.DisableTOTP(r.Context(), uid, req.Password, req.Code); err != nil {
+			status := http.StatusBadRequest
+			if err.Error() == "current password is incorrect" {
+				status = http.StatusUnauthorized
+			}
+			w.WriteHeader(status)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"message": "2fa disabled"})
+	})))
+
+	mux.Handle("POST /api/v1/me/2fa/recovery-codes", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		uid, err := uuid.Parse(r.Context().Value(auth.UserIDKey).(string))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid user id"})
+			return
+		}
+		var req struct {
+			Code string `json:"code"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Code == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "code required"})
+			return
+		}
+		codes, err := authService.RegenerateRecoveryCodes(r.Context(), uid, req.Code)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string][]string{"recovery_codes": codes})
+	})))
+
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
+	mux.HandleFunc("POST /api/v1/auth/2fa", authHandler.VerifyTwoFactor)
 
 	if cfg.IsSelfHosted() {
 		log.Println("Mode: self-hosted (registration disabled)")

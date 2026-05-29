@@ -194,6 +194,17 @@ type User struct {
 	PlanChangedAt      sql.NullTime
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
+	TotpSecret         sql.NullString
+	TotpEnabled        bool
+	TotpVerifiedAt     sql.NullTime
+}
+
+type UserRecoveryCode struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	CodeHash  string
+	UsedAt    sql.NullTime
+	CreatedAt time.Time
 }
 
 type Webhook struct {
