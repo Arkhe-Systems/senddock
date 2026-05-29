@@ -18,6 +18,46 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.5] — 2026-05-28
+
+Quality-of-life release: persistent profile sidebar, Account and Billing pages, one-click updates via Watchtower, an email log detail drawer, plus a fix that closes the loop on broadcast restart recovery from [0.6.4](#064--2026-05-08).
+
+### Added
+
+- **Persistent profile sidebar across every authenticated screen.** The dashboard now uses the same flex+sidebar layout as the project view, so the page doesn't look empty when you have one or two projects. The sidebar is sticky to the viewport (no longer scrolls away with the main content) and embeds a profile panel at the bottom with avatar, name, email, plan badge, and links to Account / Billing / Logout. Same panel appears under the project navigation when you're inside a project.
+- **Account page (`/account`).** Read-only profile (name, email, plan, member since) plus a change-password form. Validates current password server-side and applies the same complexity rules as registration (≥8 chars, one uppercase, one digit, one special). Email and name changes are not supported yet — they need an email-verification flow that doesn't exist in the codebase yet.
+- **Billing page (`/billing`).** Shows the current tier (Free / Pro / Team) with a colored badge, plus the license `expires_at` and `last_check` timestamps when a license is active. Free users see Pro and Team paywall cards with the existing checkout links. Notes explain that BYOS means SendDock doesn't charge for email volume — only for features.
+- **One-click updates from the dashboard via Watchtower.** When `SENDDOCK_WATCHTOWER_URL` (and optional `SENDDOCK_WATCHTOWER_TOKEN`) are set and Watchtower's HTTP API is reachable, the update modal shows an "Update now" button that POSTs to Watchtower's `/v1/update`. The dashboard then polls `/api/v1/version` every 2 seconds, tolerates the network errors that happen while the container restarts, and shows a success toast once the new version is live. When Watchtower isn't configured (the default) the modal still shows the manual `docker compose pull && up -d` command as before — see [Updating → One-click updates](./self-hosting/updating#one-click-updates-from-the-dashboard-watchtower).
+- **Email log detail drawer (#44).** Click a row in the Logs page and a right-side drawer slides in with the full lifecycle: a vertical timeline (sent → opened → clicked → bounced / failed / suppressed), per-click event list with URL + timestamp + user agent, error or suppression reason, and reference IDs. The list view also gained an **Engagement** column with compact `O` / `C` badges so you can spot opens and clicks without opening each row. Backed by a new `GET /api/v1/projects/{id}/logs/{logId}` endpoint that returns `{log, clicks}`.
+- **`pg_trgm` gin indexes on `email_logs.to_email` and `email_logs.subject` (#44).** Substring `ILIKE '%x%'` searches now use a real index instead of sequential scan, which keeps the Logs search responsive past a few thousand rows. The migration enables `CREATE EXTENSION pg_trgm` if it isn't already.
+- **Custom dark-themed scrollbars** across the whole app (subtle gray thumb, transparent track, lighter on hover, both WebKit and Firefox).
+
+### Changed
+
+- **`AppModal` now uses `Teleport` to `body`.** Any modal triggered from inside a sidebar (or any element with a `transform`) now correctly overlays the entire viewport instead of getting trapped inside its parent's bounding box. Fixes the "What's in vX.Y.Z" dialog rendering inside the sidebar.
+- **`GET /api/v1/me`** now returns `email`, `name`, `plan` and `created_at` in addition to `user_id`. Needed by the new profile panel; no breaking change since the response was previously `{user_id}`.
+- **Analytics, Webhooks and Audit log sections** check the user's license tier before fetching. Free users see the paywall immediately instead of waiting for a 402 / 404 round-trip and falling through to a generic "Couldn't load" error.
+
+### Fixed
+
+- **Broadcasts marked `interrupted` on restart even though they actually resumed sending (#41 follow-up).** A backend restart in the middle of a broadcast flipped its status to `'interrupted'` even though the per-recipient jobs were still being drained by the worker pool. The UI then told the user the broadcast had failed and the remaining recipients didn't get the email — which was wrong. The status now stays `'sending'` until every job has settled, then transitions to `'completed'`. Pro Analytics "broadcasts in flight" also recovers correctly across restarts now (it filters on `status='sending'` and was losing visibility because of this).
+
+### API
+
+- `GET /api/v1/me` — now returns `email`, `name`, `plan`, `created_at` alongside `user_id`.
+- `POST /api/v1/me/password` — change the authenticated user's password. Body: `{current_password, new_password}`.
+- `GET /api/v1/update/auto-status` — returns Watchtower availability: `{configured, healthy, url, last_check, last_error}`.
+- `POST /api/v1/update/trigger` — fires the Watchtower `/v1/update` call and returns `202`. Returns `400` if Watchtower isn't configured, `502` if it's unreachable.
+- `GET /api/v1/projects/{id}/logs/{logId}` — returns `{log, clicks}` for the email log detail drawer.
+
+### Environment
+
+- New optional `SENDDOCK_WATCHTOWER_URL` and `SENDDOCK_WATCHTOWER_TOKEN` — enable the dashboard's one-click update flow. When unset, the update modal falls back to the manual command.
+
+### Migrations
+
+- `20260528193111_add_email_logs_search_index.sql` — enables `pg_trgm` if missing and adds gin indexes on `email_logs.to_email` and `email_logs.subject`. Idempotent, no data changes.
+
 ## [0.6.4.1] — 2026-05-08
 
 Hotfix on top of [0.6.4](#064--2026-05-08). No new features, no DB migrations — drop-in replacement for any 0.6.x deployment showing the "restart every ~5 hours" pattern.
