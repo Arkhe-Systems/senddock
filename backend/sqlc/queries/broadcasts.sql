@@ -15,8 +15,19 @@ UPDATE broadcasts SET suppressed_count = suppressed_count + 1 WHERE id = $1;
 -- name: MarkBroadcastCompleted :exec
 UPDATE broadcasts SET status = 'completed', finished_at = NOW() WHERE id = $1;
 
--- name: MarkInProgressBroadcastsInterrupted :exec
-UPDATE broadcasts SET status = 'interrupted', finished_at = NOW() WHERE status = 'sending';
+-- name: ReconcileStuckBroadcasts :exec
+-- Marks 'completed' any broadcast (status 'sending' or legacy 'interrupted')
+-- whose per-recipient jobs have all settled. In-flight broadcasts whose jobs
+-- the worker will pick up via ResetStuckSendingJobs stay 'sending'.
+UPDATE broadcasts b
+SET status = 'completed',
+    finished_at = COALESCE(b.finished_at, NOW())
+WHERE b.status IN ('sending', 'interrupted')
+  AND NOT EXISTS (
+    SELECT 1 FROM broadcast_jobs j
+    WHERE j.broadcast_id = b.id
+      AND j.status IN ('pending', 'retry', 'sending')
+  );
 
 -- name: ListBroadcastsByProject :many
 SELECT * FROM broadcasts

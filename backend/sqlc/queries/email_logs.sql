@@ -66,3 +66,12 @@ SELECT project_id FROM email_logs WHERE id = $1;
 
 -- name: UpdateEmailLogStatus :exec
 UPDATE email_logs SET status = $2, error = $3 WHERE id = $1;
+
+-- name: GetEmailLog :one
+SELECT * FROM email_logs WHERE id = $1 AND project_id = $2;
+
+-- name: ListEmailClicksByLog :many
+SELECT id, log_id, url, clicked_at, user_agent
+FROM email_clicks
+WHERE log_id = $1
+ORDER BY clicked_at ASC;

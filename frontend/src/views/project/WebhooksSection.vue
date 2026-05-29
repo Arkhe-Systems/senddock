@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
+import { useLicenseStore } from '@/stores/license'
 import type { Project } from '@/stores/projects'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -43,6 +44,7 @@ const ALL_EVENTS = [
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
+const licenseStore = useLicenseStore()
 
 const webhooks = ref<Webhook[]>([])
 const loading = ref(true)
@@ -70,6 +72,12 @@ const sortedWebhooks = computed(() =>
 async function load() {
     loading.value = true
     errorState.value = 'none'
+    await licenseStore.fetch()
+    if (!licenseStore.allowsPro) {
+        errorState.value = 'paywall'
+        loading.value = false
+        return
+    }
     try {
         const res = await api<{ webhooks: Webhook[] }>(`/projects/${props.project.id}/webhooks`)
         webhooks.value = res.webhooks ?? []

@@ -16,6 +16,8 @@ type Config struct {
 	PublicURL          string
 	DeploymentMode     string
 	RateLimitPerMinute int64
+	WatchtowerURL      string
+	WatchtowerToken    string
 }
 
 func Load() Config {
@@ -40,6 +42,8 @@ func Load() Config {
 		PublicURL:          publicURL,
 		DeploymentMode:     mode,
 		RateLimitPerMinute: getEnvInt64("RATE_LIMIT_PER_MINUTE", 600),
+		WatchtowerURL:      strings.TrimSpace(getEnv("SENDDOCK_WATCHTOWER_URL", "")),
+		WatchtowerToken:    strings.TrimSpace(getEnv("SENDDOCK_WATCHTOWER_TOKEN", "")),
 	}
 }
 

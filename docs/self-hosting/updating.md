@@ -89,6 +89,59 @@ If the build fails or the app never becomes healthy, the script exits non-zero a
 
 ---
 
+## One-click updates from the dashboard (Watchtower)
+
+If you want the "Update now" button in the dashboard's update modal to actually pull the new image and recreate the container, run [Watchtower](https://containrrr.dev/watchtower/) alongside SendDock and point SendDock at its HTTP API.
+
+Add Watchtower to your `docker-compose.yml`:
+
+```yaml
+services:
+  watchtower:
+    image: containrrr/watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_HTTP_API_UPDATE: "true"
+      WATCHTOWER_HTTP_API_TOKEN: "change-this-to-a-long-random-string"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LABEL_ENABLE: "true"
+    command: --interval 86400
+
+  senddock:
+    # ... your existing config ...
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+    environment:
+      # ... your existing env vars ...
+      SENDDOCK_WATCHTOWER_URL: http://watchtower:8080
+      SENDDOCK_WATCHTOWER_TOKEN: change-this-to-a-long-random-string
+```
+
+What each piece does:
+
+- `WATCHTOWER_HTTP_API_UPDATE=true` exposes `POST /v1/update` on port 8080 inside the Docker network.
+- `WATCHTOWER_HTTP_API_TOKEN` is a bearer token required for that endpoint — use a long random string, the same value goes into `SENDDOCK_WATCHTOWER_TOKEN`.
+- `WATCHTOWER_LABEL_ENABLE=true` + the `com.centurylinklabs.watchtower.enable` label on SendDock scopes Watchtower to only update opted-in containers. Without this it would update everything on the host.
+- `WATCHTOWER_CLEANUP=true` removes the old image after a successful update so disk doesn't bloat.
+- `--interval 86400` makes Watchtower poll every 24 hours on its own. Set it higher (or pass `--no-pull` and skip the interval) if you only want updates triggered from the SendDock UI.
+- `SENDDOCK_WATCHTOWER_URL` / `SENDDOCK_WATCHTOWER_TOKEN` tell SendDock where to call. When set, the update modal shows a one-click "Update now" button. When unset, it shows the manual command as before.
+
+When you click "Update now":
+
+1. SendDock POSTs to `http://watchtower:8080/v1/update` with the bearer token.
+2. Watchtower pulls the latest `ghcr.io/arkhe-systems/senddock` image and recreates the container.
+3. The dashboard polls `/api/v1/version` every 2 seconds; it briefly fails while the container restarts, then sees the new version and shows a success toast.
+
+**Security notes:**
+
+- Watchtower needs `/var/run/docker.sock` mounted — anything in that container effectively controls Docker on the host. Keep Watchtower's image up to date and don't expose its port outside the Docker network.
+- The HTTP API token should be a long random string. Treat it like a credential.
+- The label-scoped mode means Watchtower only touches containers with the `watchtower.enable` label, which limits blast radius if something goes wrong.
+
+---
+
 ## Manual update without scripts or Compose
 
 For CI/CD pipelines, restricted environments, or step-by-step debugging:
