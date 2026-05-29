@@ -20,6 +20,8 @@ All configuration is done via environment variables. Copy `.env.example` to `.en
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
 | `SENDDOCK_LICENSE_KEY` | Pro / Team license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only) regardless of `DEPLOYMENT_MODE`. See [Pro license](/self-hosting/configuration#plans-and-licensing). | — |
 | `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the **global** rate limiter (rolling 60s fixed window, applied to every HTTP endpoint except `/health`). Independent from the hard-coded per-project sending limits on `/send`, `/send/batch`, `/broadcast` (those are not configurable). Lower this on small deployments behind a single egress IP; raise it for high-traffic apps. Only enforced when `REDIS_URL` is set. | `600` |
+| `SENDDOCK_WATCHTOWER_URL` | URL of the [Watchtower](https://containrrr.dev/watchtower/) HTTP API (typically `http://watchtower:8080` on the Docker network). When set and reachable, the dashboard's update modal shows an "Update now" button that triggers a Watchtower scan + image refresh. When unset, the modal falls back to the manual `docker compose pull && up -d` command. See [Updating → One-click updates](/self-hosting/updating#one-click-updates-from-the-dashboard-watchtower). | — |
+| `SENDDOCK_WATCHTOWER_TOKEN` | Bearer token expected by Watchtower's HTTP API (set as `WATCHTOWER_HTTP_API_TOKEN` on the Watchtower container). Required when `SENDDOCK_WATCHTOWER_URL` is set. | — |
 
 ## Advanced overrides
 
