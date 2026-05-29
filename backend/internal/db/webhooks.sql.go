@@ -167,13 +167,17 @@ func (q *Queries) GetWebhook(ctx context.Context, arg GetWebhookParams) (Webhook
 	return i, err
 }
 
-const getWebhookByIDOnly = `-- name: GetWebhookByIDOnly :one
+const getWebhookForDispatchInternal = `-- name: GetWebhookForDispatchInternal :one
 SELECT id, project_id, url, secret, events, active, created_at FROM webhooks
 WHERE id = $1
 `
 
-func (q *Queries) GetWebhookByIDOnly(ctx context.Context, id uuid.UUID) (Webhook, error) {
-	row := q.db.QueryRowContext(ctx, getWebhookByIDOnly, id)
+// INTERNAL USE ONLY. Lookup by webhook id without tenant scope.
+// Only safe to call from the webhook dispatcher worker where the webhook id
+// already comes from a verified webhook_deliveries row in the same project.
+// NEVER call from a user-facing handler.
+func (q *Queries) GetWebhookForDispatchInternal(ctx context.Context, id uuid.UUID) (Webhook, error) {
+	row := q.db.QueryRowContext(ctx, getWebhookForDispatchInternal, id)
 	var i Webhook
 	err := row.Scan(
 		&i.ID,
@@ -376,20 +380,5 @@ type MarkDeliverySuccessParams struct {
 
 func (q *Queries) MarkDeliverySuccess(ctx context.Context, arg MarkDeliverySuccessParams) error {
 	_, err := q.db.ExecContext(ctx, markDeliverySuccess, arg.ID, arg.LastStatusCode)
-	return err
-}
-
-const updateWebhookActive = `-- name: UpdateWebhookActive :exec
-UPDATE webhooks SET active = $2
-WHERE id = $1
-`
-
-type UpdateWebhookActiveParams struct {
-	ID     uuid.UUID
-	Active bool
-}
-
-func (q *Queries) UpdateWebhookActive(ctx context.Context, arg UpdateWebhookActiveParams) error {
-	_, err := q.db.ExecContext(ctx, updateWebhookActive, arg.ID, arg.Active)
 	return err
 }
