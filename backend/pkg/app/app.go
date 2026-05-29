@@ -24,6 +24,7 @@ import (
 	"github.com/arkhe-systems/senddock/pkg/config"
 	"github.com/arkhe-systems/senddock/pkg/license"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
@@ -295,7 +296,65 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("GET /api/v1/me", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID := r.Context().Value(auth.UserIDKey).(string)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"user_id": userID})
+
+		uid, err := uuid.Parse(userID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid user id"})
+			return
+		}
+		user, err := a.queries.GetUserById(r.Context(), uid)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"user_id":    userID,
+			"email":      user.Email,
+			"name":       user.Name,
+			"plan":       user.Plan,
+			"created_at": user.CreatedAt,
+		})
+	})))
+
+	mux.Handle("POST /api/v1/me/password", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID := r.Context().Value(auth.UserIDKey).(string)
+		w.Header().Set("Content-Type", "application/json")
+
+		uid, err := uuid.Parse(userID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid user id"})
+			return
+		}
+
+		var req struct {
+			CurrentPassword string `json:"current_password"`
+			NewPassword     string `json:"new_password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+			return
+		}
+		if req.CurrentPassword == "" || req.NewPassword == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "current_password and new_password are required"})
+			return
+		}
+
+		if err := authService.ChangePassword(r.Context(), uid, req.CurrentPassword, req.NewPassword); err != nil {
+			status := http.StatusBadRequest
+			if err.Error() == "current password is incorrect" {
+				status = http.StatusUnauthorized
+			}
+			w.WriteHeader(status)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]string{"message": "password updated"})
 	})))
 
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
