@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { api, getApiBase } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import LogDetailDrawer from './LogDetailDrawer.vue'
 
 interface EmailLog {
     id: string
@@ -14,6 +15,8 @@ interface EmailLog {
     status: string
     error: string | null
     sent_at: string
+    opened_at: string | null
+    clicked_at: string | null
 }
 
 interface Template { id: string; name: string }
@@ -41,7 +44,7 @@ const filterTemplateId = ref('')
 const filterFrom = ref('')
 const filterTo = ref('')
 const filterSearch = ref('')
-const expandedId = ref<string | null>(null)
+const selectedLogId = ref<string | null>(null)
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -85,7 +88,7 @@ async function fetchTemplates() {
 
 function applyFilters() {
     page.value = 0
-    expandedId.value = null
+    selectedLogId.value = null
     fetchLogs()
 }
 
@@ -106,7 +109,7 @@ function clearFilters() {
     filterTo.value = ''
     filterSearch.value = ''
     page.value = 0
-    expandedId.value = null
+    selectedLogId.value = null
     fetchLogs()
 }
 
@@ -133,8 +136,12 @@ async function exportCSV() {
     }
 }
 
-function toggleExpand(id: string) {
-    expandedId.value = expandedId.value === id ? null : id
+function openDetail(id: string) {
+    selectedLogId.value = id
+}
+
+function closeDetail() {
+    selectedLogId.value = null
 }
 
 const hasFilters = () =>
@@ -218,73 +225,44 @@ onMounted(() => {
             <table class="w-full min-w-[640px]">
                 <thead>
                     <tr class="border-b border-zinc-800">
-                        <th class="w-8"></th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">To</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Subject</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Status</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Engagement</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Date</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <template v-for="log in logs" :key="log.id">
-                        <tr
-                            @click="toggleExpand(log.id)"
-                            class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 cursor-pointer transition-colors">
-                            <td class="px-3 py-3 text-zinc-500">
-                                <span class="inline-block transition-transform" :class="expandedId === log.id ? 'rotate-90' : ''">›</span>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-white">{{ log.to_email }}</td>
-                            <td class="px-4 py-3 text-sm text-zinc-400">{{ log.subject || '(no subject)' }}</td>
-                            <td class="px-4 py-3">
-                                <span :class="[
-                                    'text-xs px-2 py-1 rounded-full',
-                                    log.status === 'sent' && 'bg-green-500/10 text-green-400',
-                                    log.status === 'failed' && 'bg-red-500/10 text-red-400',
-                                    log.status === 'bounced' && 'bg-orange-500/10 text-orange-400',
-                                    log.status === 'suppressed' && 'bg-zinc-500/10 text-zinc-400',
-                                ]">
-                                    {{ log.status }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-zinc-500">{{ new Date(log.sent_at).toLocaleString() }}</td>
-                        </tr>
-                        <tr v-if="expandedId === log.id" class="border-b border-zinc-800 last:border-0 bg-zinc-950/60">
-                            <td></td>
-                            <td colspan="4" class="px-4 py-4">
-                                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                                    <div>
-                                        <dt class="text-zinc-500 uppercase tracking-wide font-medium">Log ID</dt>
-                                        <dd class="text-zinc-300 font-mono break-all">{{ log.id }}</dd>
-                                    </div>
-                                    <div>
-                                        <dt class="text-zinc-500 uppercase tracking-wide font-medium">Sent at</dt>
-                                        <dd class="text-zinc-300 font-mono">{{ new Date(log.sent_at).toISOString() }}</dd>
-                                    </div>
-                                    <div v-if="log.subscriber_id">
-                                        <dt class="text-zinc-500 uppercase tracking-wide font-medium">Subscriber</dt>
-                                        <dd class="text-zinc-300 font-mono break-all">{{ log.subscriber_id }}</dd>
-                                    </div>
-                                    <div v-if="log.template_id">
-                                        <dt class="text-zinc-500 uppercase tracking-wide font-medium">Template</dt>
-                                        <dd class="text-zinc-300 font-mono break-all">{{ log.template_id }}</dd>
-                                    </div>
-                                </dl>
-                                <div v-if="log.error" class="mt-3 pt-3 border-t border-zinc-800">
-                                    <p class="text-xs text-zinc-500 uppercase tracking-wide font-medium mb-1">
-                                        {{ log.status === 'suppressed' ? 'Reason' : 'Error' }}
-                                    </p>
-                                    <p :class="[
-                                        'text-xs whitespace-pre-wrap break-words',
-                                        log.status === 'failed' && 'text-red-400',
-                                        log.status === 'bounced' && 'text-orange-400',
-                                        log.status === 'suppressed' && 'text-zinc-400',
-                                    ]">
-                                        {{ log.error }}
-                                    </p>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
+                    <tr v-for="log in logs" :key="log.id"
+                        @click="openDetail(log.id)"
+                        :class="[
+                            'border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 cursor-pointer transition-colors',
+                            selectedLogId === log.id && 'bg-zinc-800/40'
+                        ]">
+                        <td class="px-4 py-3 text-sm text-white">{{ log.to_email }}</td>
+                        <td class="px-4 py-3 text-sm text-zinc-400 max-w-md truncate">{{ log.subject || '(no subject)' }}</td>
+                        <td class="px-4 py-3">
+                            <span :class="[
+                                'text-xs px-2 py-1 rounded-full whitespace-nowrap',
+                                log.status === 'sent' && 'bg-green-500/10 text-green-400',
+                                log.status === 'failed' && 'bg-red-500/10 text-red-400',
+                                log.status === 'bounced' && 'bg-orange-500/10 text-orange-400',
+                                log.status === 'suppressed' && 'bg-zinc-500/10 text-zinc-400',
+                            ]">
+                                {{ log.status }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-1.5">
+                                <span v-if="log.opened_at" title="Opened"
+                                    class="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-500/15 text-blue-400 text-[10px] font-semibold">O</span>
+                                <span v-if="log.clicked_at" title="Clicked"
+                                    class="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-500/15 text-amber-400 text-[10px] font-semibold">C</span>
+                                <span v-if="!log.opened_at && !log.clicked_at" class="text-xs text-zinc-600">—</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-zinc-500 whitespace-nowrap">{{ new Date(log.sent_at).toLocaleString() }}</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -298,5 +276,10 @@ onMounted(() => {
             v-model:limit="limit"
             :total="total"
             @change="fetchLogs" />
+
+        <LogDetailDrawer
+            :project-id="project.id"
+            :log-id="selectedLogId"
+            @close="closeDetail" />
     </div>
 </template>
