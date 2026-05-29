@@ -50,6 +50,7 @@ type App struct {
 	bouncePoller *service.BounceIMAPPoller
 	workspaces   *service.WorkspaceService
 	projects     *service.ProjectService
+	watchtower   *service.WatchtowerClient
 
 	server *http.Server
 
@@ -102,6 +103,16 @@ func New(cfg config.Config) (*App, error) {
 	a.suppressions = suppressionService
 	a.audit = service.NewAuditService(queries)
 	a.bouncePoller = service.NewBounceIMAPPoller(queries, suppressionService, cfg.JWTSecret)
+	a.watchtower = service.NewWatchtowerClient(cfg.WatchtowerURL, cfg.WatchtowerToken)
+	if a.watchtower != nil {
+		probeCtx, cancelProbe := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := a.watchtower.Ping(probeCtx); err != nil {
+			log.Printf("watchtower: probe failed (will retry on request): %v", err)
+		} else {
+			log.Printf("watchtower: reachable at %s", cfg.WatchtowerURL)
+		}
+		cancelProbe()
+	}
 
 	recoveryCtx, cancelRecovery := context.WithTimeout(context.Background(), 5*time.Second)
 	if err := emailService.RecoverInProgressBroadcasts(recoveryCtx); err != nil {
@@ -435,6 +446,39 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.HandleFunc("OPTIONS /api/v1/projects/{id}/waitlist", waitlistHandler.Join)
 
 	mux.Handle("GET /api/v1/version", authMW(http.HandlerFunc(releaseHandler.Get)))
+
+	mux.Handle("GET /api/v1/update/auto-status", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(a.watchtower.StatusFresh(r.Context()))
+	})))
+
+	mux.Handle("POST /api/v1/update/trigger", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if !a.watchtower.Configured() {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "watchtower not configured"})
+			return
+		}
+		status := a.watchtower.StatusFresh(r.Context())
+		if !status.Healthy {
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(map[string]string{"error": "watchtower unreachable: " + status.LastError})
+			return
+		}
+
+		go func() {
+			triggerCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			if err := a.watchtower.Trigger(triggerCtx); err != nil {
+				log.Printf("watchtower trigger failed: %v", err)
+			} else {
+				log.Println("watchtower trigger accepted")
+			}
+		}()
+
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"message": "update triggered"})
+	})))
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
