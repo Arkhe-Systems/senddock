@@ -147,6 +147,35 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 	return s.queries.DeleteRefreshToken(ctx, tokenHash)
 }
 
+func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error {
+	user, err := s.queries.GetUserById(ctx, userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if !user.PasswordHash.Valid {
+		return errors.New("password change not available for this account")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(currentPassword)); err != nil {
+		return errors.New("current password is incorrect")
+	}
+
+	if err := ValidatePassword(newPassword); err != nil {
+		return err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return s.queries.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
+		ID:           userID,
+		PasswordHash: sql.NullString{String: string(hash), Valid: true},
+	})
+}
+
 func (s *AuthService) generateTokens(ctx context.Context, userID uuid.UUID) (AuthTokens, error) {
 	accessToken, err := s.generateAccessToken(userID)
 	if err != nil {

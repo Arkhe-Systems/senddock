@@ -9,7 +9,7 @@ interface Broadcast {
     project_id: string
     template_id: string
     subject: string
-    status: 'sending' | 'completed' | 'interrupted' | string
+    status: 'sending' | 'completed' | string
     total_recipients: number
     sent_count: number
     failed_count: number
@@ -118,7 +118,6 @@ onBeforeUnmount(() => {
                                     'text-xs px-2 py-1 rounded-full whitespace-nowrap',
                                     b.status === 'sending' && 'bg-blue-500/10 text-blue-400',
                                     b.status === 'completed' && 'bg-green-500/10 text-green-400',
-                                    b.status === 'interrupted' && 'bg-orange-500/10 text-orange-400',
                                 ]">
                                     {{ b.status }}
                                 </span>
@@ -130,7 +129,6 @@ onBeforeUnmount(() => {
                                             :class="[
                                                 'h-full transition-all',
                                                 b.status === 'completed' && 'bg-green-500',
-                                                b.status === 'interrupted' && 'bg-orange-500',
                                                 b.status === 'sending' && 'bg-blue-500',
                                             ]"
                                             :style="{ width: progressFor(b) + '%' }">
@@ -179,15 +177,6 @@ onBeforeUnmount(() => {
                                         <dt class="text-zinc-500 uppercase tracking-wide font-medium">Duration</dt>
                                         <dd class="text-zinc-300 font-mono">{{ durationFor(b) }}</dd>
                                     </div>
-                                </div>
-                                <div v-if="b.status === 'interrupted'" class="mt-4 pt-3 border-t border-zinc-800">
-                                    <p class="text-xs text-orange-400">
-                                        ⚠ This broadcast was interrupted by a server restart.
-                                        {{ b.sent_count + b.failed_count + b.suppressed_count }} of {{ b.total_recipients }}
-                                        recipients were processed before the interruption; the remaining
-                                        {{ Math.max(0, b.total_recipients - b.sent_count - b.failed_count - b.suppressed_count) }}
-                                        did not receive the email. Re-run the broadcast if you need to reach them.
-                                    </p>
                                 </div>
                                 <div class="mt-3 pt-3 border-t border-zinc-800">
                                     <dt class="text-xs text-zinc-500 uppercase tracking-wide font-medium mb-1">Broadcast ID</dt>

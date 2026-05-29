@@ -6,25 +6,45 @@ interface MessageResponse {
     message: string
 }
 
+interface MeResponse {
+    user_id: string
+    email: string
+    name: string
+    plan: string
+    created_at: string
+}
+
 export const useAuthStore = defineStore('auth', () => {
 
     const isAuthenticated = ref(false)
     const sessionExpired = ref(false)
     const userId = ref<string | null>(null)
+    const email = ref<string | null>(null)
+    const name = ref<string | null>(null)
+    const plan = ref<string | null>(null)
+    const createdAt = ref<string | null>(null)
 
     async function checkAuth() {
         const wasAuthenticated = isAuthenticated.value
         try {
-            const me = await api<{ user_id: string }>('/me', { silent: true })
+            const me = await api<MeResponse>('/me', { silent: true })
             isAuthenticated.value = true
             sessionExpired.value = false
             userId.value = me.user_id
+            email.value = me.email
+            name.value = me.name
+            plan.value = me.plan
+            createdAt.value = me.created_at
         } catch (e) {
             if (e instanceof ApiError && (e.status === 0 || e.status === 429 || e.status >= 500)) {
                 return
             }
             isAuthenticated.value = false
             userId.value = null
+            email.value = null
+            name.value = null
+            plan.value = null
+            createdAt.value = null
             if (wasAuthenticated) {
                 sessionExpired.value = true
             }
@@ -71,7 +91,11 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated.value = false
         sessionExpired.value = false
         userId.value = null
+        email.value = null
+        name.value = null
+        plan.value = null
+        createdAt.value = null
     }
 
-    return { isAuthenticated, sessionExpired, userId, login, register, logout, checkAuth, refreshSession }
+    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, login, register, logout, checkAuth, refreshSession }
 })

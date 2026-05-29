@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { api } from '@/api/client'
+import { useLicenseStore } from '@/stores/license'
 import type { Project } from '@/stores/projects'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
+
+const licenseStore = useLicenseStore()
 
 interface AuditEntry {
     id: string
@@ -54,6 +57,12 @@ const actionLabel = (a: string) => ACTIONS.find(x => x.value === a)?.label ?? a
 async function fetchList() {
     loading.value = true
     errorState.value = 'none'
+    await licenseStore.fetch()
+    if (!licenseStore.allowsPro) {
+        errorState.value = 'paywall'
+        loading.value = false
+        return
+    }
     try {
         const params = new URLSearchParams({ limit: String(limit.value), offset: String(page.value * limit.value) })
         if (filterAction.value) params.set('action', filterAction.value)

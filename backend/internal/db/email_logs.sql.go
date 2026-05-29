@@ -163,6 +163,34 @@ func (q *Queries) CreateEmailLog(ctx context.Context, arg CreateEmailLogParams) 
 	return i, err
 }
 
+const getEmailLog = `-- name: GetEmailLog :one
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at FROM email_logs WHERE id = $1 AND project_id = $2
+`
+
+type GetEmailLogParams struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+}
+
+func (q *Queries) GetEmailLog(ctx context.Context, arg GetEmailLogParams) (EmailLog, error) {
+	row := q.db.QueryRowContext(ctx, getEmailLog, arg.ID, arg.ProjectID)
+	var i EmailLog
+	err := row.Scan(
+		&i.ID,
+		&i.ProjectID,
+		&i.SubscriberID,
+		&i.TemplateID,
+		&i.ToEmail,
+		&i.Subject,
+		&i.Status,
+		&i.Error,
+		&i.SentAt,
+		&i.OpenedAt,
+		&i.ClickedAt,
+	)
+	return i, err
+}
+
 const getEmailLogProjectID = `-- name: GetEmailLogProjectID :one
 SELECT project_id FROM email_logs WHERE id = $1
 `
@@ -172,6 +200,50 @@ func (q *Queries) GetEmailLogProjectID(ctx context.Context, id uuid.UUID) (uuid.
 	var project_id uuid.UUID
 	err := row.Scan(&project_id)
 	return project_id, err
+}
+
+const listEmailClicksByLog = `-- name: ListEmailClicksByLog :many
+SELECT id, log_id, url, clicked_at, user_agent
+FROM email_clicks
+WHERE log_id = $1
+ORDER BY clicked_at ASC
+`
+
+type ListEmailClicksByLogRow struct {
+	ID        uuid.UUID
+	LogID     uuid.UUID
+	Url       string
+	ClickedAt time.Time
+	UserAgent sql.NullString
+}
+
+func (q *Queries) ListEmailClicksByLog(ctx context.Context, logID uuid.UUID) ([]ListEmailClicksByLogRow, error) {
+	rows, err := q.db.QueryContext(ctx, listEmailClicksByLog, logID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEmailClicksByLogRow
+	for rows.Next() {
+		var i ListEmailClicksByLogRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.LogID,
+			&i.Url,
+			&i.ClickedAt,
+			&i.UserAgent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listEmailLogsByProject = `-- name: ListEmailLogsByProject :many

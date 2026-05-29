@@ -4,6 +4,7 @@ import { onMounted, ref, computed, watch } from 'vue'
 import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import AppLoader from '@/components/ui/AppLoader.vue'
+import UserProfilePanel from '@/components/UserProfilePanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,7 +77,7 @@ onMounted(loadProject)
 
             <aside :class="[
                 'bg-zinc-900 border-zinc-800 flex flex-col',
-                'md:w-64 md:border-r md:p-4 md:static md:translate-x-0 md:block',
+                'md:w-64 md:shrink-0 md:border-r md:p-4 md:block md:sticky md:top-0 md:h-screen md:overflow-y-auto',
                 mobileNavOpen
                     ? 'fixed top-[57px] left-0 right-0 bottom-0 z-30 p-4 border-t overflow-y-auto'
                     : 'hidden'
@@ -123,6 +124,8 @@ onMounted(loadProject)
                         </template>
                     </div>
                 </nav>
+
+                <UserProfilePanel />
             </aside>
 
             <main class="flex-1 min-w-0 p-4 sm:p-6 md:p-8">
