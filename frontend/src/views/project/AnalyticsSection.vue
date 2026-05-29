@@ -3,6 +3,9 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
+import { useLicenseStore } from '@/stores/license'
+
+const licenseStore = useLicenseStore()
 
 interface OpenBucket { bucket: string; opens: number }
 interface TemplateStat { template_id: string; name: string; sends: number }
@@ -290,6 +293,13 @@ const insights = computed(() => {
 async function load() {
     if (!pollTimer) loading.value = true
     errorState.value = 'none'
+    await licenseStore.fetch()
+    if (!licenseStore.allowsPro) {
+        stopPolling()
+        errorState.value = 'paywall'
+        loading.value = false
+        return
+    }
     try {
         const params = new URLSearchParams({ from: fromISO.value, to: toISO.value })
         const url = `/projects/${props.project.id}/analytics/overview?${params.toString()}`
