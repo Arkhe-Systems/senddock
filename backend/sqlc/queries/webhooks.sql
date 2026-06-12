@@ -12,17 +12,17 @@ ORDER BY created_at DESC;
 SELECT * FROM webhooks
 WHERE id = $1 AND project_id = $2;
 
--- name: GetWebhookByIDOnly :one
+-- name: GetWebhookForDispatchInternal :one
+-- INTERNAL USE ONLY. Lookup by webhook id without tenant scope.
+-- Only safe to call from the webhook dispatcher worker where the webhook id
+-- already comes from a verified webhook_deliveries row in the same project.
+-- NEVER call from a user-facing handler.
 SELECT * FROM webhooks
 WHERE id = $1;
 
 -- name: DeleteWebhook :exec
 DELETE FROM webhooks
 WHERE id = $1 AND project_id = $2;
-
--- name: UpdateWebhookActive :exec
-UPDATE webhooks SET active = $2
-WHERE id = $1;
 
 -- name: ListActiveWebhooksForEvent :many
 SELECT * FROM webhooks

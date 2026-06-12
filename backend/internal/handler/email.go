@@ -140,7 +140,7 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if req.SubscriberID != "" && req.TemplateID != "" {
-		result, err := h.emailService.SendToSubscriber(r.Context(), projectID, req.SubscriberID, req.TemplateID)
+		result, err := h.emailService.SendToSubscriber(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.SubscriberID, req.TemplateID)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
@@ -151,7 +151,7 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.To != "" && req.TemplateID != "" {
-		err := h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, req.To, req.Subject, req.Data)
+		err := h.emailService.SendWithTemplate(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.To, req.Subject, req.Data)
 		if errors.Is(err, service.ErrRecipientSuppressed) {
 			json.NewEncoder(w).Encode(map[string]any{"message": "suppressed", "suppressed": 1})
 			return
@@ -171,7 +171,7 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(errorResponse{Error: "subject is required for direct send"})
 			return
 		}
-		err := h.emailService.SendDirect(r.Context(), projectID, req.To, req.Subject, req.HtmlBody)
+		err := h.emailService.SendDirect(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.To, req.Subject, req.HtmlBody)
 		if errors.Is(err, service.ErrRecipientSuppressed) {
 			json.NewEncoder(w).Encode(map[string]any{"message": "suppressed", "suppressed": 1})
 			return
@@ -219,7 +219,7 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		varsJSON, _ = json.Marshal(req.Variables)
 	}
 
-	result, err := h.emailService.Broadcast(r.Context(), projectID, req.TemplateID, req.Subject, varsJSON)
+	result, err := h.emailService.Broadcast(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.Subject, varsJSON)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -340,7 +340,7 @@ func (h *EmailHandler) Logs(w http.ResponseWriter, r *http.Request) {
 		TemplateID: r.URL.Query().Get("template_id"),
 	}
 
-	logs, total, err := h.emailService.GetLogs(r.Context(), projectID, limit, offset, filters)
+	logs, total, err := h.emailService.GetLogs(service.WithAuthorizedProject(r.Context(), projectID), projectID, limit, offset, filters)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -372,7 +372,7 @@ func (h *EmailHandler) LogDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log, clicks, err := h.emailService.GetLogDetail(r.Context(), projectID, logID)
+	log, clicks, err := h.emailService.GetLogDetail(service.WithAuthorizedProject(r.Context(), projectID), projectID, logID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -404,7 +404,7 @@ func (h *EmailHandler) LogsExport(w http.ResponseWriter, r *http.Request) {
 		TemplateID: r.URL.Query().Get("template_id"),
 	}
 
-	logs, err := h.emailService.ExportLogs(r.Context(), projectID, filters)
+	logs, err := h.emailService.ExportLogs(service.WithAuthorizedProject(r.Context(), projectID), projectID, filters)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -454,7 +454,7 @@ func (h *EmailHandler) ListBroadcasts(w http.ResponseWriter, r *http.Request) {
 		offset = int32(v)
 	}
 
-	broadcasts, total, err := h.emailService.ListBroadcasts(r.Context(), projectID, limit, offset)
+	broadcasts, total, err := h.emailService.ListBroadcasts(service.WithAuthorizedProject(r.Context(), projectID), projectID, limit, offset)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -478,7 +478,7 @@ func (h *EmailHandler) Stats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := h.emailService.GetStats(r.Context(), projectID)
+	stats, err := h.emailService.GetStats(service.WithAuthorizedProject(r.Context(), projectID), projectID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
