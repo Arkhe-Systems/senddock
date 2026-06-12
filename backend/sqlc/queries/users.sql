@@ -32,3 +32,15 @@ WHERE id = $1;
 -- name: UpdateUserPassword :exec
 UPDATE users SET password_hash = $2, updated_at = NOW()
 WHERE id = $1;
+
+-- name: SetUserTotpSecret :exec
+UPDATE users SET totp_secret = $2, totp_enabled = FALSE, totp_verified_at = NULL, updated_at = NOW()
+WHERE id = $1;
+
+-- name: EnableUserTotp :exec
+UPDATE users SET totp_enabled = TRUE, totp_verified_at = NOW(), updated_at = NOW()
+WHERE id = $1;
+
+-- name: DisableUserTotp :exec
+UPDATE users SET totp_secret = NULL, totp_enabled = FALSE, totp_verified_at = NULL, updated_at = NOW()
+WHERE id = $1;

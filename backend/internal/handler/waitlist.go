@@ -64,7 +64,7 @@ func (h *WaitlistHandler) Join(w http.ResponseWriter, r *http.Request) {
 	if req.TemplateID != "" {
 		go func() {
 			err := h.emailService.SendWithTemplate(
-				context.Background(),
+				service.WithSystemContext(context.Background()),
 				projectID,
 				req.TemplateID,
 				req.Email,

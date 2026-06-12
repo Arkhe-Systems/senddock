@@ -69,7 +69,7 @@ func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campai
 	log.Printf("Executing campaign %s: %s", campaign.ID, campaign.Name)
 
 	result, runErr := w.emailService.Broadcast(
-		ctx,
+		WithSystemContext(ctx),
 		campaign.ProjectID.String(),
 		campaign.TemplateID.String(),
 		campaign.Subject,

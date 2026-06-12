@@ -26,7 +26,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash, name, provider, provider_id)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, email, password_hash, name, plan, monthly_email_limit, monthly_emails_sent, monthly_reset_at, provider, provider_id, is_verified, is_banned, ban_reason, customer_id, subscription_id, subscription_status, plan_changed_at, created_at, updated_at
+RETURNING id, email, password_hash, name, plan, monthly_email_limit, monthly_emails_sent, monthly_reset_at, provider, provider_id, is_verified, is_banned, ban_reason, customer_id, subscription_id, subscription_status, plan_changed_at, created_at, updated_at, totp_secret, totp_enabled, totp_verified_at
 `
 
 type CreateUserParams struct {
@@ -66,12 +66,35 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PlanChangedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpVerifiedAt,
 	)
 	return i, err
 }
 
+const disableUserTotp = `-- name: DisableUserTotp :exec
+UPDATE users SET totp_secret = NULL, totp_enabled = FALSE, totp_verified_at = NULL, updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) DisableUserTotp(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, disableUserTotp, id)
+	return err
+}
+
+const enableUserTotp = `-- name: EnableUserTotp :exec
+UPDATE users SET totp_enabled = TRUE, totp_verified_at = NOW(), updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) EnableUserTotp(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, enableUserTotp, id)
+	return err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, plan, monthly_email_limit, monthly_emails_sent, monthly_reset_at, provider, provider_id, is_verified, is_banned, ban_reason, customer_id, subscription_id, subscription_status, plan_changed_at, created_at, updated_at FROM users WHERE email = $1
+SELECT id, email, password_hash, name, plan, monthly_email_limit, monthly_emails_sent, monthly_reset_at, provider, provider_id, is_verified, is_banned, ban_reason, customer_id, subscription_id, subscription_status, plan_changed_at, created_at, updated_at, totp_secret, totp_enabled, totp_verified_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -97,12 +120,15 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.PlanChangedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpVerifiedAt,
 	)
 	return i, err
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, email, password_hash, name, plan, monthly_email_limit, monthly_emails_sent, monthly_reset_at, provider, provider_id, is_verified, is_banned, ban_reason, customer_id, subscription_id, subscription_status, plan_changed_at, created_at, updated_at FROM users WHERE id = $1
+SELECT id, email, password_hash, name, plan, monthly_email_limit, monthly_emails_sent, monthly_reset_at, provider, provider_id, is_verified, is_banned, ban_reason, customer_id, subscription_id, subscription_status, plan_changed_at, created_at, updated_at, totp_secret, totp_enabled, totp_verified_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
@@ -128,12 +154,15 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.PlanChangedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpVerifiedAt,
 	)
 	return i, err
 }
 
 const getUserByProvider = `-- name: GetUserByProvider :one
-SELECT id, email, password_hash, name, plan, monthly_email_limit, monthly_emails_sent, monthly_reset_at, provider, provider_id, is_verified, is_banned, ban_reason, customer_id, subscription_id, subscription_status, plan_changed_at, created_at, updated_at FROM users WHERE provider = $1 AND provider_id = $2
+SELECT id, email, password_hash, name, plan, monthly_email_limit, monthly_emails_sent, monthly_reset_at, provider, provider_id, is_verified, is_banned, ban_reason, customer_id, subscription_id, subscription_status, plan_changed_at, created_at, updated_at, totp_secret, totp_enabled, totp_verified_at FROM users WHERE provider = $1 AND provider_id = $2
 `
 
 type GetUserByProviderParams struct {
@@ -164,6 +193,9 @@ func (q *Queries) GetUserByProvider(ctx context.Context, arg GetUserByProviderPa
 		&i.PlanChangedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpVerifiedAt,
 	)
 	return i, err
 }
@@ -187,6 +219,21 @@ WHERE id = $1
 
 func (q *Queries) ResetMonthlyUsage(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, resetMonthlyUsage, id)
+	return err
+}
+
+const setUserTotpSecret = `-- name: SetUserTotpSecret :exec
+UPDATE users SET totp_secret = $2, totp_enabled = FALSE, totp_verified_at = NULL, updated_at = NOW()
+WHERE id = $1
+`
+
+type SetUserTotpSecretParams struct {
+	ID         uuid.UUID
+	TotpSecret sql.NullString
+}
+
+func (q *Queries) SetUserTotpSecret(ctx context.Context, arg SetUserTotpSecretParams) error {
+	_, err := q.db.ExecContext(ctx, setUserTotpSecret, arg.ID, arg.TotpSecret)
 	return err
 }
 
