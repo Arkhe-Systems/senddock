@@ -11,6 +11,18 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.5.1] — 2026-06-12
+
+Security and authentication patch on top of [0.6.5](#065--2026-05-28). Adds opt-in two-factor authentication and hardens multi-tenant access checks across the dashboard API. Upgrading is a drop-in image bump; the 2FA migration is applied automatically on startup.
+
+### Added
+
+- **Two-factor authentication (TOTP) with recovery codes (#65).** Enable 2FA from the Account page: scan the QR with any authenticator app (Google Authenticator, 1Password, Authy, …), confirm a 6-digit code, and save the one-time recovery codes shown once at setup. Login becomes a two-step flow — password first, then the 6-digit code (or a recovery code if you lose the device), exchanged through a short-lived intermediate token. Recovery codes are single-use and bcrypt-hashed at rest, and disabling 2FA requires a valid code. Works the same self-hosted or on cloud.
+
+### Security
+
+- **Multi-tenancy hardening across project-scoped endpoints.** Authorization on the audit-log, webhooks and analytics sections now verifies workspace membership rather than project ownership alone, webhook delivery listings are constrained to the owning project, and the email service gained a defense-in-depth context guard so a project ID can only be acted on inside a request that was authorized for it. Internal-only webhook lookups are now clearly separated from tenant-scoped queries. No action is required on upgrade.
+
 ## [0.6.5] — 2026-05-28
 
 Quality-of-life release: persistent profile sidebar, Account and Billing pages, one-click updates via Watchtower, an email log detail drawer, plus a fix that closes the loop on broadcast restart recovery from [0.6.4](#064--2026-05-08).
