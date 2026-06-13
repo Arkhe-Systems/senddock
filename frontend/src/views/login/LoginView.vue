@@ -32,11 +32,13 @@ const verifying = ref(false)
 
 const needsVerification = ref(false)
 const resent = ref(false)
+const deviceConfirmation = ref(false)
 
 async function handleLogin() {
     error.value = ''
     needsVerification.value = false
     resent.value = false
+    deviceConfirmation.value = false
     loading.value = true
 
     try {
@@ -45,6 +47,10 @@ async function handleLogin() {
             twoFactorToken.value = result.two_factor_token
             twoFactorCode.value = ''
             twoFactorError.value = ''
+            return
+        }
+        if (result.requires_device_confirmation) {
+            deviceConfirmation.value = true
             return
         }
         router.push('/dashboard')
@@ -87,6 +93,8 @@ function backToLogin() {
     twoFactorToken.value = null
     twoFactorCode.value = ''
     twoFactorError.value = ''
+    deviceConfirmation.value = false
+    needsVerification.value = false
     password.value = ''
 }
 </script>
@@ -125,7 +133,22 @@ function backToLogin() {
                 <span v-else class="block mt-2 text-emerald-300">A new link is on its way.</span>
             </div>
 
-            <form v-if="!twoFactorToken" @submit.prevent="handleLogin" class="space-y-4">
+            <div v-if="deviceConfirmation" class="text-center space-y-4">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/>
+                    </svg>
+                </div>
+                <h2 class="text-base font-semibold text-white">New device detected</h2>
+                <p class="text-sm text-zinc-400">
+                    For your security, we sent a confirmation link to <span class="text-white">{{ email }}</span>. Click it to finish signing in on this device.
+                </p>
+                <button type="button" @click="backToLogin" class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
+                    &larr; Use a different account
+                </button>
+            </div>
+
+            <form v-if="!twoFactorToken && !deviceConfirmation" @submit.prevent="handleLogin" class="space-y-4">
                 <AppAlert :message="error" />
                 <AppInput v-model="email" label="Email" type="email" placeholder="your@example.com" required />
                 <AppInput v-model="password" label="Password" type="password" placeholder="••••••••" required />
@@ -165,7 +188,7 @@ function backToLogin() {
                 </p>
             </form>
 
-            <p v-if="isCloud && !twoFactorToken" class="text-center text-sm text-zinc-400 mt-6">
+            <p v-if="isCloud && !twoFactorToken && !deviceConfirmation" class="text-center text-sm text-zinc-400 mt-6">
                 Don't have an account?
                 <RouterLink to="/register" class="text-white hover:text-zinc-300 underline">Create one</RouterLink>
             </p>

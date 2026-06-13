@@ -70,17 +70,21 @@ export const useAuthStore = defineStore('auth', () => {
 
     interface LoginResponse {
         requires_2fa?: boolean
+        requires_device_confirmation?: boolean
         two_factor_token?: string
         message?: string
     }
 
-    async function login(email: string, password: string): Promise<{ requires_2fa: boolean; two_factor_token?: string }> {
+    async function login(email: string, password: string): Promise<{ requires_2fa: boolean; two_factor_token?: string; requires_device_confirmation?: boolean }> {
         const res = await api<LoginResponse>('/auth/login', {
             method: 'POST',
             body: { email, password },
         })
         if (res.requires_2fa) {
             return { requires_2fa: true, two_factor_token: res.two_factor_token }
+        }
+        if (res.requires_device_confirmation) {
+            return { requires_2fa: false, requires_device_confirmation: true }
         }
         isAuthenticated.value = true
         sessionExpired.value = false
