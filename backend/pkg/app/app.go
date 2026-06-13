@@ -136,6 +136,23 @@ func (a *App) Audit() *service.AuditService { return a.audit }
 
 func (a *App) Projects() *service.ProjectService { return a.projects }
 
+func (a *App) EnsureUser(ctx context.Context, email, name string) (string, error) {
+	return service.NewAuthService(a.queries, a.cfg.JWTSecret).EnsureUser(ctx, email, name)
+}
+
+func (a *App) IssueSession(ctx context.Context, w http.ResponseWriter, userID string) error {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return err
+	}
+	tokens, err := service.NewAuthService(a.queries, a.cfg.JWTSecret).IssueTokens(ctx, uid)
+	if err != nil {
+		return err
+	}
+	handler.SetAuthCookies(w, tokens)
+	return nil
+}
+
 func (a *App) SetLicenseGate(gate license.Gate) {
 	if a.workspaces != nil {
 		a.workspaces.SetLicenseGate(gate)

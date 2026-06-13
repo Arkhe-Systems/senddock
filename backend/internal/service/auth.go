@@ -109,6 +109,25 @@ func (s *AuthService) bootstrapDefaultWorkspace(ctx context.Context, userID uuid
 	return err
 }
 
+func (s *AuthService) EnsureUser(ctx context.Context, email, name string) (string, error) {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if user, err := s.queries.GetUserByEmail(ctx, email); err == nil {
+		return user.ID.String(), nil
+	}
+	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
+		Email:        email,
+		PasswordHash: sql.NullString{Valid: false},
+		Name:         name,
+	})
+	if err != nil {
+		return "", err
+	}
+	if err := s.bootstrapDefaultWorkspace(ctx, user.ID); err != nil {
+		return "", err
+	}
+	return user.ID.String(), nil
+}
+
 type LoginResult struct {
 	Tokens         AuthTokens
 	Requires2FA    bool
@@ -271,6 +290,10 @@ func (s *AuthService) generateAccessToken(userID uuid.UUID) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(s.jwtSecret)
+}
+
+func (s *AuthService) IssueTokens(ctx context.Context, userID uuid.UUID) (AuthTokens, error) {
+	return s.generateTokens(ctx, userID)
 }
 
 func generateRandomToken() (string, error) {
