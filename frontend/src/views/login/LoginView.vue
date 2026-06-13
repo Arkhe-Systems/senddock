@@ -157,7 +157,7 @@ function backToLogin() {
                 </AppButton>
             </form>
 
-            <form v-else @submit.prevent="handleVerify" class="space-y-5">
+            <form v-if="twoFactorToken" @submit.prevent="handleVerify" class="space-y-5">
                 <div class="text-center">
                     <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 mb-3">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -172,8 +172,7 @@ function backToLogin() {
 
                 <input v-model="twoFactorCode" type="text" inputmode="text" autocomplete="one-time-code"
                     maxlength="20" autofocus
-                    placeholder="000000"
-                    class="w-full px-4 py-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-center text-2xl font-mono tracking-[0.4em] placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition" />
+                    class="w-full px-4 py-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-center text-2xl font-mono tracking-[0.3em] focus:outline-none focus:border-zinc-600 transition" />
 
                 <AppAlert :message="twoFactorError" />
 
