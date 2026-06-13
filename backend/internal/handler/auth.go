@@ -55,6 +55,10 @@ func setAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
 	})
 }
 
+func SetAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
+	setAuthCookies(w, tokens)
+}
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
