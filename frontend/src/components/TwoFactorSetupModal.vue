@@ -159,8 +159,7 @@ function finish() {
 
             <input v-model="verifyCode" type="text" inputmode="numeric" autocomplete="one-time-code"
                 pattern="[0-9]*" maxlength="6" autofocus
-                placeholder="000000"
-                class="w-full px-4 py-4 bg-zinc-950 border border-zinc-800 rounded-lg text-white text-center text-3xl font-mono tracking-[0.5em] placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition" />
+                class="w-full px-4 py-4 bg-zinc-950 border border-zinc-800 rounded-lg text-white text-center text-3xl font-mono tracking-[0.3em] focus:outline-none focus:border-zinc-600 transition" />
 
             <AppAlert :message="verifyError" />
 
