@@ -155,6 +155,20 @@ func (a *App) SetDeviceGate(g handler.DeviceGate) {
 	}
 }
 
+// RateLimitAllow reports whether an action under the given key is still within
+// limit for the window. It increments a Redis counter (TTL = window) and
+// fails open if Redis is unavailable.
+func (a *App) RateLimitAllow(ctx context.Context, key string, limit int64, window time.Duration) bool {
+	if a.cache == nil {
+		return true
+	}
+	count, err := a.cache.Increment(ctx, "ratelimit:cloud:"+key, window)
+	if err != nil {
+		return true
+	}
+	return count <= limit
+}
+
 func (a *App) IssueSession(ctx context.Context, w http.ResponseWriter, userID string) error {
 	uid, err := uuid.Parse(userID)
 	if err != nil {
