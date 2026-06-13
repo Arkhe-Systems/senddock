@@ -10,12 +10,21 @@ import (
 	"github.com/arkhe-systems/senddock/internal/service"
 )
 
+type DeviceGate interface {
+	CheckLogin(w http.ResponseWriter, r *http.Request, userID, email string) (bool, error)
+}
+
 type AuthHandler struct {
 	authService *service.AuthService
+	deviceGate  DeviceGate
 }
 
 func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
+}
+
+func (h *AuthHandler) SetDeviceGate(g DeviceGate) {
+	h.deviceGate = g
 }
 
 type registerRequest struct {
@@ -141,6 +150,20 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"two_factor_token": result.TwoFactorToken,
 		})
 		return
+	}
+
+	if h.deviceGate != nil {
+		proceed, err := h.deviceGate.CheckLogin(w, r, result.UserID, req.Email)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(errorResponse{Error: "could not verify device"})
+			return
+		}
+		if !proceed {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]bool{"requires_device_confirmation": true})
+			return
+		}
 	}
 
 	setAuthCookies(w, result.Tokens)

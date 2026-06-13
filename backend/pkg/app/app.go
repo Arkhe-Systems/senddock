@@ -51,6 +51,7 @@ type App struct {
 	workspaces   *service.WorkspaceService
 	projects     *service.ProjectService
 	watchtower   *service.WatchtowerClient
+	authHandler  *handler.AuthHandler
 
 	server *http.Server
 
@@ -146,6 +147,12 @@ func (a *App) MarkEmailVerified(ctx context.Context, email string) (string, erro
 
 func (a *App) IsUnverifiedUser(ctx context.Context, email string) (bool, error) {
 	return service.NewAuthService(a.queries, a.cfg.JWTSecret).IsUnverifiedUser(ctx, email)
+}
+
+func (a *App) SetDeviceGate(g handler.DeviceGate) {
+	if a.authHandler != nil {
+		a.authHandler.SetDeviceGate(g)
+	}
 }
 
 func (a *App) IssueSession(ctx context.Context, w http.ResponseWriter, userID string) error {
@@ -282,6 +289,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	authService := service.NewAuthService(queries, cfg.JWTSecret)
 	authHandler := handler.NewAuthHandler(authService)
+	a.authHandler = authHandler
 
 	projectService := service.NewProjectService(queries, cfg.JWTSecret)
 	a.projects = projectService

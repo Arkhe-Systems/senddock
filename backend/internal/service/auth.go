@@ -165,6 +165,7 @@ type LoginResult struct {
 	Tokens         AuthTokens
 	Requires2FA    bool
 	TwoFactorToken string
+	UserID         string
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password string) (LoginResult, error) {
@@ -198,7 +199,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (LoginR
 	if err != nil {
 		return LoginResult{}, err
 	}
-	return LoginResult{Tokens: tokens}, nil
+	return LoginResult{Tokens: tokens, UserID: user.ID.String()}, nil
 }
 
 func (s *AuthService) VerifyTwoFactor(ctx context.Context, twoFAToken, code string) (AuthTokens, error) {
