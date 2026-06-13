@@ -24,9 +24,11 @@ export function setRateLimitedHandler(fn: () => void) {
 
 export class ApiError extends Error {
     status: number
-    constructor(status: number, message: string) {
+    code?: string
+    constructor(status: number, message: string, code?: string) {
         super(message)
         this.status = status
+        this.code = code
         this.name = 'ApiError'
     }
 }
@@ -71,11 +73,13 @@ export async function api<T>(endpoint: string, options: ApiOptions = {}): Promis
 
     if (!response.ok) {
         let message = 'something went wrong'
+        let code: string | undefined
         try {
             const error = await response.json()
             if (error?.error) message = error.error
+            if (error?.code) code = error.code
         } catch {}
-        throw new ApiError(response.status, message)
+        throw new ApiError(response.status, message, code)
     }
 
     if (response.status === 204) {

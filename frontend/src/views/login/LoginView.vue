@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
+import { ApiError } from '@/api/client'
 
 const route = useRoute()
 
@@ -29,8 +30,13 @@ const twoFactorCode = ref('')
 const twoFactorError = ref('')
 const verifying = ref(false)
 
+const needsVerification = ref(false)
+const resent = ref(false)
+
 async function handleLogin() {
     error.value = ''
+    needsVerification.value = false
+    resent.value = false
     loading.value = true
 
     try {
@@ -43,10 +49,21 @@ async function handleLogin() {
         }
         router.push('/dashboard')
     } catch (e: any) {
-        error.value = e.message
+        if (e instanceof ApiError && e.code === 'email_not_verified') {
+            needsVerification.value = true
+        } else {
+            error.value = e.message
+        }
     } finally {
         loading.value = false
     }
+}
+
+async function handleResend() {
+    try {
+        await auth.resendVerification(email.value)
+        resent.value = true
+    } catch {}
 }
 
 async function handleVerify() {
@@ -99,6 +116,14 @@ function backToLogin() {
             </div>
 
             <AppAlert v-if="reason && !twoFactorToken" :message="reasonMessages[reason] ?? ''" type="info" class="mb-4" />
+
+            <div v-if="needsVerification" class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                Your account isn't activated yet. Check your email for the activation link.
+                <button v-if="!resent" type="button" @click="handleResend" class="block mt-2 text-white underline hover:text-zinc-200 cursor-pointer">
+                    Resend activation email
+                </button>
+                <span v-else class="block mt-2 text-emerald-300">A new link is on its way.</span>
+            </div>
 
             <form v-if="!twoFactorToken" @submit.prevent="handleLogin" class="space-y-4">
                 <AppAlert :message="error" />

@@ -29,6 +29,11 @@ const router = createRouter({
       component: () => import('@/views/register/RegisterView.vue'),
     },
     {
+      path: '/auth/verify',
+      name: 'verify',
+      component: () => import('@/views/verify/VerifyView.vue'),
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('@/views/dashboard/dashboardView.vue'),

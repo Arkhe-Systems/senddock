@@ -107,6 +107,32 @@ export const useAuthStore = defineStore('auth', () => {
         sessionExpired.value = false
     }
 
+    async function signup(email: string, password: string, name: string): Promise<string> {
+        const res = await api<MessageResponse>('/auth/signup', {
+            method: 'POST',
+            body: { email, password, name },
+        })
+        return res.message
+    }
+
+    async function verifyEmail(token: string) {
+        await api<MessageResponse>('/auth/verify', {
+            method: 'POST',
+            body: { token },
+        })
+        isAuthenticated.value = true
+        sessionExpired.value = false
+        api('/license/status').catch(() => {})
+    }
+
+    async function resendVerification(email: string): Promise<string> {
+        const res = await api<MessageResponse>('/auth/resend-verification', {
+            method: 'POST',
+            body: { email },
+        })
+        return res.message
+    }
+
     async function logout() {
         try {
             await api<MessageResponse>('/auth/logout', { method: 'POST' })
@@ -122,5 +148,5 @@ export const useAuthStore = defineStore('auth', () => {
         totpEnabled.value = false
     }
 
-    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, totpEnabled, login, register, logout, checkAuth, refreshSession, verifyTwoFactor }
+    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, totpEnabled, login, register, signup, verifyEmail, resendVerification, logout, checkAuth, refreshSession, verifyTwoFactor }
 })

@@ -33,6 +33,10 @@ WHERE id = $1;
 UPDATE users SET password_hash = $2, updated_at = NOW()
 WHERE id = $1;
 
+-- name: SetEmailVerified :exec
+UPDATE users SET email_verified = $2, updated_at = NOW()
+WHERE id = $1;
+
 -- name: SetUserTotpSecret :exec
 UPDATE users SET totp_secret = $2, totp_enabled = FALSE, totp_verified_at = NULL, updated_at = NOW()
 WHERE id = $1;

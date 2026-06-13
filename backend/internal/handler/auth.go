@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strings"
@@ -122,6 +123,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	result, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
+		if errors.Is(err, service.ErrEmailNotVerified) {
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"error": "email not verified", "code": "email_not_verified"})
+			return
+		}
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return

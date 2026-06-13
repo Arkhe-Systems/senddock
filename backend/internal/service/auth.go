@@ -44,6 +44,8 @@ func ValidatePassword(password string) error {
 	return nil
 }
 
+var ErrEmailNotVerified = errors.New("email not verified")
+
 type AuthTokens struct {
 	AccessToken  string
 	RefreshToken string
@@ -109,23 +111,54 @@ func (s *AuthService) bootstrapDefaultWorkspace(ctx context.Context, userID uuid
 	return err
 }
 
-func (s *AuthService) EnsureUser(ctx context.Context, email, name string) (string, error) {
+func (s *AuthService) RegisterUnverified(ctx context.Context, email, password, name string) (string, error) {
 	email = strings.TrimSpace(strings.ToLower(email))
-	if user, err := s.queries.GetUserByEmail(ctx, email); err == nil {
-		return user.ID.String(), nil
+	if err := ValidatePassword(password); err != nil {
+		return "", err
+	}
+	if _, err := s.queries.GetUserByEmail(ctx, email); err == nil {
+		return "", errors.New("email already registered")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
 	}
 	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
 		Email:        email,
-		PasswordHash: sql.NullString{Valid: false},
+		PasswordHash: sql.NullString{String: string(hash), Valid: true},
 		Name:         name,
 	})
 	if err != nil {
+		return "", err
+	}
+	if err := s.queries.SetEmailVerified(ctx, db.SetEmailVerifiedParams{ID: user.ID, EmailVerified: false}); err != nil {
 		return "", err
 	}
 	if err := s.bootstrapDefaultWorkspace(ctx, user.ID); err != nil {
 		return "", err
 	}
 	return user.ID.String(), nil
+}
+
+func (s *AuthService) MarkEmailVerified(ctx context.Context, email string) (string, error) {
+	email = strings.TrimSpace(strings.ToLower(email))
+	user, err := s.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		return "", errors.New("user not found")
+	}
+	if err := s.queries.SetEmailVerified(ctx, db.SetEmailVerifiedParams{ID: user.ID, EmailVerified: true}); err != nil {
+		return "", err
+	}
+	return user.ID.String(), nil
+}
+
+func (s *AuthService) IsUnverifiedUser(ctx context.Context, email string) (bool, error) {
+	email = strings.TrimSpace(strings.ToLower(email))
+	user, err := s.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		return false, nil
+	}
+	return !user.EmailVerified, nil
 }
 
 type LoginResult struct {
@@ -147,6 +180,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (LoginR
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password))
 	if err != nil {
 		return LoginResult{}, errors.New("invalid credentials")
+	}
+
+	if !user.EmailVerified {
+		return LoginResult{}, ErrEmailNotVerified
 	}
 
 	if user.TotpEnabled {
