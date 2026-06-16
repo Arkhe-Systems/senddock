@@ -230,8 +230,8 @@ onMounted(load)
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
         <AppProPaywall v-else-if="errorState === 'paywall'"
-            title="Webhooks are a Pro feature"
-            description="Webhook delivery, signed payloads and retries require a SendDock Pro license. Activate one to receive real-time event notifications in your own systems." />
+            title="Webhooks"
+            description="Webhook delivery, signed payloads and retries for real-time event notifications in your own systems." />
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">

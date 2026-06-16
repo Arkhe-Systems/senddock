@@ -416,8 +416,8 @@ onMounted(() => applyPreset(preset.value))
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
         <AppProPaywall v-else-if="errorState === 'paywall'"
-            title="Analytics is a Pro feature"
-            description="Detailed deliverability metrics, open tracking trends and top-template insights require a SendDock Pro license. Activate one to unlock this section." />
+            title="Analytics"
+            description="Detailed deliverability metrics, open tracking trends and top-template insights." />
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
