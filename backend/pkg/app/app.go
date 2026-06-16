@@ -50,6 +50,7 @@ type App struct {
 	bouncePoller *service.BounceIMAPPoller
 	workspaces   *service.WorkspaceService
 	projects     *service.ProjectService
+	subscribers  *service.SubscriberService
 	watchtower   *service.WatchtowerClient
 	authHandler  *handler.AuthHandler
 
@@ -152,6 +153,15 @@ func (a *App) IsUnverifiedUser(ctx context.Context, email string) (bool, error) 
 func (a *App) SetDeviceGate(g handler.DeviceGate) {
 	if a.authHandler != nil {
 		a.authHandler.SetDeviceGate(g)
+	}
+}
+
+func (a *App) SetQuotaGate(g service.QuotaGate) {
+	if a.subscribers != nil {
+		a.subscribers.SetQuotaGate(g)
+	}
+	if a.projects != nil {
+		a.projects.SetQuotaGate(g)
 	}
 }
 
@@ -315,6 +325,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	emailValidator := service.NewEmailValidator()
 	subscriberService := service.NewSubscriberService(queries, a.webhooks, emailValidator, a.suppressions)
+	a.subscribers = subscriberService
 	suppressionHandler := handler.NewSuppressionHandler(a.suppressions, projectService)
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
 
