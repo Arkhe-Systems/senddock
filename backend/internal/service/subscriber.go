@@ -15,10 +15,15 @@ type SubscriberService struct {
 	hooks        WebhookDispatcher
 	validator    *EmailValidator
 	suppressions *SuppressionService
+	quota        QuotaGate
 }
 
 func NewSubscriberService(queries *db.Queries, hooks WebhookDispatcher, validator *EmailValidator, suppressions *SuppressionService) *SubscriberService {
 	return &SubscriberService{queries: queries, hooks: hooks, validator: validator, suppressions: suppressions}
+}
+
+func (s *SubscriberService) SetQuotaGate(g QuotaGate) {
+	s.quota = g
 }
 
 func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, status string) (db.Subscriber, error) {
@@ -29,6 +34,12 @@ func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, 
 
 	if status == "" {
 		status = "active"
+	}
+
+	if s.quota != nil {
+		if err := s.quota.AllowSubscribers(ctx, projectID, 1); err != nil {
+			return db.Subscriber{}, err
+		}
 	}
 
 	sub, err := s.queries.CreateSubscriber(ctx, db.CreateSubscriberParams{

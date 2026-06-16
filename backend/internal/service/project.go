@@ -12,10 +12,15 @@ import (
 type ProjectService struct {
 	queries   *db.Queries
 	encSecret string
+	quota     QuotaGate
 }
 
 func NewProjectService(queries *db.Queries, encSecret string) *ProjectService {
 	return &ProjectService{queries: queries, encSecret: encSecret}
+}
+
+func (s *ProjectService) SetQuotaGate(g QuotaGate) {
+	s.quota = g
 }
 
 func (s *ProjectService) Create(ctx context.Context, userID, workspaceID, name, description string) (db.Project, error) {
@@ -38,6 +43,12 @@ func (s *ProjectService) Create(ctx context.Context, userID, workspaceID, name, 
 	}
 	if !member {
 		return db.Project{}, ErrWorkspaceForbidden
+	}
+
+	if s.quota != nil {
+		if err := s.quota.AllowProject(ctx, workspaceID); err != nil {
+			return db.Project{}, err
+		}
 	}
 
 	project, err := s.queries.CreateProject(ctx, db.CreateProjectParams{
