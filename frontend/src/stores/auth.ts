@@ -70,17 +70,21 @@ export const useAuthStore = defineStore('auth', () => {
 
     interface LoginResponse {
         requires_2fa?: boolean
+        requires_device_confirmation?: boolean
         two_factor_token?: string
         message?: string
     }
 
-    async function login(email: string, password: string): Promise<{ requires_2fa: boolean; two_factor_token?: string }> {
+    async function login(email: string, password: string): Promise<{ requires_2fa: boolean; two_factor_token?: string; requires_device_confirmation?: boolean }> {
         const res = await api<LoginResponse>('/auth/login', {
             method: 'POST',
             body: { email, password },
         })
         if (res.requires_2fa) {
             return { requires_2fa: true, two_factor_token: res.two_factor_token }
+        }
+        if (res.requires_device_confirmation) {
+            return { requires_2fa: false, requires_device_confirmation: true }
         }
         isAuthenticated.value = true
         sessionExpired.value = false
@@ -107,6 +111,32 @@ export const useAuthStore = defineStore('auth', () => {
         sessionExpired.value = false
     }
 
+    async function signup(email: string, password: string, name: string): Promise<string> {
+        const res = await api<MessageResponse>('/auth/signup', {
+            method: 'POST',
+            body: { email, password, name },
+        })
+        return res.message
+    }
+
+    async function verifyEmail(token: string) {
+        await api<MessageResponse>('/auth/verify', {
+            method: 'POST',
+            body: { token },
+        })
+        isAuthenticated.value = true
+        sessionExpired.value = false
+        api('/license/status').catch(() => {})
+    }
+
+    async function resendVerification(email: string): Promise<string> {
+        const res = await api<MessageResponse>('/auth/resend-verification', {
+            method: 'POST',
+            body: { email },
+        })
+        return res.message
+    }
+
     async function logout() {
         try {
             await api<MessageResponse>('/auth/logout', { method: 'POST' })
@@ -122,5 +152,5 @@ export const useAuthStore = defineStore('auth', () => {
         totpEnabled.value = false
     }
 
-    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, totpEnabled, login, register, logout, checkAuth, refreshSession, verifyTwoFactor }
+    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, totpEnabled, login, register, signup, verifyEmail, resendVerification, logout, checkAuth, refreshSession, verifyTwoFactor }
 })

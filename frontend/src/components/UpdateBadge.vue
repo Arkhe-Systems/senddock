@@ -201,7 +201,7 @@ function stopPolling() {
                             </button>
                         </div>
                         <p class="text-xs text-zinc-500 mt-2">
-                            Pulls the new image, recreates the container and runs migrations on first start. Postgres and Redis volumes are preserved, so subscribers, templates and history stay intact. If you built from source, run <code class="text-zinc-400">git pull && ./setup.sh</code> instead.
+                            Pulls the new image, recreates the container and runs migrations on first start. Postgres and Redis volumes are preserved, so subscribers, templates and history stay intact. If you built from source, run <code class="text-zinc-400">git pull && docker compose -f docker-compose.prod.yml up -d --build</code> instead.
                         </p>
                     </div>
                 </template>

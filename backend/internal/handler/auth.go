@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strings"
@@ -9,12 +10,21 @@ import (
 	"github.com/arkhe-systems/senddock/internal/service"
 )
 
+type DeviceGate interface {
+	CheckLogin(w http.ResponseWriter, r *http.Request, userID, email string) (bool, error)
+}
+
 type AuthHandler struct {
 	authService *service.AuthService
+	deviceGate  DeviceGate
 }
 
 func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
+}
+
+func (h *AuthHandler) SetDeviceGate(g DeviceGate) {
+	h.deviceGate = g
 }
 
 type registerRequest struct {
@@ -53,6 +63,10 @@ func setAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   7200,
 	})
+}
+
+func SetAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
+	setAuthCookies(w, tokens)
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +132,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	result, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
+		if errors.Is(err, service.ErrEmailNotVerified) {
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"error": "email not verified", "code": "email_not_verified"})
+			return
+		}
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return
@@ -131,6 +150,20 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"two_factor_token": result.TwoFactorToken,
 		})
 		return
+	}
+
+	if h.deviceGate != nil {
+		proceed, err := h.deviceGate.CheckLogin(w, r, result.UserID, req.Email)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(errorResponse{Error: "could not verify device"})
+			return
+		}
+		if !proceed {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]bool{"requires_device_confirmation": true})
+			return
+		}
 	}
 
 	setAuthCookies(w, result.Tokens)

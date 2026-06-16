@@ -50,7 +50,9 @@ type App struct {
 	bouncePoller *service.BounceIMAPPoller
 	workspaces   *service.WorkspaceService
 	projects     *service.ProjectService
+	subscribers  *service.SubscriberService
 	watchtower   *service.WatchtowerClient
+	authHandler  *handler.AuthHandler
 
 	server *http.Server
 
@@ -135,6 +137,60 @@ func (a *App) Webhooks() *webhooks.Service { return a.webhooks }
 func (a *App) Audit() *service.AuditService { return a.audit }
 
 func (a *App) Projects() *service.ProjectService { return a.projects }
+
+func (a *App) RegisterUnverified(ctx context.Context, email, password, name string) (string, error) {
+	return service.NewAuthService(a.queries, a.cfg.JWTSecret).RegisterUnverified(ctx, email, password, name)
+}
+
+func (a *App) MarkEmailVerified(ctx context.Context, email string) (string, error) {
+	return service.NewAuthService(a.queries, a.cfg.JWTSecret).MarkEmailVerified(ctx, email)
+}
+
+func (a *App) IsUnverifiedUser(ctx context.Context, email string) (bool, error) {
+	return service.NewAuthService(a.queries, a.cfg.JWTSecret).IsUnverifiedUser(ctx, email)
+}
+
+func (a *App) SetDeviceGate(g handler.DeviceGate) {
+	if a.authHandler != nil {
+		a.authHandler.SetDeviceGate(g)
+	}
+}
+
+func (a *App) SetQuotaGate(g service.QuotaGate) {
+	if a.subscribers != nil {
+		a.subscribers.SetQuotaGate(g)
+	}
+	if a.projects != nil {
+		a.projects.SetQuotaGate(g)
+	}
+	if a.workspaces != nil {
+		a.workspaces.SetQuotaGate(g)
+	}
+}
+
+func (a *App) RateLimitAllow(ctx context.Context, key string, limit int64, window time.Duration) bool {
+	if a.cache == nil {
+		return true
+	}
+	count, err := a.cache.Increment(ctx, "ratelimit:cloud:"+key, window)
+	if err != nil {
+		return true
+	}
+	return count <= limit
+}
+
+func (a *App) IssueSession(ctx context.Context, w http.ResponseWriter, userID string) error {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return err
+	}
+	tokens, err := service.NewAuthService(a.queries, a.cfg.JWTSecret).IssueTokens(ctx, uid)
+	if err != nil {
+		return err
+	}
+	handler.SetAuthCookies(w, tokens)
+	return nil
+}
 
 func (a *App) SetLicenseGate(gate license.Gate) {
 	if a.workspaces != nil {
@@ -257,6 +313,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	authService := service.NewAuthService(queries, cfg.JWTSecret)
 	authHandler := handler.NewAuthHandler(authService)
+	a.authHandler = authHandler
 
 	projectService := service.NewProjectService(queries, cfg.JWTSecret)
 	a.projects = projectService
@@ -268,6 +325,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	emailValidator := service.NewEmailValidator()
 	subscriberService := service.NewSubscriberService(queries, a.webhooks, emailValidator, a.suppressions)
+	a.subscribers = subscriberService
 	suppressionHandler := handler.NewSuppressionHandler(a.suppressions, projectService)
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
 
@@ -471,11 +529,13 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/v1/auth/2fa", authHandler.VerifyTwoFactor)
 
-	if cfg.IsSelfHosted() {
-		log.Println("Mode: self-hosted (registration disabled)")
-	} else {
-		log.Println("Mode: cloud (registration enabled)")
+	if os.Getenv("OPEN_REGISTRATION") == "true" {
+		log.Println("Open password registration: enabled (POST /api/v1/auth/register)")
 		mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+	} else if cfg.IsSelfHosted() {
+		log.Println("Mode: self-hosted (open registration disabled)")
+	} else {
+		log.Println("Mode: cloud (signup handled by cloud package)")
 	}
 
 	mux.Handle("POST /api/v1/workspaces", authMW(http.HandlerFunc(workspaceHandler.Create)))
