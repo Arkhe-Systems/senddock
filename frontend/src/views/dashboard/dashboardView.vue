@@ -10,6 +10,7 @@ import AppInput from '@/components/ui/AppInput.vue';
 import AppAlert from '@/components/ui/AppAlert.vue';
 import UpdateBadge from '@/components/UpdateBadge.vue';
 import UserProfilePanel from '@/components/UserProfilePanel.vue';
+import UsageBanner from '@/components/UsageBanner.vue';
 import { api } from '@/api/client';
 import { useToastStore } from '@/stores/toast';
 
@@ -212,6 +213,7 @@ onMounted(async () => {
 
             <main class="flex-1 min-w-0 p-4 sm:p-6 md:p-8">
                 <div class="max-w-5xl mx-auto">
+                    <UsageBanner class="mb-6" />
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                         <div>
                             <h2 class="text-2xl font-bold text-white">Projects</h2>
