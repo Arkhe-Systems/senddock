@@ -163,11 +163,11 @@ func (a *App) SetQuotaGate(g service.QuotaGate) {
 	if a.projects != nil {
 		a.projects.SetQuotaGate(g)
 	}
+	if a.workspaces != nil {
+		a.workspaces.SetQuotaGate(g)
+	}
 }
 
-// RateLimitAllow reports whether an action under the given key is still within
-// limit for the window. It increments a Redis counter (TTL = window) and
-// fails open if Redis is unavailable.
 func (a *App) RateLimitAllow(ctx context.Context, key string, limit int64, window time.Duration) bool {
 	if a.cache == nil {
 		return true
