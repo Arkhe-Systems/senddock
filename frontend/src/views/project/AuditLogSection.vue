@@ -125,8 +125,8 @@ onMounted(fetchList)
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
 
         <AppProPaywall v-else-if="errorState === 'paywall'"
-            title="Audit log is a Pro feature"
-            description="A timestamped trail of every project change — who changed what, from which IP, with what payload. Activate a Pro license to access it." />
+            title="Audit log"
+            description="A timestamped trail of every project change — who changed what, from which IP, with what payload." />
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
