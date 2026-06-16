@@ -33,12 +33,17 @@ var (
 type WorkspaceService struct {
 	queries *db.Queries
 	gate    atomic.Value
+	quota   QuotaGate
 }
 
 func NewWorkspaceService(queries *db.Queries) *WorkspaceService {
 	s := &WorkspaceService{queries: queries}
 	s.gate.Store(licenseGateHolder{license.DenyAll()})
 	return s
+}
+
+func (s *WorkspaceService) SetQuotaGate(g QuotaGate) {
+	s.quota = g
 }
 
 type licenseGateHolder struct {
@@ -163,6 +168,11 @@ func (s *WorkspaceService) AddMember(ctx context.Context, workspaceID, actorID u
 	if err := s.requireOwner(ctx, workspaceID, actorID); err != nil {
 		return MemberView{}, err
 	}
+	if s.quota != nil {
+		if err := s.quota.AllowMember(ctx, workspaceID.String()); err != nil {
+			return MemberView{}, err
+		}
+	}
 	user, err := s.queries.GetUserByEmail(ctx, strings.ToLower(strings.TrimSpace(email)))
 	if errors.Is(err, sql.ErrNoRows) {
 		return MemberView{}, ErrUserNotFound
@@ -211,6 +221,11 @@ func (s *WorkspaceService) CreateUserAndAddMember(ctx context.Context, workspace
 	}
 	if err := s.requireOwner(ctx, workspaceID, actorID); err != nil {
 		return CreatedUser{}, err
+	}
+	if s.quota != nil {
+		if err := s.quota.AllowMember(ctx, workspaceID.String()); err != nil {
+			return CreatedUser{}, err
+		}
 	}
 	if _, err := s.queries.GetUserByEmail(ctx, email); err == nil {
 		return CreatedUser{}, ErrEmailTaken

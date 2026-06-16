@@ -3,45 +3,84 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useLicenseStore } from '@/stores/license'
+import { useAppStore } from '@/stores/app'
+import { useUsageStore } from '@/stores/usage'
+import { api } from '@/api/client'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import UserProfilePanel from '@/components/UserProfilePanel.vue'
 
 const auth = useAuthStore()
 const licenseStore = useLicenseStore()
+const appStore = useAppStore()
+const usageStore = useUsageStore()
 const mobileNavOpen = ref(false)
 
+const isCloud = computed(() => appStore.deploymentMode === 'cloud')
 const tier = computed(() => licenseStore.tier)
 const status = computed(() => licenseStore.status)
 
-const tierLabel = computed(() => {
-    if (tier.value === 'team') return 'Team'
-    if (tier.value === 'pro') return 'Pro'
-    return 'Free'
-})
+const cloudPlan = computed(() => usageStore.usage?.plan || 'free')
+
+const planLabels: Record<string, string> = { free: 'Free', starter: 'Starter', growth: 'Growth', scale: 'Scale' }
+const selfHostedLabel = computed(() => (tier.value === 'team' ? 'Team' : tier.value === 'pro' ? 'Pro' : 'Free'))
+const displayPlan = computed(() => (isCloud.value ? planLabels[cloudPlan.value] || 'Free' : selfHostedLabel.value))
 
 const tierBadgeClass = computed(() => {
-    if (tier.value === 'team') return 'bg-purple-500/15 text-purple-400 border-purple-500/30'
-    if (tier.value === 'pro') return 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+    const p = isCloud.value ? cloudPlan.value : tier.value
+    if (p === 'scale' || p === 'team') return 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+    if (p === 'growth') return 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+    if (p === 'starter' || p === 'pro') return 'bg-amber-500/15 text-amber-400 border-amber-500/30'
     return 'bg-zinc-700/30 text-zinc-300 border-zinc-700'
 })
+
+const cloudPlans = [
+    { tier: 'starter', name: 'Starter', monthly: 19, annual: 182, subs: 'Up to 10,000 subscribers', features: ['Pro Analytics', 'Webhooks UI', 'Audit log', '90-day event history'] },
+    { tier: 'growth', name: 'Growth', monthly: 49, annual: 470, subs: 'Up to 50,000 subscribers', features: ['Multi-user & roles', '1-year event history', 'Priority email support'] },
+    { tier: 'scale', name: 'Scale', monthly: 129, annual: 1238, subs: 'Up to 250,000 subscribers', features: ['Highest limits', 'All features', 'Priority support'] },
+]
 
 const expiresLabel = computed(() => {
     if (!status.value?.expires_at) return null
     return new Date(status.value.expires_at).toLocaleString()
 })
-
 const checkedLabel = computed(() => {
     if (!status.value?.checked_at) return null
     return new Date(status.value.checked_at).toLocaleString()
 })
+const hasLicenseProblem = computed(() => status.value?.has_license && tier.value === 'free' && status.value?.reason)
 
-const hasLicenseProblem = computed(() => {
-    return status.value?.has_license && tier.value === 'free' && status.value?.reason
-})
+const checkoutLoading = ref('')
+const portalLoading = ref(false)
+const billingError = ref('')
+
+async function upgrade(planTier: string) {
+    billingError.value = ''
+    checkoutLoading.value = planTier
+    try {
+        const res = await api<{ url: string }>('/billing/checkout/' + planTier)
+        window.location.href = res.url
+    } catch (e: any) {
+        billingError.value = e.message || 'Could not start checkout'
+        checkoutLoading.value = ''
+    }
+}
+
+async function manageSubscription() {
+    billingError.value = ''
+    portalLoading.value = true
+    try {
+        const res = await api<{ url: string }>('/billing/portal')
+        window.location.href = res.url
+    } catch (e: any) {
+        billingError.value = 'No active subscription to manage yet.'
+        portalLoading.value = false
+    }
+}
 
 onMounted(async () => {
     if (!auth.email) await auth.checkAuth()
     await licenseStore.fetch(true)
+    if (isCloud.value) await usageStore.fetch()
 })
 </script>
 
@@ -91,21 +130,30 @@ onMounted(async () => {
                 <div class="max-w-2xl mx-auto space-y-6">
                     <div>
                         <h2 class="text-2xl font-bold text-white">Billing</h2>
-                        <p class="text-sm text-zinc-500 mt-1">Your SendDock license and plan.</p>
+                        <p class="text-sm text-zinc-500 mt-1">Your SendDock plan.</p>
                     </div>
+
+                    <p v-if="billingError" class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                        {{ billingError }}
+                    </p>
 
                     <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
                         <div class="flex items-start justify-between gap-4 mb-4">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Current plan</p>
-                                <p class="text-2xl font-bold text-white">{{ tierLabel }}</p>
+                                <p class="text-2xl font-bold text-white">{{ displayPlan }}</p>
                             </div>
                             <span :class="['text-[11px] uppercase tracking-wider px-2 py-1 rounded border whitespace-nowrap', tierBadgeClass]">
-                                {{ tierLabel }}
+                                {{ displayPlan }}
                             </span>
                         </div>
 
-                        <dl v-if="tier !== 'free'" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm border-t border-zinc-800 pt-4">
+                        <button v-if="isCloud && cloudPlan !== 'free'" @click="manageSubscription" :disabled="portalLoading"
+                            class="px-4 py-2 text-sm font-medium border border-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50">
+                            {{ portalLoading ? 'Opening…' : 'Manage subscription' }}
+                        </button>
+
+                        <dl v-if="!isCloud && tier !== 'free'" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm border-t border-zinc-800 pt-4">
                             <div v-if="expiresLabel">
                                 <dt class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Expires</dt>
                                 <dd class="text-white">{{ expiresLabel }}</dd>
@@ -120,12 +168,40 @@ onMounted(async () => {
                             License validation issue: {{ status?.reason }}
                         </div>
 
-                        <p v-if="tier !== 'free'" class="text-xs text-zinc-500 mt-4">
+                        <p v-if="!isCloud && tier !== 'free'" class="text-xs text-zinc-500 mt-4">
                             Your license key is set via the <code class="text-zinc-400">SENDDOCK_LICENSE_KEY</code> environment variable on the server. To change it, update the env var and restart SendDock.
                         </p>
                     </section>
 
-                    <div v-if="tier === 'free'" class="space-y-4">
+                    <div v-if="isCloud" class="space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div v-for="p in cloudPlans" :key="p.tier"
+                                :class="['rounded-xl border p-5 flex flex-col', p.tier === cloudPlan ? 'border-white/40 bg-zinc-900' : 'border-zinc-800 bg-zinc-900']">
+                                <p class="text-sm font-semibold text-white">{{ p.name }}</p>
+                                <p class="mt-1">
+                                    <span class="text-2xl font-bold text-white">${{ p.monthly }}</span>
+                                    <span class="text-sm text-zinc-500">/mo</span>
+                                </p>
+                                <p class="text-xs text-zinc-500 mt-1">{{ p.subs }}</p>
+                                <ul class="mt-4 space-y-1.5 flex-1">
+                                    <li v-for="f in p.features" :key="f" class="text-xs text-zinc-400 flex items-start gap-1.5">
+                                        <span class="text-emerald-400">✓</span> {{ f }}
+                                    </li>
+                                </ul>
+                                <button v-if="p.tier === cloudPlan" disabled
+                                    class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-zinc-400 cursor-default">
+                                    Current plan
+                                </button>
+                                <button v-else @click="upgrade(p.tier)" :disabled="checkoutLoading === p.tier"
+                                    class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition cursor-pointer disabled:opacity-50">
+                                    {{ checkoutLoading === p.tier ? 'Redirecting…' : 'Choose ' + p.name }}
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-500 text-center">Save 20% with annual billing — choose your cycle at checkout.</p>
+                    </div>
+
+                    <div v-else-if="tier === 'free'" class="space-y-4">
                         <AppProPaywall
                             tier="pro"
                             title="Unlock SendDock Pro"

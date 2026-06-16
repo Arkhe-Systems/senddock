@@ -4,6 +4,7 @@ export default defineConfig({
   title: 'SendDock',
   description: 'Open-source email marketing platform',
   cleanUrls: true,
+  srcExclude: ['**/internal/**', 'internal/**'],
   sitemap: {
     hostname: 'https://docs.senddock.dev',
   },

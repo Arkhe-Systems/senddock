@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
+import { ApiError } from '@/api/client'
 
 const route = useRoute()
 
@@ -29,8 +30,15 @@ const twoFactorCode = ref('')
 const twoFactorError = ref('')
 const verifying = ref(false)
 
+const needsVerification = ref(false)
+const resent = ref(false)
+const deviceConfirmation = ref(false)
+
 async function handleLogin() {
     error.value = ''
+    needsVerification.value = false
+    resent.value = false
+    deviceConfirmation.value = false
     loading.value = true
 
     try {
@@ -41,12 +49,27 @@ async function handleLogin() {
             twoFactorError.value = ''
             return
         }
+        if (result.requires_device_confirmation) {
+            deviceConfirmation.value = true
+            return
+        }
         router.push('/dashboard')
     } catch (e: any) {
-        error.value = e.message
+        if (e instanceof ApiError && e.code === 'email_not_verified') {
+            needsVerification.value = true
+        } else {
+            error.value = e.message
+        }
     } finally {
         loading.value = false
     }
+}
+
+async function handleResend() {
+    try {
+        await auth.resendVerification(email.value)
+        resent.value = true
+    } catch {}
 }
 
 async function handleVerify() {
@@ -70,6 +93,8 @@ function backToLogin() {
     twoFactorToken.value = null
     twoFactorCode.value = ''
     twoFactorError.value = ''
+    deviceConfirmation.value = false
+    needsVerification.value = false
     password.value = ''
 }
 </script>
@@ -100,7 +125,30 @@ function backToLogin() {
 
             <AppAlert v-if="reason && !twoFactorToken" :message="reasonMessages[reason] ?? ''" type="info" class="mb-4" />
 
-            <form v-if="!twoFactorToken" @submit.prevent="handleLogin" class="space-y-4">
+            <div v-if="needsVerification" class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                Your account isn't activated yet. Check your email for the activation link.
+                <button v-if="!resent" type="button" @click="handleResend" class="block mt-2 text-white underline hover:text-zinc-200 cursor-pointer">
+                    Resend activation email
+                </button>
+                <span v-else class="block mt-2 text-emerald-300">A new link is on its way.</span>
+            </div>
+
+            <div v-if="deviceConfirmation" class="text-center space-y-4">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/>
+                    </svg>
+                </div>
+                <h2 class="text-base font-semibold text-white">New device detected</h2>
+                <p class="text-sm text-zinc-400">
+                    For your security, we sent a confirmation link to <span class="text-white">{{ email }}</span>. Click it to finish signing in on this device.
+                </p>
+                <button type="button" @click="backToLogin" class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
+                    &larr; Use a different account
+                </button>
+            </div>
+
+            <form v-if="!twoFactorToken && !deviceConfirmation" @submit.prevent="handleLogin" class="space-y-4">
                 <AppAlert :message="error" />
                 <AppInput v-model="email" label="Email" type="email" placeholder="your@example.com" required />
                 <AppInput v-model="password" label="Password" type="password" placeholder="••••••••" required />
@@ -109,7 +157,7 @@ function backToLogin() {
                 </AppButton>
             </form>
 
-            <form v-else @submit.prevent="handleVerify" class="space-y-5">
+            <form v-if="twoFactorToken" @submit.prevent="handleVerify" class="space-y-5">
                 <div class="text-center">
                     <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 mb-3">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -124,8 +172,7 @@ function backToLogin() {
 
                 <input v-model="twoFactorCode" type="text" inputmode="text" autocomplete="one-time-code"
                     maxlength="20" autofocus
-                    placeholder="000000"
-                    class="w-full px-4 py-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-center text-2xl font-mono tracking-[0.4em] placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition" />
+                    class="w-full px-4 py-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-center text-2xl font-mono tracking-[0.3em] focus:outline-none focus:border-zinc-600 transition" />
 
                 <AppAlert :message="twoFactorError" />
 
@@ -140,7 +187,7 @@ function backToLogin() {
                 </p>
             </form>
 
-            <p v-if="isCloud && !twoFactorToken" class="text-center text-sm text-zinc-400 mt-6">
+            <p v-if="isCloud && !twoFactorToken && !deviceConfirmation" class="text-center text-sm text-zinc-400 mt-6">
                 Don't have an account?
                 <RouterLink to="/register" class="text-white hover:text-zinc-300 underline">Create one</RouterLink>
             </p>

@@ -197,6 +197,7 @@ type User struct {
 	TotpSecret         sql.NullString
 	TotpEnabled        bool
 	TotpVerifiedAt     sql.NullTime
+	EmailVerified      bool
 }
 
 type UserRecoveryCode struct {

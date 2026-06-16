@@ -10,7 +10,7 @@ The update path depends on which install you started from.
 |---|---|
 | Prebuilt image (Option 1) | `docker compose pull && docker compose up -d` |
 | Dokploy (Option 2) | One-click "Redeploy" in the Dokploy UI |
-| Build from source (Option 3) | `git pull && ./setup.sh` |
+| Build from source (Option 3) | `git pull && docker compose -f docker-compose.prod.yml up -d --build` |
 
 In every case **your data is preserved**. Postgres lives in a named Docker volume that is not touched by image updates. Migrations are run by `goose`, which deduplicates against the `goose_db_version` table and only applies what hasn't been applied before.
 
@@ -66,26 +66,26 @@ If you switch to a pinned version, edit the env var in Dokploy and Redeploy. The
 
 ## Updating a source build
 
-Use this when you installed via `git clone` + `./setup.sh`.
+Use this when you installed via `git clone` + `docker compose -f docker-compose.prod.yml`.
 
 ```bash
 cd senddock
 git pull origin main
-./setup.sh        # Linux / macOS
-.\setup.ps1       # Windows
+docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+Windows users run the same command from PowerShell.
 
 What happens:
 
-1. Detects the existing `.env` and reuses it.
-2. `docker compose -f docker-compose.prod.yml build --pull` rebuilds the image with the new code and pulls fresh base images.
-3. `docker compose up -d` restarts the services.
-4. The container's entrypoint runs any new migrations on the existing database.
-5. A health check polls `GET /health` for up to 60 seconds. The script only reports success once SendDock actually responds.
+1. Your existing `.env` is reused.
+2. `docker compose -f docker-compose.prod.yml up -d --build` rebuilds the image with the new code and recreates the services.
+3. The container's entrypoint runs any new migrations on the existing database.
+4. The healthcheck flips to "healthy" once `/health` returns 200.
 
 Same data preservation guarantees as the image flow.
 
-If the build fails or the app never becomes healthy, the script exits non-zero and points at `docker compose logs senddock`.
+If the build fails or the app never becomes healthy, check `docker compose -f docker-compose.prod.yml logs senddock`.
 
 ---
 
@@ -202,10 +202,10 @@ Data is preserved as long as the older version's schema is compatible with what 
 
 ```bash
 git checkout v0.x.x
-./setup.sh
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-The script picks up the older code and rebuilds.
+This picks up the older code and rebuilds.
 
 ### Manual migration rollback
 
@@ -239,14 +239,16 @@ docker compose up -d
 ### Source build
 
 ```bash
-./setup.sh --reset        # Linux / macOS
-.\setup.ps1 -Reset        # Windows
+docker compose -f docker-compose.prod.yml down -v
+rm .env
 ```
+
+Then recreate `.env` from `.env.production.example` and bring the stack back up with `docker compose -f docker-compose.prod.yml up -d --build`.
 
 What gets deleted in either flow:
 
 - Both Docker volumes (Postgres + Redis) — all your data.
-- For source builds, `.env` is regenerated with new secrets.
+- For source builds, `.env` is removed so you regenerate it with new secrets.
 
 After reset, the next start behaves like a fresh install: setup screen appears, create the admin account again.
 
