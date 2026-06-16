@@ -33,10 +33,11 @@ const tierBadgeClass = computed(() => {
     return 'bg-zinc-700/30 text-zinc-300 border-zinc-700'
 })
 
+const billingCycle = ref<'monthly' | 'annual'>('monthly')
 const cloudPlans = [
-    { tier: 'starter', name: 'Starter', price: 19, subs: 'Up to 10,000 subscribers', features: ['Pro Analytics', 'Webhooks UI', 'Audit log', '90-day event history'] },
-    { tier: 'growth', name: 'Growth', price: 49, subs: 'Up to 50,000 subscribers', features: ['Multi-user & roles', '1-year event history', 'Priority email support'] },
-    { tier: 'scale', name: 'Scale', price: 129, subs: 'Up to 250,000 subscribers', features: ['Highest limits', 'All features', 'Priority support'] },
+    { tier: 'starter', name: 'Starter', monthly: 19, annual: 182, subs: 'Up to 10,000 subscribers', features: ['Pro Analytics', 'Webhooks UI', 'Audit log', '90-day event history'] },
+    { tier: 'growth', name: 'Growth', monthly: 49, annual: 470, subs: 'Up to 50,000 subscribers', features: ['Multi-user & roles', '1-year event history', 'Priority email support'] },
+    { tier: 'scale', name: 'Scale', monthly: 129, annual: 1238, subs: 'Up to 250,000 subscribers', features: ['Highest limits', 'All features', 'Priority support'] },
 ]
 
 const expiresLabel = computed(() => {
@@ -57,7 +58,8 @@ async function upgrade(planTier: string) {
     billingError.value = ''
     checkoutLoading.value = planTier
     try {
-        const res = await api<{ url: string }>('/billing/checkout/' + planTier)
+        const query = billingCycle.value === 'annual' ? '?cycle=annual' : ''
+        const res = await api<{ url: string }>('/billing/checkout/' + planTier + query)
         window.location.href = res.url
     } catch (e: any) {
         billingError.value = e.message || 'Could not start checkout'
@@ -173,25 +175,41 @@ onMounted(async () => {
                         </p>
                     </section>
 
-                    <div v-if="isCloud" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div v-for="p in cloudPlans" :key="p.tier"
-                            :class="['rounded-xl border p-5 flex flex-col', p.tier === cloudPlan ? 'border-white/40 bg-zinc-900' : 'border-zinc-800 bg-zinc-900']">
-                            <p class="text-sm font-semibold text-white">{{ p.name }}</p>
-                            <p class="mt-1"><span class="text-2xl font-bold text-white">${{ p.price }}</span><span class="text-sm text-zinc-500">/mo</span></p>
-                            <p class="text-xs text-zinc-500 mt-1">{{ p.subs }}</p>
-                            <ul class="mt-4 space-y-1.5 flex-1">
-                                <li v-for="f in p.features" :key="f" class="text-xs text-zinc-400 flex items-start gap-1.5">
-                                    <span class="text-emerald-400">✓</span> {{ f }}
-                                </li>
-                            </ul>
-                            <button v-if="p.tier === cloudPlan" disabled
-                                class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-zinc-400 cursor-default">
-                                Current plan
+                    <div v-if="isCloud" class="space-y-4">
+                        <div class="flex items-center justify-center gap-2">
+                            <button @click="billingCycle = 'monthly'"
+                                :class="['px-3 py-1.5 text-xs rounded-lg border transition cursor-pointer', billingCycle === 'monthly' ? 'border-white/40 bg-zinc-800 text-white' : 'border-zinc-800 text-zinc-400 hover:text-white']">
+                                Monthly
                             </button>
-                            <button v-else @click="upgrade(p.tier)" :disabled="checkoutLoading === p.tier"
-                                class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition cursor-pointer disabled:opacity-50">
-                                {{ checkoutLoading === p.tier ? 'Redirecting…' : 'Choose ' + p.name }}
+                            <button @click="billingCycle = 'annual'"
+                                :class="['px-3 py-1.5 text-xs rounded-lg border transition cursor-pointer', billingCycle === 'annual' ? 'border-white/40 bg-zinc-800 text-white' : 'border-zinc-800 text-zinc-400 hover:text-white']">
+                                Annual <span class="text-emerald-400">&minus;20%</span>
                             </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div v-for="p in cloudPlans" :key="p.tier"
+                                :class="['rounded-xl border p-5 flex flex-col', p.tier === cloudPlan ? 'border-white/40 bg-zinc-900' : 'border-zinc-800 bg-zinc-900']">
+                                <p class="text-sm font-semibold text-white">{{ p.name }}</p>
+                                <p class="mt-1">
+                                    <span class="text-2xl font-bold text-white">${{ billingCycle === 'annual' ? p.annual : p.monthly }}</span>
+                                    <span class="text-sm text-zinc-500">{{ billingCycle === 'annual' ? '/yr' : '/mo' }}</span>
+                                </p>
+                                <p class="text-xs text-zinc-500 mt-1">{{ p.subs }}</p>
+                                <ul class="mt-4 space-y-1.5 flex-1">
+                                    <li v-for="f in p.features" :key="f" class="text-xs text-zinc-400 flex items-start gap-1.5">
+                                        <span class="text-emerald-400">✓</span> {{ f }}
+                                    </li>
+                                </ul>
+                                <button v-if="p.tier === cloudPlan" disabled
+                                    class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-zinc-400 cursor-default">
+                                    Current plan
+                                </button>
+                                <button v-else @click="upgrade(p.tier)" :disabled="checkoutLoading === p.tier"
+                                    class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition cursor-pointer disabled:opacity-50">
+                                    {{ checkoutLoading === p.tier ? 'Redirecting…' : 'Choose ' + p.name }}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
