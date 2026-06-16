@@ -46,8 +46,8 @@ export const useUsageStore = defineStore('usage', () => {
         ]
         const out: UsageAlert[] = []
         for (const { key, label, dim } of dims) {
-            if (dim.limit < 0) continue
-            const pct = dim.limit === 0 ? 1 : dim.used / dim.limit
+            if (dim.limit <= 1) continue
+            const pct = dim.used / dim.limit
             if (dim.used >= dim.limit) {
                 out.push({ key, label, used: dim.used, limit: dim.limit, level: 'over' })
             } else if (pct >= 0.9) {
