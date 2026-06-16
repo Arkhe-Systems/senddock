@@ -33,7 +33,6 @@ const tierBadgeClass = computed(() => {
     return 'bg-zinc-700/30 text-zinc-300 border-zinc-700'
 })
 
-const billingCycle = ref<'monthly' | 'annual'>('monthly')
 const cloudPlans = [
     { tier: 'starter', name: 'Starter', monthly: 19, annual: 182, subs: 'Up to 10,000 subscribers', features: ['Pro Analytics', 'Webhooks UI', 'Audit log', '90-day event history'] },
     { tier: 'growth', name: 'Growth', monthly: 49, annual: 470, subs: 'Up to 50,000 subscribers', features: ['Multi-user & roles', '1-year event history', 'Priority email support'] },
@@ -58,8 +57,7 @@ async function upgrade(planTier: string) {
     billingError.value = ''
     checkoutLoading.value = planTier
     try {
-        const query = billingCycle.value === 'annual' ? '?cycle=annual' : ''
-        const res = await api<{ url: string }>('/billing/checkout/' + planTier + query)
+        const res = await api<{ url: string }>('/billing/checkout/' + planTier)
         window.location.href = res.url
     } catch (e: any) {
         billingError.value = e.message || 'Could not start checkout'
@@ -175,25 +173,14 @@ onMounted(async () => {
                         </p>
                     </section>
 
-                    <div v-if="isCloud" class="space-y-4">
-                        <div class="flex items-center justify-center gap-2">
-                            <button @click="billingCycle = 'monthly'"
-                                :class="['px-3 py-1.5 text-xs rounded-lg border transition cursor-pointer', billingCycle === 'monthly' ? 'border-white/40 bg-zinc-800 text-white' : 'border-zinc-800 text-zinc-400 hover:text-white']">
-                                Monthly
-                            </button>
-                            <button @click="billingCycle = 'annual'"
-                                :class="['px-3 py-1.5 text-xs rounded-lg border transition cursor-pointer', billingCycle === 'annual' ? 'border-white/40 bg-zinc-800 text-white' : 'border-zinc-800 text-zinc-400 hover:text-white']">
-                                Annual <span class="text-emerald-400">&minus;20%</span>
-                            </button>
-                        </div>
-
+                    <div v-if="isCloud" class="space-y-3">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div v-for="p in cloudPlans" :key="p.tier"
                                 :class="['rounded-xl border p-5 flex flex-col', p.tier === cloudPlan ? 'border-white/40 bg-zinc-900' : 'border-zinc-800 bg-zinc-900']">
                                 <p class="text-sm font-semibold text-white">{{ p.name }}</p>
                                 <p class="mt-1">
-                                    <span class="text-2xl font-bold text-white">${{ billingCycle === 'annual' ? p.annual : p.monthly }}</span>
-                                    <span class="text-sm text-zinc-500">{{ billingCycle === 'annual' ? '/yr' : '/mo' }}</span>
+                                    <span class="text-2xl font-bold text-white">${{ p.monthly }}</span>
+                                    <span class="text-sm text-zinc-500">/mo</span>
                                 </p>
                                 <p class="text-xs text-zinc-500 mt-1">{{ p.subs }}</p>
                                 <ul class="mt-4 space-y-1.5 flex-1">
@@ -211,6 +198,7 @@ onMounted(async () => {
                                 </button>
                             </div>
                         </div>
+                        <p class="text-xs text-zinc-500 text-center">Save 20% with annual billing — choose your cycle at checkout.</p>
                     </div>
 
                     <div v-else-if="tier === 'free'" class="space-y-4">
