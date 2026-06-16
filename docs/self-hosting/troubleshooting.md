@@ -163,69 +163,24 @@ cd backend && make migrate
 
 **Fix:** For local Postgres, use `?sslmode=disable`. For managed Postgres (Supabase, RDS, Neon), use `?sslmode=require`.
 
-## Setup script (`setup.sh` / `setup.ps1`)
+## Source build (`docker-compose.prod.yml`)
 
-### `setup.ps1` blocked on Windows: "is not digitally signed"
+### Postgres "password authentication failed" after rebuilding from source
 
-**Symptom:** Running `.\setup.ps1` produces:
+**Cause:** A previous source build created a Postgres volume with one password, then `.env` was deleted and regenerated with a new password. Postgres does not re-initialize when its data directory already has data, so it keeps the old password — the app then fails to authenticate against it.
 
-```
-.\setup.ps1 cannot be loaded. The file is not digitally signed.
-```
-
-**Cause:** Default Windows execution policy blocks unsigned PowerShell scripts. SendDock's `setup.ps1` is plain text, not signed by a certificate.
-
-**Fix (one-shot, for the current session only):**
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\setup.ps1
-```
-
-The bypass reverts when you close the PowerShell window — nothing is changed permanently.
-
-**Fix (permanent, for your user):**
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-```
-
-`RemoteSigned` allows local scripts (like `setup.ps1` after you have it on disk) and still requires a signature for scripts downloaded from the internet, so it is safer than a blanket `Bypass`.
-
-If you downloaded SendDock as a ZIP, Windows may have flagged the extracted files as "from the internet" (Mark-of-the-Web), and `RemoteSigned` will keep blocking them. Unblock the script once and it stays unblocked:
-
-```powershell
-Unblock-File .\setup.ps1
-.\setup.ps1
-```
-
-Cloning the repository with `git clone` instead of downloading a ZIP avoids the Mark-of-the-Web tag entirely.
-
-### Postgres "password authentication failed" after re-running setup
-
-**Cause:** A previous setup run created a Postgres volume with one password, then `.env` was deleted and the script generated a new password on the next run. Postgres does not re-initialize when its data directory already has data, so it keeps the old password — the app then fails to authenticate against it.
-
-**Fix:** Use the reset flag, which tears down volumes and `.env` together:
-
-```bash
-./setup.sh --reset      # Linux / macOS
-.\setup.ps1 -Reset      # Windows
-```
-
-This runs `docker compose down -v` (wiping the Postgres volume), removes `.env`, and performs a clean install with matching credentials.
-
-If you previously ran setup with an older version that did not have `--reset`, manually clean before retrying:
+**Fix:** Tear down the volumes and `.env` together, then start fresh:
 
 ```bash
 docker compose -f docker-compose.prod.yml down -v
-docker volume prune -f
 rm .env
-./setup.sh
 ```
 
-### Setup exits with "SendDock did not become ready within 60 seconds"
+This wipes the Postgres volume. Recreate `.env` from `.env.production.example` and bring the stack back up with `docker compose -f docker-compose.prod.yml up -d --build`, which gives you matching credentials.
 
-**Cause:** The setup script waits up to 60 seconds for `GET /health` on the app container to respond. If it does not, the container is either still building, restarting, or failing on startup.
+### App container never becomes healthy after a source build
+
+**Cause:** `GET /health` on the app container doesn't respond. The container is either still building, restarting, or failing on startup.
 
 **Fix:** Inspect what the app container is doing:
 
@@ -238,7 +193,7 @@ Common causes:
 
 - The build was very slow (large npm install, slow disk). Wait another minute and check `docker compose ps` — if `app` is `Up`, you are fine; just refresh the browser.
 - Migration failure — usually a Postgres password mismatch, see the section above on credential mismatches.
-- `JWT_SECRET must be at least 32 characters` — re-run with `--reset` to regenerate.
+- `JWT_SECRET must be at least 32 characters` — fix the value in `.env` and bring the stack back up.
 
 ## Docker Swarm / Dokploy
 

@@ -13,7 +13,8 @@ Part of [Arkhe Systems](https://arkhe.systems).
 ```bash
 git clone https://github.com/arkhe-systems/senddock.git
 cd senddock
-chmod +x setup.sh && ./setup.sh    # Windows: .\setup.ps1
+cp .env.production.example .env    # then edit .env: set JWT_SECRET and POSTGRES_PASSWORD
+docker compose -f docker-compose.image.yml up -d
 ```
 
 Open `http://localhost:8080`, create your admin account, and start sending.

@@ -119,31 +119,19 @@ This is the recommended path if you already use Dokploy to manage other apps.
 
 For self-hosters who want to compile Core from source — useful for audits, custom patches, or running an unreleased branch.
 
-### Linux / macOS
-
 ```bash
 git clone https://github.com/arkhe-systems/senddock.git
 cd senddock
-chmod +x setup.sh && ./setup.sh
+cp .env.production.example .env
+# edit .env: set JWT_SECRET and POSTGRES_PASSWORD (e.g. openssl rand -hex 32)
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-### Windows (PowerShell)
+Windows users run the same `docker compose` command from PowerShell — no separate script.
 
-```powershell
-git clone https://github.com/arkhe-systems/senddock.git
-cd senddock
-.\setup.ps1
-```
+This path runs `docker-compose.prod.yml`, which builds the image locally instead of pulling the prebuilt one. To update later, `git pull && docker compose -f docker-compose.prod.yml up -d --build`. To reset, run `docker compose -f docker-compose.prod.yml down -v && rm .env` (**this deletes all data**, so use it only on test instances) and repeat the fresh-install steps above.
 
-The setup script is **idempotent**:
-
-- **Fresh install**: generates secrets, creates `.env`, builds the image from source, starts services.
-- **Existing install**: keeps your `.env`, rebuilds with the current code, restarts services. Same script you use to update — `./setup.sh` after `git pull` is the entire upgrade flow.
-- **Reset**: pass `--reset` (or `-Reset` on Windows) to wipe containers, volumes and `.env` before starting fresh. **This deletes all data**, so use it only on test instances.
-
-After running, the script waits for SendDock to be healthy and only then reports success. If startup fails it points at `docker compose logs app`.
-
-This path runs `docker-compose.prod.yml`, which builds the image locally instead of pulling the prebuilt one. The result is the **Core only** — Pro features (Analytics dashboard, Webhooks management) live in a private repository and are not part of source builds. To run Pro you need the prebuilt image (Option 1 or 2) and a license key.
+The result is the **Core only** — Pro features (Analytics dashboard, Webhooks management) ship only in the official prebuilt image, not in source builds. To run Pro, use the prebuilt image (Option 1 or 2) and a license key.
 
 ### What gets started
 
