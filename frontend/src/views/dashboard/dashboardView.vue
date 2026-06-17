@@ -13,11 +13,13 @@ import UserProfilePanel from '@/components/UserProfilePanel.vue';
 import UsageBanner from '@/components/UsageBanner.vue';
 import { api } from '@/api/client';
 import { useToastStore } from '@/stores/toast';
+import { useAppStore } from '@/stores/app';
 
 const toast = useToastStore()
 const router = useRouter()
 const projectStore = useProjectStore()
 const workspaceStore = useWorkspaceStore()
+const appStore = useAppStore()
 const pageLoading = ref(true)
 const mobileNavOpen = ref(false)
 
@@ -163,7 +165,7 @@ onMounted(async () => {
             ]">
                 <div class="hidden md:flex items-center justify-between mb-6">
                     <h1 class="text-lg font-semibold text-white">SendDock</h1>
-                    <UpdateBadge />
+                    <UpdateBadge v-if="appStore.deploymentMode !== 'cloud'" />
                 </div>
 
                 <div class="mb-4">
