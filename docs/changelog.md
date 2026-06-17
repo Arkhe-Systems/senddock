@@ -191,7 +191,7 @@ Hotfix on top of [0.6.4](#064--2026-05-08). No new features, no DB migrations �
 
 ### Added
 
-- **Webhooks (Core + Pro).** HMAC-SHA256 signed dispatcher with six event types, exponential backoff retries (30s → 2m → 10m → 30m → 2h, 5 attempts), full management UI in Pro.
+- **Webhooks (Core + Pro).** HMAC-SHA256 signed dispatcher with seven event types, exponential backoff retries (30s → 2m → 10m → 30m → 2h, 5 attempts), full management UI in Pro.
 - **Click tracking (Core).** Every `<a href>` in outgoing emails routes through `/c/{logId}/{payload}` with HMAC-protected tokens.
 - **Pro Analytics dashboard.** Funnel, opens-over-time, top templates, top clicked links, auto-generated insights, date presets, trend pills.
 - **One-click unsubscribe (RFC 8058).**
