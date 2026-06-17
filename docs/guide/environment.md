@@ -7,21 +7,30 @@ All configuration is done via environment variables. Copy `.env.example` to `.en
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret key for JWT signing (use a random string, min 32 chars) |
+| `JWT_SECRET` | Secret used for JWT session signing **and** the HMAC on click-tracking URLs. Use a random string, min 32 chars (`openssl rand -hex 32`). Rotating it invalidates every active session and every unsubscribe / tracking link signed against it. |
 
 ## Optional
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | HTTP server port | `8080` |
-| `REDIS_URL` | Redis connection string. Required for rate-limit enforcement on `/send`, `/send/batch` and `/broadcast`. | — |
-| `FRONTEND_URL` | Frontend URL for CORS headers | `http://localhost:5173` |
-| `PUBLIC_URL` | Public URL of this instance, used to build unsubscribe and tracking links inside outgoing emails. Leave blank in single-binary deploys to fall back to `FRONTEND_URL`. | _falls back to `FRONTEND_URL`_ |
+| `PORT` | HTTP port the binary listens on inside the container. Not the same as `SENDDOCK_PORT`, which the compose file uses to map the host port. Leave at `8080` unless you know why you're changing it. | `8080` |
+| `REDIS_URL` | Redis connection string. Required for rate-limit enforcement on `/send`, `/send/batch`, `/broadcast` **and** the global per-IP limiter. Leaving it blank silently disables all rate limiting. | — |
+| `FRONTEND_URL` | Frontend origin for CORS headers. When it starts with `https://`, auth cookies are issued with `Secure: true`. | `http://localhost:5173` |
+| `PUBLIC_URL` | Public URL of this instance, used to build unsubscribe and tracking links inside outgoing emails. Trailing slashes are stripped automatically. Leave blank in single-binary deploys to fall back to `FRONTEND_URL`. | _falls back to `FRONTEND_URL`_ |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
 | `SENDDOCK_LICENSE_KEY` | Pro / Team license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only) regardless of `DEPLOYMENT_MODE`. See [Pro license](/self-hosting/configuration#plans-and-licensing). | — |
 | `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the **global** rate limiter (rolling 60s fixed window, applied to every HTTP endpoint except `/health`). Independent from the hard-coded per-project sending limits on `/send`, `/send/batch`, `/broadcast` (those are not configurable). Lower this on small deployments behind a single egress IP; raise it for high-traffic apps. Only enforced when `REDIS_URL` is set. | `600` |
 | `SENDDOCK_WATCHTOWER_URL` | URL of the [Watchtower](https://containrrr.dev/watchtower/) HTTP API (typically `http://watchtower:8080` on the Docker network). When set and reachable, the dashboard's update modal shows an "Update now" button that triggers a Watchtower scan + image refresh. When unset, the modal falls back to the manual `docker compose pull && up -d` command. See [Updating → One-click updates](/self-hosting/updating#one-click-updates-from-the-dashboard-watchtower). | — |
 | `SENDDOCK_WATCHTOWER_TOKEN` | Bearer token expected by Watchtower's HTTP API (set as `WATCHTOWER_HTTP_API_TOKEN` on the Watchtower container). Required when `SENDDOCK_WATCHTOWER_URL` is set. | — |
+
+## Compose-only (not read by the binary)
+
+These are consumed by the bundled `docker-compose.image.yml` / `docker-compose.prod.yml` to wire the stack together. The Go binary never reads them.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `POSTGRES_PASSWORD` | Password for the bundled Postgres service. Required — the compose fails fast if it's unset. Generate with `openssl rand -base64 32`. | — |
+| `SENDDOCK_PORT` | Host port the SendDock container is exposed on. Mapped to `8080` inside the container (which is what `PORT` controls). Set to e.g. `9090` to reach SendDock at `http://host:9090`. | `8080` |
 
 ## Advanced overrides
 

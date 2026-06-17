@@ -258,11 +258,18 @@ The `--force` flag rotates the task even when the image reference appears unchan
 
 ### Do I need Redis?
 
-No — Redis is **optional**. It's used for caching email stats and rate-limiting. SendDock works without it; you'll just see slightly slower stats endpoints under heavy load. Leave `REDIS_URL` blank to disable.
+**The binary boots without Redis, but you almost certainly do need it.** `REDIS_URL` is technically optional, and when unset:
+
+- The **global per-IP rate limiter** (default 600 req/min, every endpoint except `/health`) becomes a no-op.
+- The **per-project sending limits** on `/send`, `/send/batch`, `/broadcast` become no-ops.
+- The **GitHub releases cache** is skipped — every dashboard load hits the GitHub API directly (you'll burn through the anonymous rate limit fast on busy instances).
+- Email stats fall back to direct database queries — slightly slower, but functionally identical.
+
+For any production instance reachable from the internet, run Redis. The bundled production composes already include it; there's no good reason to disable it outside of throwaway test environments where you've explicitly accepted there are no rate limits.
 
 ### "redis: connection refused"
 
-If you set `REDIS_URL` but Redis is unreachable, SendDock falls back to direct database queries. The error in the logs is harmless — but if you intended Redis to be enabled, check the connection string and that the container is running.
+If `REDIS_URL` is set but Redis is unreachable, SendDock falls back to direct database queries for stats and **disables rate limiting entirely** until Redis is back. The error in the logs is recoverable but should not be ignored — check the connection string and that the container is running.
 
 ## Asking for help
 

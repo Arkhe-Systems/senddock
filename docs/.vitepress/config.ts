@@ -42,6 +42,7 @@ export default defineConfig({
           items: [
             { text: 'What is SendDock', link: '/guide/what-is-senddock' },
             { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Your account & security', link: '/guide/account' },
             { text: 'Workspaces', link: '/guide/workspaces' },
           ],
         },
