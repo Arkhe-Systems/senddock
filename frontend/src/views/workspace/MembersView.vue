@@ -21,6 +21,7 @@ import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import { checkoutUrl } from '@/config/checkout'
+import { useAppStore } from '@/stores/app'
 
 const teamCheckoutUrl = checkoutUrl('team')
 
@@ -30,6 +31,8 @@ const workspaceStore = useWorkspaceStore()
 const toast = useToastStore()
 const auth = useAuthStore()
 const license = useLicenseStore()
+const appStore = useAppStore()
+const isCloud = computed(() => appStore.deploymentMode === 'cloud')
 
 const workspaceId = computed(() => route.params.id as string)
 const members = ref<WorkspaceMember[]>([])
@@ -228,8 +231,8 @@ onMounted(async () => {
 
             <AppProPaywall v-else-if="paywall"
                 tier="team"
-                title="Team management is a Team plan feature"
-                description="Adding members, creating user accounts and changing roles require a SendDock Team license. Without one you can still organize your projects across multiple workspaces — you just stay the only member." />
+                title="Team management"
+                description="Add members, create user accounts and assign roles across your workspace." />
 
             <template v-else>
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
@@ -249,12 +252,17 @@ onMounted(async () => {
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <div class="inline-flex items-center gap-2 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-semibold tracking-wider uppercase mb-2">
-                                Team plan
+                                {{ isCloud ? 'Growth plan' : 'Team plan' }}
                             </div>
-                            <h2 class="text-base font-semibold text-white mb-1">You're on Pro — upgrade to Team to invite people</h2>
-                            <p class="text-sm text-zinc-400">Adding members, creating user accounts and changing roles need the Team plan. Your Pro license stays untouched and you keep Analytics, Webhooks and Audit log.</p>
+                            <h2 class="text-base font-semibold text-white mb-1">{{ isCloud ? 'Upgrade to Growth to invite people' : "You're on Pro — upgrade to Team to invite people" }}</h2>
+                            <p v-if="isCloud" class="text-sm text-zinc-400">Adding members, creating user accounts and changing roles need the Growth plan or higher.</p>
+                            <p v-else class="text-sm text-zinc-400">Adding members, creating user accounts and changing roles need the Team plan. Your Pro license stays untouched and you keep Analytics, Webhooks and Audit log.</p>
                         </div>
-                        <a :href="teamCheckoutUrl" target="_blank" rel="noopener"
+                        <button v-if="isCloud" @click="router.push('/billing')"
+                            class="shrink-0 inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
+                            Upgrade to Growth
+                        </button>
+                        <a v-else :href="teamCheckoutUrl" target="_blank" rel="noopener"
                             class="shrink-0 inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
                             Upgrade to Team — $29/mo
                         </a>
