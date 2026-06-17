@@ -81,10 +81,115 @@ GET /api/v1/me
 ```
 
 ```json
-{ "user_id": "01H..." }
+{
+  "user_id": "01H...",
+  "email": "you@example.com",
+  "name": "Your Name",
+  "plan": "pro",
+  "created_at": "2026-01-01T00:00:00Z"
+}
 ```
 
-Returns just the id. Resolve to display name / email through `GET /workspaces/{id}/members`.
+`plan` is `"free"`, `"pro"` or `"team"` for self-host (derived from `SENDDOCK_LICENSE_KEY`); on cloud it's `"free"`, `"starter"`, `"growth"` or `"scale"`.
+
+### Change password
+
+```
+POST /api/v1/me/password
+```
+
+```json
+{
+  "current_password": "...",
+  "new_password": "..."
+}
+```
+
+Verifies `current_password` with bcrypt, then validates `new_password` against the registration rules: min 8 chars, at least one uppercase, one digit, one special character. Returns `200` on success, `400` on weak new password, `401` on bad current password.
+
+Changing the password does **not** invalidate existing sessions on other devices — sign out from those manually if needed.
+
+## Two-factor authentication
+
+TOTP with single-use recovery codes. See the dashboard-side flow in [Your account & security → 2FA](../guide/account#two-factor-authentication).
+
+### Begin setup
+
+```
+POST /api/v1/me/2fa/setup
+```
+
+No body. Response:
+
+```json
+{
+  "otpauth_url": "otpauth://totp/SendDock:you@example.com?secret=...&issuer=SendDock",
+  "secret": "BASE32SECRET",
+  "recovery_codes": ["...", "...", "..."]
+}
+```
+
+Recovery codes are returned **only here** and only this once. Persist them client-side immediately or you lose them.
+
+### Confirm setup
+
+```
+POST /api/v1/me/2fa/verify
+```
+
+```json
+{ "code": "123456" }
+```
+
+Validates the 6-digit TOTP code against the secret from `/setup`. On success, 2FA is **enabled** on the account; subsequent logins require the second step. Returns `400` on wrong code.
+
+### Disable 2FA
+
+```
+POST /api/v1/me/2fa/disable
+```
+
+```json
+{ "code": "123456" }
+```
+
+`code` is either a valid TOTP code or a single-use recovery code. No code, no disable — there is no admin override.
+
+### Regenerate recovery codes
+
+```
+POST /api/v1/me/2fa/recovery-codes
+```
+
+```json
+{ "code": "123456" }
+```
+
+Requires a valid TOTP code. Invalidates the existing set and returns ten fresh ones:
+
+```json
+{ "recovery_codes": ["...", "...", "..."] }
+```
+
+### Login second step
+
+When `/api/v1/auth/login` succeeds against an account with 2FA enabled, it returns `200` with `needs_2fa: true` and an intermediate token instead of setting session cookies:
+
+```json
+{ "needs_2fa": true, "intermediate_token": "..." }
+```
+
+Complete the login by posting to:
+
+```
+POST /api/v1/auth/2fa
+```
+
+```json
+{ "intermediate_token": "...", "code": "123456" }
+```
+
+`code` is a TOTP code or a recovery code. On success, session cookies are set the same way as a regular login. The intermediate token is short-lived (a few minutes) and only valid for this exchange.
 
 ## First-boot setup
 

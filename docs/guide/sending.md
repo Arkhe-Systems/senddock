@@ -238,15 +238,18 @@ Every email SendDock attempts to send is recorded as one row in the `email_logs`
 
 ### In the dashboard
 
-The **Logs** tab shows the most recent 25 rows ordered newest-first, with three filters at the top of the page:
+The **Logs** tab shows the most recent rows ordered newest-first, with filters at the top of the page:
 
 | Filter | Options |
 |---|---|
-| **Status** | All · Sent · Failed · Bounced · Suppressed |
+| **Status** | All · Sent · Failed · Bounced · Suppressed (clickable chips) |
+| **Template** | Dropdown — narrow logs to a single template's sends |
 | **From** | Date picker — inclusive lower bound on `sent_at` |
 | **To** | Date picker — inclusive upper bound (end-of-day) on `sent_at` |
 
-Each row shows the recipient, subject and status. Failed and bounced rows expose the underlying SMTP error. Pagination is fixed at 25 per page; the total count is shown next to the page title.
+Each row shows the recipient, subject, status, and an **Engagement** column with compact `O` / `C` badges for opens and clicks. Click any row to open the detail drawer (full lifecycle timeline, per-click events with URL + user agent + timestamp, error or suppression reason, reference IDs). Failed and bounced rows expose the underlying SMTP error.
+
+Pagination defaults to **50 rows per page** and accepts up to **100** via the `limit` query parameter; the total count is shown next to the page title. The **Export CSV** button (top right) downloads every row matching the active filters — no `limit`/`offset` cap — useful for ad-hoc analysis in a spreadsheet.
 
 ### Status values
 

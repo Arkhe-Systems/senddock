@@ -126,7 +126,7 @@ What each piece does:
 - `WATCHTOWER_LABEL_ENABLE=true` + the `com.centurylinklabs.watchtower.enable` label on SendDock scopes Watchtower to only update opted-in containers. Without this it would update everything on the host.
 - `WATCHTOWER_CLEANUP=true` removes the old image after a successful update so disk doesn't bloat.
 - `--interval 86400` makes Watchtower poll every 24 hours on its own. Set it higher (or pass `--no-pull` and skip the interval) if you only want updates triggered from the SendDock UI.
-- `SENDDOCK_WATCHTOWER_URL` / `SENDDOCK_WATCHTOWER_TOKEN` tell SendDock where to call. When set, the update modal shows a one-click "Update now" button. When unset, it shows the manual command as before.
+- `SENDDOCK_WATCHTOWER_URL` / `SENDDOCK_WATCHTOWER_TOKEN` tell SendDock where to call. **Both must be set together** — `URL` alone leaves the dashboard with no credential to authenticate against the Watchtower API, and the update will fail silently with a 401. When both are set, the update modal shows a one-click "Update now" button. When unset, it shows the manual command as before.
 
 When you click "Update now":
 
@@ -139,6 +139,46 @@ When you click "Update now":
 - Watchtower needs `/var/run/docker.sock` mounted — anything in that container effectively controls Docker on the host. Keep Watchtower's image up to date and don't expose its port outside the Docker network.
 - The HTTP API token should be a long random string. Treat it like a credential.
 - The label-scoped mode means Watchtower only touches containers with the `watchtower.enable` label, which limits blast radius if something goes wrong.
+
+---
+
+## Update API endpoints
+
+The dashboard's "Update available" badge and the Watchtower one-click button are built on three small admin endpoints. They're documented here so you can drive them from your own tooling (status pages, custom dashboards, CI checks). All three are cookie-auth — they're not callable with a project-scoped API key.
+
+### `GET /api/v1/version`
+
+```json
+{
+  "current": "0.6.5.1",
+  "latest": "0.6.5.1",
+  "update_available": false,
+  "release_notes": "...",
+  "release_url": "https://github.com/arkhe-systems/senddock/releases/tag/v0.6.5.1"
+}
+```
+
+`current` is the version baked into the running binary; `latest` is the most recent published release fetched from GitHub. The backend caches the GitHub response in Redis for 1 hour, so polling this endpoint is cheap and stays well inside GitHub's anonymous rate limit even with hundreds of self-hosters.
+
+### `GET /api/v1/update/auto-status`
+
+```json
+{
+  "configured": true,
+  "healthy": true,
+  "url": "http://watchtower:8080",
+  "last_check": "2026-06-16T10:00:00Z",
+  "last_error": null
+}
+```
+
+Tells the dashboard whether the Watchtower integration is wired up and reachable. `configured` is `true` when both `SENDDOCK_WATCHTOWER_URL` and `SENDDOCK_WATCHTOWER_TOKEN` are set; `healthy` is `true` when the most recent ping to Watchtower's `/v1/update` endpoint succeeded. Cached for 30 seconds.
+
+### `POST /api/v1/update/trigger`
+
+Fires the Watchtower call in a goroutine and returns immediately with `202 Accepted`. The dashboard polls `/api/v1/version` every two seconds afterward to detect the new version once the container restarts.
+
+Returns `400` if Watchtower isn't configured (`SENDDOCK_WATCHTOWER_URL`/`TOKEN` unset), `502` if Watchtower is configured but unreachable.
 
 ---
 
@@ -167,21 +207,79 @@ Whatever orchestrator you use (Kubernetes, Nomad, plain systemd-with-podman), th
 
 ---
 
-## Backing up before an update
+## Backup & restore
 
-While the update path itself is safe, taking a snapshot before any update is good hygiene.
+While the update path itself is safe, a regular backup is the only thing standing between you and a corrupted volume, a fat-fingered `down -v`, or a host disk failure.
+
+### What to back up
+
+| What | Where it lives | Need it? |
+|---|---|---|
+| Postgres data | `pgdata` volume | **Yes** — subscribers, templates, projects, logs, campaigns, API keys, audit log, encrypted SMTP credentials. |
+| `.env` | Repo root on the host | **Yes** — `JWT_SECRET` rotates click-tracking + session tokens, `POSTGRES_PASSWORD` is needed to read the dump back. Losing `JWT_SECRET` invalidates every active session and every unsubscribe / tracking URL signed against it. |
+| `docker-compose.yml` | Repo root on the host | Helpful — captures any tag pin, port override, Watchtower wiring you've added. |
+| Redis data | `redisdata` volume | No — only caches and counters; rebuilds from the database on next boot. |
+
+### Take a snapshot
 
 ```bash
+# Inside the compose dir
 docker compose exec -T postgres pg_dump -U senddock senddock \
-    > senddock-backup-$(date +%Y%m%d).sql
+    > senddock-backup-$(date +%F).sql
 ```
 
-To restore later into a fresh install:
+For a smaller, faster restore use the custom format:
 
 ```bash
-cat senddock-backup-YYYYMMDD.sql | \
+docker compose exec -T postgres pg_dump -U senddock -Fc senddock \
+    > senddock-backup-$(date +%F).dump
+```
+
+Whichever format you pick, also copy `.env` somewhere off-host the same day:
+
+```bash
+cp .env env-backup-$(date +%F).env
+```
+
+### Restore into a fresh install
+
+`.sql` (plain SQL):
+
+```bash
+cat senddock-backup-YYYY-MM-DD.sql | \
     docker compose exec -T postgres psql -U senddock senddock
 ```
+
+`.dump` (custom format) — `pg_restore` lets you parallelise and skip objects:
+
+```bash
+docker compose cp senddock-backup-YYYY-MM-DD.dump postgres:/tmp/in.dump
+docker compose exec postgres pg_restore -U senddock -d senddock --clean --if-exists -j 4 /tmp/in.dump
+```
+
+The restored database keeps every project, subscriber, template, suppression entry, and log row. Restart SendDock so any in-memory state reseeds.
+
+### Recommended cadence
+
+- **Daily** Postgres dump, retained 7 days locally + 30 days off-site (S3, Backblaze, or whatever bucket you trust).
+- **Weekly** full backup that also captures `.env` and `docker-compose.yml`.
+- **Before every upgrade** — a one-off dump labeled with the source and target version (`senddock-pre-0.6.5.sql`). This is the lowest-friction rollback path if a migration goes sideways.
+
+A minimal cron job on the host:
+
+```bash
+0 3 * * * cd /opt/senddock && docker compose exec -T postgres pg_dump -U senddock -Fc senddock > /var/backups/senddock/$(date +\%F).dump && find /var/backups/senddock -mtime +7 -delete
+```
+
+### Verify a backup actually restores
+
+The only thing worse than no backup is a backup you've never restored. Once a month, spin up a throwaway Postgres container, `pg_restore` the latest dump into it, and confirm the row counts match production. Five minutes that turn an untested artifact into a tested recovery path.
+
+### Off-site & encryption
+
+Local backups protect against application-level corruption — they don't protect against the whole host going away. Sync the daily dump to object storage with server-side encryption enabled (S3 SSE-S3 / SSE-KMS, Backblaze B2 default-at-rest, GCS CMEK). If your dataset is small enough and you don't want to manage object storage, `restic` or `rclone crypt` to any remote with client-side encryption works just as well.
+
+Encrypt before upload if regulation or sensitivity demands it — `gpg -c senddock-backup-$(date +%F).dump` or `age -p` against a passphrase you store outside the same provider.
 
 ---
 

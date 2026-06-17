@@ -529,11 +529,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/v1/auth/2fa", authHandler.VerifyTwoFactor)
 
-	if os.Getenv("OPEN_REGISTRATION") == "true" {
-		log.Println("Open password registration: enabled (POST /api/v1/auth/register)")
-		mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
-	} else if cfg.IsSelfHosted() {
-		log.Println("Mode: self-hosted (open registration disabled)")
+	if cfg.IsSelfHosted() {
+		log.Println("Mode: self-hosted (registration via setup screen + admin Create user)")
 	} else {
 		log.Println("Mode: cloud (signup handled by cloud package)")
 	}

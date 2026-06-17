@@ -63,6 +63,7 @@ Use it with `Authorization: Bearer sk_...` in your requests.
 
 ## Next Steps
 
+- [Your account & security](/guide/account) — enable 2FA, change password, view your plan
 - [Projects](/guide/projects) — managing multiple projects
 - [Subscribers](/guide/subscribers) — subscriber statuses and management
 - [Templates](/guide/templates) — code editor, visual editor, variables
