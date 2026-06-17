@@ -1,29 +1,37 @@
 # SendDock
 
-**Official launch: May 1st, 2026. Star this repo to get notified.**
-
 Open-source email marketing platform. Self-hostable, API-first, BYOSMTP. Built with Go and Vue.
 
 Bring your own SMTP. Zero cost per email. Full control over your data.
 
+Available as a fully-managed cloud at [senddock.dev](https://senddock.dev) or self-host it yourself with Docker (this repo).
+
 Part of [Arkhe Systems](https://arkhe.systems).
 
-## Quick Start
+## Quick Start (self-host)
 
 ```bash
-git clone https://github.com/arkhe-systems/senddock.git
-cd senddock
-cp .env.production.example .env    # then edit .env: set JWT_SECRET and POSTGRES_PASSWORD
-docker compose -f docker-compose.image.yml up -d
+mkdir senddock && cd senddock
+curl -fsSL https://raw.githubusercontent.com/arkhe-systems/senddock/main/docker-compose.image.yml -o docker-compose.yml
+
+cat > .env <<EOF
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
+JWT_SECRET=$(openssl rand -hex 32)
+PUBLIC_URL=https://your-domain.com
+EOF
+
+docker compose up -d
 ```
 
-Open `http://localhost:8080`, create your admin account, and start sending.
+Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and create your admin account on the setup screen.
+
+See the [full installation guide](docs/self-hosting/installation.md) for Dokploy, reverse proxies, source builds, license activation and updates.
 
 ## Development Setup
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.25+
 - Node.js 20+
 - Docker and Docker Compose
 - [goose](https://github.com/pressly/goose) — `go install github.com/pressly/goose/v3/cmd/goose@latest`
@@ -189,16 +197,35 @@ An empty `SENDDOCK_LICENSE_KEY` keeps Pro locked in any deployment mode — Core
 
 ## Environment Variables
 
+Short reference — the canonical list with full descriptions lives in [docs/guide/environment.md](docs/guide/environment.md).
+
+**Required**
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret for JWT signing and click-tracking HMAC (min 32 chars) |
+
+**Optional**
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | Server port | `8080` |
-| `DATABASE_URL` | PostgreSQL connection string | — |
-| `REDIS_URL` | Redis connection string (required for rate limits) | — |
-| `JWT_SECRET` | Secret key for JWT signing and click-tracking HMAC | — |
-| `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:5173` |
-| `PUBLIC_URL` | Public URL of the instance, used in unsubscribe and tracking links inside emails | falls back to `FRONTEND_URL` |
+| `PORT` | HTTP server port | `8080` |
+| `REDIS_URL` | Redis connection string. Required for `/send`, `/send/batch`, `/broadcast` rate limits and the global per-IP limiter. | — |
+| `FRONTEND_URL` | Frontend origin for CORS | `http://localhost:5173` |
+| `PUBLIC_URL` | Public URL of the instance, used in unsubscribe and tracking links inside outgoing emails | falls back to `FRONTEND_URL` |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
-| `SENDDOCK_LICENSE_KEY` | Pro license key (Lemon Squeezy). Empty leaves the deployment on the free tier (Core only) | — |
+| `SENDDOCK_LICENSE_KEY` | Pro / Team license key (Lemon Squeezy). Empty leaves the deployment on the free tier (Core only). | — |
+| `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the global rate limiter (rolling 60s window). Only enforced when `REDIS_URL` is set. | `600` |
+| `SENDDOCK_WATCHTOWER_URL` | Watchtower HTTP API URL — enables the "Update now" button in the dashboard. | — |
+| `SENDDOCK_WATCHTOWER_TOKEN` | Bearer token for the Watchtower HTTP API. Required when `SENDDOCK_WATCHTOWER_URL` is set. | — |
+
+**Compose-only (read by docker-compose.image.yml, not by the binary)**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `POSTGRES_PASSWORD` | Postgres password — required by the bundled Postgres service. | — |
+| `SENDDOCK_PORT` | Host port to expose. The container always listens on `8080` internally. | `8080` |
 
 ## License
 
