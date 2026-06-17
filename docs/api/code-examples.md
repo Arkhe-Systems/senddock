@@ -348,95 +348,82 @@ Returns `{"sent": N, "failed": M}` once delivery has been attempted for every ac
 
 ## Add a subscriber
 
+::: warning Use the import endpoint from API-key contexts
+The single-subscriber endpoint `POST /api/v1/projects/{id}/subscribers` is **cookie-only** — API keys cannot call it. To add subscribers from server-side code, post to `/subscribers/import` with a single-element array. Same endpoint scales from one row to tens of thousands. See the [authentication table](./authentication#endpoints-that-accept-api-keys) for the full list of API-key-callable endpoints.
+:::
+
 ::: code-group
 
 ```bash [cURL]
-curl -X POST "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/subscribers" \
+curl -X POST "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/subscribers/import" \
   -H "Authorization: Bearer $YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","name":"John Doe"}'
+  -d '[{"email":"user@example.com","name":"John Doe"}]'
 ```
 
 ```js [JavaScript]
 const res = await fetch(
-  `${YOUR_BASE_URL}/api/v1/projects/${YOUR_PROJECT_ID}/subscribers`,
+  `${YOUR_BASE_URL}/api/v1/projects/${YOUR_PROJECT_ID}/subscribers/import`,
   {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${YOUR_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email: 'user@example.com', name: 'John Doe' }),
+    body: JSON.stringify([{ email: 'user@example.com', name: 'John Doe' }]),
   }
 )
-if (res.status === 409) {
-  // already a subscriber on this project
-} else if (!res.ok) {
-  throw new Error(await res.text())
-}
+if (!res.ok) throw new Error(await res.text())
+const { imported, skipped, errors } = await res.json()
 ```
 
 ```python [Python]
 res = requests.post(
-    f"{YOUR_BASE_URL}/api/v1/projects/{YOUR_PROJECT_ID}/subscribers",
+    f"{YOUR_BASE_URL}/api/v1/projects/{YOUR_PROJECT_ID}/subscribers/import",
     headers={"Authorization": f"Bearer {YOUR_API_KEY}"},
-    json={"email": "user@example.com", "name": "John Doe"},
+    json=[{"email": "user@example.com", "name": "John Doe"}],
 )
-if res.status_code == 409:
-    # duplicate — already exists
-    pass
-else:
-    res.raise_for_status()
+res.raise_for_status()
+result = res.json()  # {imported, skipped, errors}
 ```
 
 ```java [Java]
 var body = """
-    {"email":"user@example.com","name":"John Doe"}
+    [{"email":"user@example.com","name":"John Doe"}]
     """;
 
 var req = HttpRequest.newBuilder()
-    .uri(URI.create(YOUR_BASE_URL + "/api/v1/projects/" + YOUR_PROJECT_ID + "/subscribers"))
+    .uri(URI.create(YOUR_BASE_URL + "/api/v1/projects/" + YOUR_PROJECT_ID + "/subscribers/import"))
     .header("Authorization", "Bearer " + YOUR_API_KEY)
     .header("Content-Type", "application/json")
     .POST(HttpRequest.BodyPublishers.ofString(body))
     .build();
 
 var res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
-if (res.statusCode() == 409) {
-    // already exists
-} else if (res.statusCode() >= 400) {
-    throw new RuntimeException(res.body());
-}
+if (res.statusCode() >= 400) throw new RuntimeException(res.body());
 ```
 
 ```csharp [.NET / C#]
 var res = await http.PostAsJsonAsync(
-    $"projects/{YOUR_PROJECT_ID}/subscribers",
-    new { email = "user@example.com", name = "John Doe" }
+    $"projects/{YOUR_PROJECT_ID}/subscribers/import",
+    new[] { new { email = "user@example.com", name = "John Doe" } }
 );
-if (res.StatusCode == HttpStatusCode.Conflict) {
-    // already exists
-} else {
-    res.EnsureSuccessStatusCode();
-}
+res.EnsureSuccessStatusCode();
 ```
 
 ```php [PHP]
-curl_setopt($ch, CURLOPT_URL, "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/subscribers");
+curl_setopt($ch, CURLOPT_URL, "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/subscribers/import");
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-    "email" => "user@example.com",
-    "name"  => "John Doe",
+    ["email" => "user@example.com", "name" => "John Doe"],
 ]));
 $body   = curl_exec($ch);
 $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-if ($status === 409) {
-    // already exists
-}
+// Response: {"imported": n, "skipped": n, "errors": [...]}
 ```
 
 :::
 
-`409 Conflict` means the email is already on this project. Returns `201 Created` with the full subscriber object on success — see [Subscribers → Add](./subscribers#add-subscriber).
+Returns `200` with `{imported, skipped, errors}`. `skipped` covers addresses already on the list and addresses that failed validation (disposable domain, bad MX, malformed). Pass an array of any length — it's the same endpoint whether you're importing one row or fifty thousand. See [Subscribers → Bulk import](./subscribers#bulk-import).
 
 ## List subscribers (paginated)
 

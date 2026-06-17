@@ -9,8 +9,16 @@ POST /api/v1/projects
 ```
 
 ```json
-{"name": "My Project", "description": "Optional description"}
+{
+  "workspace_id": "uuid",
+  "name": "My Project",
+  "description": "Optional description"
+}
 ```
+
+`workspace_id` is **required** — every project belongs to exactly one workspace. List the workspaces you have access to with `GET /api/v1/workspaces` and pick the right one. Posting without it returns `400 {"error": "workspace_id is required"}`.
+
+`description` is optional.
 
 **Response** `201`
 

@@ -2,7 +2,7 @@
 
 A project is the isolation boundary inside a [workspace](./workspaces). Each project has its own subscribers, templates, SMTP credentials, API keys, suppression list, audit log and (optionally) bounce mailbox. Sends from one project never see another project's data.
 
-In a single-user (Community / Pro) install, you have one workspace with one or more projects in it. On Team, multiple users share workspaces and roles control access to all projects within.
+In a single-user (Free or Pro) install, you have one workspace with one or more projects in it. On Team, multiple users share workspaces and roles control access to all projects within.
 
 ## Creating a Project
 

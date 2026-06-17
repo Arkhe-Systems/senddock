@@ -200,7 +200,7 @@ The "team launch" release. Workspaces with members and roles, a new Team plan ab
 
 ### Added
 
-- **Webhooks (Core + Pro).** HMAC-SHA256 signed dispatcher with six event types (`email.sent`, `email.failed`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`), exponential backoff retries (30s → 2m → 10m → 30m → 2h, 5 attempts), full management UI in Pro.
+- **Webhooks (Core + Pro).** HMAC-SHA256 signed dispatcher with seven event types (`email.sent`, `email.failed`, `email.bounced`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`), exponential backoff retries (30s → 2m → 10m → 30m → 2h, 5 attempts), full management UI in Pro.
 - **Click tracking (Core).** Every `<a href>` in outgoing emails routes through `/c/{logId}/{payload}` with HMAC-protected tokens. First click stamps `clicked_at`; full URL hits land in `email_clicks`.
 - **Pro Analytics dashboard.** Funnel (sent → delivered → opened → clicked), opens-over-time chart with adaptive bucket granularity, top templates, top clicked links, auto-generated insights, date presets and custom range, trend pills against the previous equivalent window.
 - **One-click unsubscribe (RFC 8058).** Confirmation page on `GET /unsubscribe/{id}/{subscriberId}` and instant `POST` handling so Gmail/Outlook native buttons work without a click-through. Per-recipient HMAC-signed URLs.

@@ -79,6 +79,53 @@ Then:
 docker compose up -d
 ```
 
+### Full `.env` reference (copy-paste)
+
+The snippet above is the minimum to boot. Below is the complete reference — paste it, replace the `change-me-…` placeholders, and uncomment whatever optional knobs you actually want.
+
+```bash
+# === REQUIRED ===
+
+# Public URL where this instance is reachable from the internet.
+# Used to build unsubscribe + tracking links inside outgoing emails.
+PUBLIC_URL=https://your-domain.com
+
+# Postgres password — generate with: openssl rand -base64 32
+POSTGRES_PASSWORD=change-me-openssl-rand-base64-32
+
+# JWT signing secret (min 32 chars) — generate with: openssl rand -hex 32
+JWT_SECRET=change-me-openssl-rand-hex-32
+
+# === OPTIONAL ===
+
+# Host port to expose. The container always listens on 8080 internally.
+# SENDDOCK_PORT=8080
+
+# Pro / Team license key from senddock.dev. Empty = Community tier (free).
+SENDDOCK_LICENSE_KEY=
+
+# Per-IP request cap, rolling 60s window. Default 600. Only enforced with Redis.
+# RATE_LIMIT_PER_MINUTE=600
+
+# Watchtower integration for one-click updates from the dashboard.
+# Both must be set together. See ./updating.md#one-click-updates-from-the-dashboard-watchtower
+# SENDDOCK_WATCHTOWER_URL=http://watchtower:8080
+# SENDDOCK_WATCHTOWER_TOKEN=change-me-long-random-string
+
+# === ADVANCED (escape hatches — rarely needed) ===
+
+# Override the Lemon Squeezy license endpoint. Production default works for everyone.
+# SENDDOCK_LICENSE_ENDPOINT=https://api.lemonsqueezy.com/v1
+
+# Override the path the binary serves the SPA from. The official image already
+# sets this correctly inside the container — only touch it for custom builds.
+# FRONTEND_DIST_PATH=/app/frontend/dist
+
+# Path to a newline-separated list of disposable email domains. Replaces the
+# built-in list (does not extend it).
+# DISPOSABLE_DOMAINS_FILE=/etc/senddock/disposable.txt
+```
+
 The container runs `goose up` against Postgres on first start, then serves on `:8080`. Healthcheck tells you when it's ready (~10 seconds cold).
 
 Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and create your admin account on the setup screen.
@@ -148,8 +195,8 @@ The result is the **Core only** — Pro features (Analytics dashboard, Webhooks 
 | Service | Description |
 |---------|-------------|
 | `senddock` | The SendDock binary (Go API + Vue frontend) on port 8080 |
-| `postgres` | PostgreSQL 17 database (named volume `pgdata`) |
-| `redis` | Redis 7 for caching (named volume `redisdata`) |
+| `postgres` | PostgreSQL 17+ database (named volume `pgdata`) |
+| `redis` | Redis 7+ for caching and rate limits (named volume `redisdata`) |
 
 Migrations run inside the `senddock` container's entrypoint on every start, against the existing database. Goose deduplicates already-applied migrations, so restarts and updates never replay them.
 
@@ -165,6 +212,10 @@ SENDDOCK_PORT=8080
 ```
 
 `PUBLIC_URL` is required for unsubscribe links and broadcasts to work — without it the broadcast endpoint refuses to send.
+
+::: tip `PORT` vs `SENDDOCK_PORT`
+Two separate things. The Go binary always listens on **`PORT`** (default `8080`) **inside** the container. **`SENDDOCK_PORT`** is the **host** port the compose maps to it (`"${SENDDOCK_PORT:-8080}:8080"`). For a stock install you only ever set `SENDDOCK_PORT` — leave `PORT` alone. Set `SENDDOCK_PORT=9090` to expose SendDock on `http://host:9090` while keeping the container's internal port at 8080.
+:::
 
 ---
 
@@ -237,8 +288,8 @@ If you prefer not to use Docker at all:
 
 - Go 1.25+
 - Node.js 20+
-- PostgreSQL 17
-- Redis 7
+- PostgreSQL 17+ (with the `pg_trgm` extension — auto-enabled by the migration on first start)
+- Redis 7+
 - [goose](https://github.com/pressly/goose) — `go install github.com/pressly/goose/v3/cmd/goose@latest`
 
 ### Build
