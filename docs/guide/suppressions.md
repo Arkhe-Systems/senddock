@@ -44,11 +44,13 @@ For a broadcast to a 10,000-subscriber list where 800 are suppressed, the result
 
 ```json
 {
-  "queued": 9200,
+  "sent": 9200,
   "suppressed": 800,
   "broadcast_id": "01H..."
 }
 ```
+
+`sent` here is the number of recipients enqueued for sending (each one becomes a `broadcast_job` row, then settles to `sent` / `failed` / `bounced` / `suppressed` as the worker drains the queue). It is **not** the count that have already left the SMTP server — for that, poll `GET /api/v1/projects/{id}/broadcasts` or watch the live progress in the dashboard.
 
 Suppressed recipients never enter the queue. They don't count against rate limits, they don't generate webhook events, and they don't appear in the email log as `failed` — they appear as `suppressed`, which is the honest answer.
 

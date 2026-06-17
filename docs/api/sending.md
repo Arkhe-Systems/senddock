@@ -178,7 +178,7 @@ Cookie auth only.
 | `from` | Inclusive lower bound on `sent_at` (RFC 3339) | `?from=2026-01-01T00:00:00Z` |
 | `to` | Inclusive upper bound on `sent_at` (RFC 3339) | `?to=2026-02-01T00:00:00Z` |
 | `q` | Free-text match against `to_email` or `subject` (case-insensitive) | `?q=welcome` |
-| `limit` | Page size (default 50, max 200) | `?limit=100` |
+| `limit` | Page size (default 50, max 100) | `?limit=100` |
 | `offset` | Pagination offset | `?offset=50` |
 
 ### Export to CSV
@@ -216,7 +216,72 @@ GET /api/v1/projects/{id}/logs?status=bounced&from=2026-01-01T00:00:00Z&to=2026-
 }
 ```
 
-`opened_at` and `clicked_at` are **not** included in the log row (the row tracks delivery, not engagement). For per-email open/click data, query the [Pro Analytics endpoint](./analytics) — it joins `email_logs` against the `email_opens` and `email_clicks` tables internally.
+`opened_at` and `clicked_at` are **not** included in the log row (the row tracks delivery, not engagement). For per-email open/click data, use the detail endpoint below.
+
+### Email log detail
+
+```
+GET /api/v1/projects/{id}/logs/{logId}
+```
+
+Cookie auth only. Backs the right-side drawer in the Logs page. Returns the full log row **and** every click recorded against it:
+
+```json
+{
+  "log": {
+    "id": "uuid",
+    "project_id": "uuid",
+    "subscriber_id": "uuid",
+    "template_id": "uuid",
+    "to_email": "user@example.com",
+    "subject": "Welcome!",
+    "status": "sent",
+    "error": null,
+    "sent_at": "2026-01-01T00:00:00Z",
+    "opened_at": "2026-01-01T00:02:14Z",
+    "clicked_at": "2026-01-01T00:02:31Z"
+  },
+  "clicks": [
+    {
+      "url": "https://example.com/pricing",
+      "user_agent": "Mozilla/5.0 ...",
+      "ip_address": "203.0.113.42",
+      "clicked_at": "2026-01-01T00:02:31Z"
+    }
+  ]
+}
+```
+
+Returns `404` if the log doesn't belong to the project.
+
+## Broadcasts
+
+### List broadcasts
+
+```
+GET /api/v1/projects/{id}/broadcasts
+```
+
+Cookie auth only. Returns the broadcast history for the project, newest first, with live counters that update as the worker drains the queue:
+
+```json
+{
+  "broadcasts": [
+    {
+      "id": "uuid",
+      "template_id": "uuid",
+      "status": "sending",
+      "total": 12500,
+      "sent_count": 8472,
+      "failed_count": 31,
+      "created_at": "2026-01-15T10:00:00Z",
+      "completed_at": null
+    }
+  ]
+}
+```
+
+`status` is one of `pending`, `sending`, `completed`, `interrupted`. While a broadcast is `sending`, `sent_count` and `failed_count` reflect the live state of the per-recipient job queue. The dashboard polls this endpoint every five seconds to drive the live progress bars.
 
 ## Stats
 
