@@ -216,7 +216,7 @@ onMounted(fetchTemplates)
                         />
                     </div>
 
-                    <div v-show="activeTab === 'visual'" class="flex-1 border border-zinc-800 border-t-0 rounded-b-lg overflow-hidden">
+                    <div v-if="activeTab === 'visual'" class="flex-1 border border-zinc-800 border-t-0 rounded-b-lg overflow-hidden">
                         <EmailEditor v-model="editHtml" />
                     </div>
                 </div>
