@@ -265,7 +265,41 @@ Two separate things. The Go binary always listens on **`PORT`** (default `8080`)
 
 ## Reverse proxy (HTTPS)
 
-For production, put SendDock behind a reverse proxy with HTTPS.
+For production, expose SendDock on HTTPS. Three common paths:
+
+### Cloudflare Tunnel (no port forwarding)
+
+The simplest path when you don't want to expose your server's IP, open firewall ports, or manage Let's Encrypt — and you already have (or can move) a domain to Cloudflare DNS. Outbound-only connection from your server to Cloudflare, no inbound holes in your firewall. Works from a home lab or a VM behind NAT.
+
+**Prerequisites:**
+
+- A Cloudflare account (Free plan is enough)
+- Your domain on Cloudflare DNS (also free — change nameservers at your registrar if it's elsewhere)
+
+**Steps:**
+
+1. In the Cloudflare dashboard, go to **Networking → Tunnels** (NOT Zero Trust → Connectors — that's a different feature) and click **Create a tunnel**.
+2. Pick **Cloudflared**, give it a name (e.g. `senddock-prod`), Save.
+3. Cloudflare shows the install command with a token. On your server:
+   ```bash
+   sudo cloudflared service install <your-token>
+   ```
+   The connector registers automatically as a systemd service. You should see "Connector connected" in the dashboard within seconds.
+4. Tab **Routes → + Add route → Published application**. Fill:
+   - **Subdomain**: `app` (or whatever you want)
+   - **Domain**: `your-domain.com`
+   - **Service URL**: `http://localhost:8080`
+
+::: warning Include the `http://` scheme explicitly
+If you enter just `localhost:8080` (without `http://`), Cloudflare defaults to `https://localhost:8080` and the tunnel will return **502 Bad Gateway** because SendDock listens on plain HTTP inside the Docker network. Always include the scheme.
+:::
+
+5. Cloudflare auto-creates a CNAME `app.your-domain.com → <tunnel-id>.cfargotunnel.com` in DNS. Verify in **DNS → Records**.
+6. Set `PUBLIC_URL=https://app.your-domain.com` in `/opt/senddock/.env` and run `docker compose up -d` so SendDock picks up the new value.
+
+Test: `curl -I https://app.your-domain.com/health` should return `HTTP/2 200`.
+
+**Trade-offs:** Cloudflare terminates TLS at their edge — they can see plaintext request bodies, including email content. Your instance also goes down during the rare Cloudflare outage. Acceptable for most self-hosters; if you need full end-to-end privacy or zero third-party dependencies, use Caddy or Nginx with your own cert instead.
 
 ### Caddy
 
