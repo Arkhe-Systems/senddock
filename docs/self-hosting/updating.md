@@ -8,9 +8,10 @@ The update path depends on which install you started from.
 
 | Install path | Update command |
 |---|---|
-| Prebuilt image (Option 1) | `docker compose pull && docker compose up -d` |
-| Dokploy (Option 2) | One-click "Redeploy" in the Dokploy UI |
-| Build from source (Option 3) | `git pull && docker compose -f docker-compose.prod.yml up -d --build` |
+| install.sh (Option 1) | **"Update now"** in the dashboard nav (Watchtower auto-wired) — or `docker compose pull && docker compose up -d` as a manual fallback |
+| Manual Docker Compose (Option 2) | `docker compose pull && docker compose up -d` |
+| Dokploy (Option 3) | One-click **"Redeploy"** in the Dokploy UI |
+| Build from source (Option 4) | `git pull && docker compose -f docker-compose.prod.yml up -d --build` |
 
 In every case **your data is preserved**. Postgres lives in a named Docker volume that is not touched by image updates. Migrations are run by `goose`, which deduplicates against the `goose_db_version` table and only applies what hasn't been applied before.
 
@@ -18,7 +19,7 @@ In every case **your data is preserved**. Postgres lives in a named Docker volum
 
 ## Updating a prebuilt image install
 
-Use this when you installed via the canonical `ghcr.io/arkhe-systems/senddock` image (Option 1 in [Installation](./installation)).
+Use this when you installed via the canonical `ghcr.io/arkhe-systems/senddock` image — either through `install.sh` (Option 1) or Manual Docker Compose (Option 2) in [Installation](./installation). If `install.sh` set up Watchtower for you, **click "Update now"** in the dashboard nav instead of running the command below; the result is identical.
 
 ```bash
 cd senddock

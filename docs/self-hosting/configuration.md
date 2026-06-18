@@ -140,7 +140,7 @@ The validator only needs the license key — there is no API key, store ID or we
 If the license check fails (network outage, key revoked, etc.) SendDock keeps running with the **last successful** validation result for a grace period, then falls back to free-tier behavior. You'll see the cause on stdout: `license: …`.
 
 ::: warning Pro requires the prebuilt image
-Pro features ship only in the official prebuilt `ghcr.io/arkhe-systems/senddock` image. Building from source (Option 3 in [Installation](/self-hosting/installation)) gives you Core only — setting `SENDDOCK_LICENSE_KEY` on a source build does nothing because the Pro features aren't included.
+Pro features ship only in the official prebuilt `ghcr.io/arkhe-systems/senddock` image. Building from source (Option 4 in [Installation](/self-hosting/installation)) gives you Core only — setting `SENDDOCK_LICENSE_KEY` on a source build does nothing because the Pro features aren't included.
 :::
 
 ## Ports

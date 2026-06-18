@@ -1,6 +1,6 @@
 # Environment Variables
 
-All configuration is done via environment variables. Copy `.env.example` to `.env` in the `backend/` directory.
+All configuration is done via environment variables. For self-hosting deployments see the [installation guide](/self-hosting/installation) — `install.sh` autogenerates `.env` for you, and Option 2 (manual compose) ships a copy-paste reference. If you're running the backend from source, copy `.env.example` to `.env` in the `backend/` directory.
 
 ## Required
 
