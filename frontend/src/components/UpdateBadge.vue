@@ -181,27 +181,40 @@ function stopPolling() {
                         </details>
                     </div>
 
-                    <div v-else>
-                        <div v-if="watchtower?.configured && !watchtower?.healthy" class="mb-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-300">
+                    <div v-else class="space-y-3">
+                        <div v-if="watchtower?.configured && !watchtower?.healthy" class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-300">
                             One-click update unavailable — Watchtower at
                             <code class="font-mono text-red-200">{{ watchtower.url }}</code>
                             is unreachable. <span v-if="watchtower.last_error" class="text-red-400">({{ watchtower.last_error }})</span>
                         </div>
-                        <p v-else class="text-xs text-zinc-500 mb-2">
-                            Tip: configure Watchtower with the
-                            <code class="text-zinc-400">SENDDOCK_WATCHTOWER_URL</code>
-                            env var to enable one-click updates from this page.
-                        </p>
-                        <p class="text-sm font-medium text-white mb-2">Run this from the SendDock folder on your host:</p>
-                        <div class="flex items-center gap-2">
-                            <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white font-mono select-all">{{ updateCommand }}</code>
-                            <button @click="copyCommand"
-                                class="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">
-                                Copy
-                            </button>
+
+                        <div class="p-4 bg-yellow-500/5 border border-yellow-500/30 rounded-lg">
+                            <p class="text-sm font-semibold text-yellow-200 mb-1">Deployed via Dokploy, Coolify, Portainer or similar?</p>
+                            <p class="text-xs text-zinc-300">Trigger a <strong class="text-white">rebuild / redeploy</strong> of this project from your hosting panel. It pulls the new image and recreates the container in ~30–60 seconds. Postgres and Redis volumes are preserved.</p>
                         </div>
-                        <p class="text-xs text-zinc-500 mt-2">
-                            Pulls the new image, recreates the container and runs migrations on first start. Postgres and Redis volumes are preserved, so subscribers, templates and history stay intact. If you built from source, run <code class="text-zinc-400">git pull && docker compose -f docker-compose.prod.yml up -d --build</code> instead.
+
+                        <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
+                            <p class="text-sm font-medium text-white mb-1">Direct Docker control</p>
+                            <p class="text-xs text-zinc-400 mb-3">Bare-metal installs (including <code class="text-zinc-300 font-mono text-[11px]">install.sh</code>) and manual <code class="text-zinc-300 font-mono text-[11px]">docker-compose.yml</code> users — run this from the folder with your compose file:</p>
+                            <div class="flex items-center gap-2">
+                                <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white font-mono select-all">{{ updateCommand }}</code>
+                                <button @click="copyCommand"
+                                    class="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <p v-if="!watchtower?.configured" class="text-xs text-zinc-500">
+                            Tip: wire up
+                            <a href="https://docs.senddock.dev/self-hosting/updating#one-click-updates-from-the-dashboard-watchtower"
+                                target="_blank" rel="noopener"
+                                class="text-zinc-300 underline decoration-zinc-700 underline-offset-2 hover:decoration-zinc-400">Watchtower</a>
+                            (auto-configured by the
+                            <a href="https://docs.senddock.dev/self-hosting/installation"
+                                target="_blank" rel="noopener"
+                                class="text-zinc-300 underline decoration-zinc-700 underline-offset-2 hover:decoration-zinc-400">install.sh</a>
+                            installer) to get a one-click "Update now" button here. All paths above preserve your data.
                         </p>
                     </div>
                 </template>
