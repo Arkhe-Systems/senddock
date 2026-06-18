@@ -1,0 +1,21 @@
+name: Upload release assets
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload-setup-script:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Attach scripts/setup.sh to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" scripts/setup.sh --clobber
