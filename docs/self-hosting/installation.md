@@ -130,6 +130,10 @@ The container runs `goose up` against Postgres on first start, then serves on `:
 
 Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and create your admin account on the setup screen.
 
+::: tip One-click updates from the dashboard
+If you want the dashboard's **"Update now"** button to work (so you never have to SSH in to update), add the [Watchtower override block from Updating → One-click updates](./updating#one-click-updates-from-the-dashboard-watchtower). The bundled `scripts/setup.sh` installer does this automatically.
+:::
+
 ### What you get
 
 | `SENDDOCK_LICENSE_KEY` | Behavior |
