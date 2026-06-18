@@ -207,11 +207,11 @@ function stopPolling() {
 
                         <p v-if="!watchtower?.configured" class="text-xs text-zinc-500">
                             Tip: wire up
-                            <a href="https://senddock.dev/docs/self-hosting/updating#one-click-updates-from-the-dashboard-watchtower"
+                            <a href="https://docs.senddock.dev/self-hosting/updating#one-click-updates-from-the-dashboard-watchtower"
                                 target="_blank" rel="noopener"
                                 class="text-zinc-300 underline decoration-zinc-700 underline-offset-2 hover:decoration-zinc-400">Watchtower</a>
                             (auto-configured by the
-                            <a href="https://senddock.dev/docs/self-hosting/installation"
+                            <a href="https://docs.senddock.dev/self-hosting/installation"
                                 target="_blank" rel="noopener"
                                 class="text-zinc-300 underline decoration-zinc-700 underline-offset-2 hover:decoration-zinc-400">install.sh</a>
                             installer) to get a one-click "Update now" button here. All paths above preserve your data.

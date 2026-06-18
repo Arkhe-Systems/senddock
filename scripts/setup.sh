@@ -43,7 +43,7 @@ die()  { echo "${r}✗ $*${n}" >&2; exit 1; }
 [[ -r /etc/os-release ]] || die "Can't read /etc/os-release — unsupported distribution."
 # shellcheck disable=SC1091
 . /etc/os-release
-[[ "${ID:-}" == "ubuntu" ]] || die "This installer currently only supports Ubuntu (detected: ${PRETTY_NAME:-unknown}). For other distros, see https://senddock.dev/docs/self-hosting/installation"
+[[ "${ID:-}" == "ubuntu" ]] || die "This installer currently only supports Ubuntu (detected: ${PRETTY_NAME:-unknown}). For other distros, see https://docs.senddock.dev/self-hosting/installation"
 
 [[ $EUID -eq 0 ]] || die "Run with sudo: sudo bash setup.sh"
 
@@ -228,7 +228,7 @@ ${b}Next steps${n}
        ${PUBLIC_URL_FINAL:-http://<your-host>:${SENDDOCK_PORT}}
 
   3. For production, put a reverse proxy with HTTPS in front (Caddy / Nginx / Traefik).
-     Guide: https://senddock.dev/docs/self-hosting/installation#reverse-proxy-https
+     Guide: https://docs.senddock.dev/self-hosting/installation#reverse-proxy-https
 
   4. Configure your SMTP relay and license key from the dashboard, or by editing
      ${INSTALL_DIR}/.env and running:
