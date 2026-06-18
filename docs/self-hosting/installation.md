@@ -1,6 +1,6 @@
 # Installation
 
-SendDock ships as a single Docker image: `ghcr.io/arkhe-systems/senddock`. Three install paths are supported, in order of preference.
+SendDock ships as a single Docker image: `ghcr.io/arkhe-systems/senddock`. Four install paths are supported, in order of preference.
 
 ## What gets deployed
 

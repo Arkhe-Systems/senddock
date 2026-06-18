@@ -132,7 +132,7 @@ What each piece does:
 - `WATCHTOWER_HTTP_API_PERIODIC_POLLS=false` disables Watchtower's background polling. Updates only fire when you click the button — no surprise auto-updates.
 - `WATCHTOWER_LABEL_ENABLE=true` + the `com.centurylinklabs.watchtower.enable` label on SendDock scopes Watchtower to only the SendDock container. Without this it would manage every container on the host.
 - `WATCHTOWER_CLEANUP=true` removes the old image after a successful update so disk doesn't bloat.
-- `SENDDOCK_WATCHTOWER_URL` / `SENDDOCK_WATCHTOWER_TOKEN` tell SendDock where to call. **Both must be set together** — `URL` alone leaves the dashboard with no credential and the update fails silently with a 401. When both are set, the modal shows the "Update now" button; when unset, it shows the manual `docker compose pull && up -d` command instead.
+- `SENDDOCK_WATCHTOWER_URL` / `SENDDOCK_WATCHTOWER_TOKEN` tell SendDock where to call. **Both must be set together** — `URL` alone leaves the dashboard with no credential and the update fails silently with a 401. When both are set, the modal shows the "Update now" button. When unset, the modal still surfaces the update — it just falls back to a platform-agnostic prompt (rebuild from your hosting panel, or run the docker compose command).
 
 When you click "Update now":
 
