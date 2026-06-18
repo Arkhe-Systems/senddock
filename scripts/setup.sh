@@ -71,8 +71,24 @@ install_docker() {
   ok "Docker installed."
 }
 
-if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-  ok "Docker already installed ($(docker --version))."
+docker_ready() {
+  command -v docker >/dev/null 2>&1 \
+    && docker compose version >/dev/null 2>&1 \
+    && docker info >/dev/null 2>&1
+}
+
+if docker_ready; then
+  ok "Docker already installed and running ($(docker --version))."
+elif command -v docker >/dev/null 2>&1; then
+  warn "Docker CLI present but daemon not reachable — trying to start it…"
+  systemctl enable --now docker 2>/dev/null || true
+  sleep 3
+  if docker_ready; then
+    ok "Docker daemon started ($(docker --version))."
+  else
+    warn "Daemon still not reachable — reinstalling Docker…"
+    install_docker
+  fi
 else
   install_docker
 fi
