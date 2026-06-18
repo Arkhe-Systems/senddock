@@ -279,6 +279,10 @@ ${b}Next steps${n}
      ${INSTALL_DIR}/.env and running:
        cd ${INSTALL_DIR} && docker compose up -d
 
+     If "Test Connection" times out, your ISP (residential connections especially)
+     may block outbound SMTP ports. See the diagnostic + workarounds at:
+       https://docs.senddock.dev/guide/smtp#diagnosing-port-issues
+
 ${b}Updates${n}
 
   When a new SendDock release lands, an "Update available" badge appears in
