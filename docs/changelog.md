@@ -18,6 +18,40 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.7] — 2026-06-18
+
+Self-hosting UX release. Headline is a brand-new one-line installer (`curl senddock.dev/install.sh | sudo bash`) that brings up Docker, the compose stack, and one-click updates via Watchtower in under two minutes. Plus a real SMTP-troubleshooting section in the docs, a Cloudflare Tunnel guide as a first-class HTTPS option, and fixes for three bugs that bit users during install: a template editor that escaped `<` while typing, an installer that silently defaulted `PUBLIC_URL` to localhost, and an abandoned Watchtower image that crash-looped on Docker 26+. Drop-in upgrade — no migrations.
+
+### Added
+
+- **One-line installer for Ubuntu** (`scripts/setup.sh`, served at `https://senddock.dev/install.sh`). Installs Docker if missing, downloads the compose file, generates `.env` with random secrets, bundles Watchtower so the dashboard's "Update now" button works out of the box, runs a 60-second health check at the end. Attached as a release asset on every release.
+- **Cloudflare Tunnel section in self-hosting docs.** First-class reverse-proxy path for users without a public IP or port forwarding. Documents the two non-obvious gotchas (use `Networking → Tunnels`, not Zero Trust → Connectors; include `http://` in the Service URL explicitly).
+- **SMTP troubleshooting guide** (`/guide/smtp`). `/dev/tcp` probe loop to diagnose ISP blocks, five real workarounds for residential SMTP filtering, Postal / Postfix / Mailcow snippets for adding a 2525 listener.
+
+### Changed
+
+- **`docker-compose.image.yml` passes `SENDDOCK_WATCHTOWER_URL` and `SENDDOCK_WATCHTOWER_TOKEN` through** (empty defaults). Manual installs can wire Watchtower without modifying the base compose.
+- **Installation docs restructured into four options** — one-line installer (recommended), manual Docker Compose, Dokploy (honest about the marketplace template PR still being open), build from source.
+- **Update modal copy is platform-agnostic** when Watchtower isn't configured. Shows "Rebuild from your hosting panel" for Dokploy / Coolify / Portainer users alongside the direct docker compose command, instead of one-size-fits-all SSH advice.
+
+### Fixed
+
+- **Template editor escaped `<` to `&lt;`** while typing in the Code tab. The Visual tab's GrapesJS instance stayed mounted via `v-show` and re-emitted escaped content into the shared model. Switched to `v-if` so GrapesJS is only mounted when the user is on the Visual tab.
+- **`setup.sh` silently defaulted `PUBLIC_URL` to localhost** when the user hit Enter on the empty prompt, and skipped re-prompting on subsequent runs. Now: empty prompt loops, localhost requires explicit `yes`, bare domains auto-prefix `https://`, and `SENDDOCK_PUBLIC_URL` always wins over an existing `.env` so a broken install can be patched in place.
+- **Watchtower image (`containrrr/watchtower:latest`) was abandoned in 2023** and crash-looped on Docker 26+ daemons (`client version 1.25 is too old`). Switched to the maintained fork `nickfedor/watchtower:latest`. The "Update now" button works again.
+- **`setup.sh` Docker check no longer passes when the daemon is dead** (CLI present but daemon down). Adds `docker info` to the probe, attempts `systemctl enable --now docker` before falling back to reinstall.
+- **`docs/guide/environment.md`** no longer tells self-hosters to copy `.env.example` from `backend/` (that's source-build only).
+
+### Removed
+
+- **`OPEN_REGISTRATION` env var.** Self-hosted instances should never accept anonymous signups — registration is exclusively via the first-boot Setup screen and the admin "Create user" action. Cloud signup is unaffected (lives in the cloud package).
+
+### Cloud
+
+- Plan-aware Pro paywall — upgrade flow on cloud, self-host license copy on self-host.
+- Hide the self-host "Update available" badge on the cloud build.
+- Team paywall now selects the right checkout link based on the user's current plan.
+
 ## [0.6.5.1] — 2026-06-12
 
 Security and authentication patch on top of [0.6.5](#065--2026-05-28). Adds opt-in two-factor authentication and hardens multi-tenant access checks across the dashboard API. Upgrading is a drop-in image bump; the 2FA migration is applied automatically on startup.

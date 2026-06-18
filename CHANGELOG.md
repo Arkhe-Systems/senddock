@@ -11,6 +11,42 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.6.7] — 2026-06-18
+
+Self-hosting UX release. Headline is a brand-new one-line installer (`curl senddock.dev/install.sh | sudo bash`) that brings up Docker, the compose stack, and one-click updates via Watchtower in under two minutes. Plus a real SMTP-troubleshooting section in the docs, a Cloudflare Tunnel guide as a first-class HTTPS option, and fixes for three bugs that bit users during install: a template editor that escaped `<` while typing, an installer that silently defaulted `PUBLIC_URL` to localhost, and an abandoned Watchtower image that crash-looped on Docker 26+. Drop-in upgrade — no migrations.
+
+### Added
+
+- **One-line installer for Ubuntu** (`scripts/setup.sh`, also served at `https://senddock.dev/install.sh`). Installs Docker from the official repo if missing, downloads `docker-compose.image.yml`, generates `.env` with random secrets (mode 600), prompts for `PUBLIC_URL`, bundles Watchtower in HTTP-API-only mode (no auto-polling, label-scoped to SendDock only) so the dashboard's "Update now" button works out of the box, brings up the stack, and runs a 60-second health check that warns if any service isn't running. The script is attached as a release asset on every published release.
+- **Cloudflare Tunnel section in self-hosting docs.** First-class reverse-proxy path for users without a public IP, port forwarding, or Let's Encrypt setup. Documents the two non-obvious gotchas that took hours to debug the first time: use `Networking → Tunnels` (NOT Zero Trust → Connectors — that's a different feature), and include the `http://` scheme explicitly in the Service URL (without it Cloudflare defaults to HTTPS and the tunnel returns 502 because SendDock listens on plain HTTP internally).
+- **SMTP troubleshooting guide** (`/guide/smtp`). New "Diagnosing port issues" section with a `/dev/tcp` probe loop that tells you exactly which ports your network actually allows. New "Working around ISP blocks" with five real fixes: try port 25 explicitly, use a provider that supports 2525 (Brevo, Mailgun, Postmark, SendGrid), run on a cloud server, run a cloud SMTP relay, or use Mailpit for local dev. New "Self-hosted mail server" section with config snippets for adding a 2525 listener to Postal, Postfix and Mailcow, plus the UFW commands to open the new port server-side.
+
+### Changed
+
+- **`docker-compose.image.yml` passes `SENDDOCK_WATCHTOWER_URL` and `SENDDOCK_WATCHTOWER_TOKEN` through** (empty defaults). Manual installs can now wire Watchtower via the override block in the docs without modifying the base compose file. Backwards-compatible for installs that don't set those vars.
+- **Installation docs restructured into four options:** (1) one-line installer (recommended for Ubuntu), (2) manual Docker Compose (any Linux), (3) Dokploy (honest about [PR #821 to Dokploy templates](https://github.com/Dokploy/templates/pull/821) still being open for review), (4) build from source. Cross-doc references in `updating.md`, `configuration.md` and `environment.md` re-numbered to match.
+- **Update modal copy is platform-agnostic when Watchtower isn't configured.** Previously the modal told everyone to run `docker compose pull && up -d` from the host — wrong advice for Dokploy / Coolify / Portainer users who don't manage the stack at that level. New layout shows two equally visible cards: "Rebuild from your hosting panel" (primary, for platform users) and "Direct Docker control" with the docker compose command (secondary, for bare-metal and `install.sh` users), plus a tip linking to the Watchtower setup for one-click updates from the dashboard.
+
+### Fixed
+
+- **Template editor escaped `<` to `&lt;` while typing in the Code tab.** The Visual tab's GrapesJS instance stayed mounted via `v-show` even when hidden. Its watcher fired on every CodeMirror keystroke and called `setComponents()` with the in-progress string. For incomplete HTML like a lone `<`, GrapesJS interpreted it as text content and re-emitted `&lt;` back into the shared `v-model`, feeding the bug character by character. Switched the Visual wrapper to `v-if` so GrapesJS is only mounted when the user is actually on that tab.
+- **`scripts/setup.sh` silently defaulted `PUBLIC_URL` to localhost.** Hitting Enter at an empty prompt previously triggered a warning that was easy to miss in the install output and produced an instance with newsletters and unsubscribe links disabled — which the user discovered hours later in the dashboard with no breadcrumb to the cause. Worse, re-running the script on an existing `.env` skipped the prompt entirely, so there was no way to fix it through the installer. New behaviour: empty prompt loops until non-empty input or Ctrl+C; `localhost`/`127.0.0.1` requires explicit confirmation (or `SENDDOCK_ALLOW_LOCALHOST=yes` for non-interactive); bare domains auto-prefix `https://`; `SENDDOCK_PUBLIC_URL` env var always wins over existing `.env` so a broken install can be patched by re-running with the correct URL — secrets are preserved.
+- **Watchtower image crashed in a restart loop on Docker 26+.** `containrrr/watchtower:latest` — the canonical image when `setup.sh` first shipped — has been abandoned since 2023 and bundles a Docker client too old (API 1.25) for modern Docker daemons (which require API 1.40+). Manifested as `client version 1.25 is too old. Minimum supported API version is 1.40` in the logs, silent restart loop in `docker compose ps`, and a non-working "Update now" button. Switched both `setup.sh` and the manual recipe in `updating.md` to `nickfedor/watchtower:latest`, the actively-maintained community fork. Inline comment explains the abandonment so future readers know why.
+- **`scripts/setup.sh` no longer reports "Docker already installed" when the daemon is dead.** Previous check was `command -v docker && docker compose version` — both pass on hosts where the CLI is present but the daemon isn't running (the state left by an incomplete purge, snap-installed Docker, or some pre-bundled Ubuntu images). New check adds `docker info` and attempts `systemctl enable --now docker` before falling back to a clean reinstall.
+- **`docs/guide/environment.md` no longer tells self-hosters to copy `.env.example` from `backend/`.** That instruction applies to source builds only; self-hosters now get pointed at the installation guide and the `.env.production.example` reference.
+
+### Removed
+
+- **`OPEN_REGISTRATION` env var.** It was a design footgun: self-hosted instances should never accept anonymous signups — that's the whole point of self-hosting your own list. Registration goes through the first-boot Setup screen and the admin "Create user" action exclusively. Cloud signup is in the separate cloud package and unaffected.
+
+### Cloud
+
+(carryover from the v0.6.6 work that never published as its own release)
+
+- Plan-aware Pro paywall — shows the upgrade flow on cloud, the self-host license copy on self-host. No more confusing copy where cloud users see "enter your license key".
+- Hide the self-host "Update available" badge on the cloud build (the badge is meaningless when the platform manages the version).
+- Team plan paywall now selects the right checkout link based on the user's current plan.
+
 ## [0.6.5.1] — 2026-06-12
 
 Security and authentication patch on top of [0.6.5](#065--2026-05-28). Adds opt-in two-factor authentication and hardens multi-tenant access checks across the dashboard API. Upgrading is a drop-in image bump; the 2FA migration is applied automatically on startup.
