@@ -105,7 +105,10 @@ Add Watchtower to your `docker-compose.yml` (or as a separate `docker-compose.ov
 ```yaml
 services:
   watchtower:
-    image: containrrr/watchtower
+    # Maintained fork — the original containrrr/watchtower was abandoned in
+    # 2023 and its :latest image ships a Docker client too old for modern
+    # daemons (API 1.25 vs required 1.40+). Use the nickfedor fork instead.
+    image: nickfedor/watchtower:latest
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

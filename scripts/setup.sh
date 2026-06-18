@@ -196,7 +196,10 @@ else
 
 services:
   watchtower:
-    image: containrrr/watchtower
+    # Maintained fork of containrrr/watchtower. The upstream was abandoned in
+    # 2023; its :latest image ships a Docker client too old for modern daemons
+    # (API < 1.40) and crashes in a restart loop on Ubuntu 24.04+/Docker 26+.
+    image: nickfedor/watchtower:latest
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -224,6 +227,32 @@ docker compose pull
 
 say "Starting the stack…"
 docker compose up -d
+
+# --- post-up health check ---------------------------------------------------
+
+say "Waiting up to 60s for all services to stabilize…"
+all_good=0
+for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  sleep 5
+  running=$(docker compose ps --status running --quiet 2>/dev/null | wc -l | tr -d ' ')
+  total=$(docker compose ps --quiet 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "$total" -gt 0 && "$running" == "$total" ]]; then
+    all_good=1
+    break
+  fi
+done
+
+if [[ $all_good -eq 1 ]]; then
+  ok "All $total services running."
+else
+  warn "Some services are not in 'running' state after 60s."
+  warn "Inspect with:"
+  warn "    cd ${INSTALL_DIR} && sudo docker compose ps"
+  warn "    cd ${INSTALL_DIR} && sudo docker compose logs --tail=50"
+fi
+
+echo ""
+docker compose ps
 
 # --- final ------------------------------------------------------------------
 
