@@ -47,10 +47,10 @@ async function handleResend(){
         <AppCard v-if="!submitted" title="Senddock" subtitle="Create your account">
             <form @submit.prevent="handleRegister" class="space-y-4">
                 <AppAlert :message="error" />
-                <AppInput id="name" v-model="name" label="Full Name" type="text" placeholder="Jhon Doe" required/>
-                <AppInput id="email" v-model="email" label="Email" type="email" placeholder="your@example.com" required/>
-                <AppInput id="password" v-model="password" label="Password" type="password" placeholder="••••••••" required/>
-                <AppInput id="confirmPassword" v-model="confirmPassword" label="Confirm password" type="password" placeholder="••••••••" required/>
+                <AppInput id="name" v-model="name" label="Full Name" type="text" autocomplete="name" placeholder="Jhon Doe" required/>
+                <AppInput id="email" v-model="email" label="Email" type="email" autocomplete="email" placeholder="your@example.com" required/>
+                <AppInput id="password" v-model="password" label="Password" type="password" autocomplete="new-password" placeholder="••••••••" required/>
+                <AppInput id="confirmPassword" v-model="confirmPassword" label="Confirm password" type="password" autocomplete="new-password" placeholder="••••••••" required/>
                 <AppButton :loading="loading">
                     {{ loading ? 'Creating account...' : 'Sign up' }}
                 </AppButton>

@@ -1,14 +1,24 @@
 <script setup lang="ts">
 const model = defineModel<string>()
 
-defineProps<{
+const props = defineProps<{
     label?: string,
     type?: string,
     placeholder?: string,
     required?: boolean,
     id?: string,
-    large?: boolean
+    large?: boolean,
+    autocomplete?: string,
 }>()
+
+const ignoreAttrs = {
+    'data-bwignore': 'true',
+    'data-1p-ignore': 'true',
+    'data-lpignore': 'true',
+    'data-form-type': 'other',
+}
+
+const passwordManagerAttrs = props.autocomplete ? {} : ignoreAttrs
 </script>
 
 <template>
@@ -17,12 +27,14 @@ defineProps<{
             {{ label }}
         </label>
 
-        <textarea 
+        <textarea
             v-if="large"
             :id="id"
             v-model="model"
             :placeholder="placeholder"
             :required="required"
+            autocomplete="off"
+            v-bind="ignoreAttrs"
             rows="3"
             class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent transition resize-none"/>
 
@@ -33,6 +45,8 @@ defineProps<{
             :type="type ?? 'text'"
             :placeholder="placeholder"
             :required="required"
+            :autocomplete="autocomplete ?? 'off'"
+            v-bind="passwordManagerAttrs"
             class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent transition"
         />
     </div>

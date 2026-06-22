@@ -45,6 +45,7 @@ const sendMode = ref<'broadcast' | 'direct'>('broadcast')
 const directEmail = ref('')
 const subjectOverride = ref('')
 const sendLoading = ref(false)
+const openSendLoading = ref(false)
 const templateVars = ref<Record<string, string>>({})
 
 const selectedTemplateData = computed(() => templates.value.find(t => t.id === selectedTemplate.value))
@@ -86,6 +87,8 @@ async function loadData() {
 }
 
 async function openSendModal() {
+    if (openSendLoading.value) return
+    openSendLoading.value = true
     try {
         const res = await api<Template[] | null>(`/projects/${props.project.id}/templates`)
         templates.value = res || []
@@ -100,6 +103,8 @@ async function openSendModal() {
         showSendModal.value = true
     } catch {
         toast.error('Failed to load templates')
+    } finally {
+        openSendLoading.value = false
     }
 }
 
@@ -154,9 +159,9 @@ onMounted(loadData)
     <div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <h1 class="text-2xl font-bold text-white">Overview</h1>
-            <button v-if="project.smtp_host" @click="openSendModal"
-                class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
-                Send Email
+            <button v-if="project.smtp_host" @click="openSendModal" :disabled="openSendLoading"
+                class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ openSendLoading ? 'Loading…' : 'Send Email' }}
             </button>
         </div>
 

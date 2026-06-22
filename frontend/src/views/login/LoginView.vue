@@ -150,8 +150,8 @@ function backToLogin() {
 
             <form v-if="!twoFactorToken && !deviceConfirmation" @submit.prevent="handleLogin" class="space-y-4">
                 <AppAlert :message="error" />
-                <AppInput v-model="email" label="Email" type="email" placeholder="your@example.com" required />
-                <AppInput v-model="password" label="Password" type="password" placeholder="••••••••" required />
+                <AppInput v-model="email" label="Email" type="email" autocomplete="email" placeholder="your@example.com" required />
+                <AppInput v-model="password" label="Password" type="password" autocomplete="current-password" placeholder="••••••••" required />
                 <AppButton :loading="loading">
                     {{ loading ? 'Signing in...' : 'Sign in' }}
                 </AppButton>
