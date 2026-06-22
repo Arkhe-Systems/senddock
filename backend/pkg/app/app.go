@@ -330,7 +330,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
 
 	templateService := service.NewTemplateService(queries)
-	templateHandler := handler.NewTemplateHandler(templateService, projectService)
+	templateLibraryService := service.NewTemplateLibraryService(cfg.TemplateLibraryURL, a.cache)
+	templateHandler := handler.NewTemplateHandler(templateService, projectService, templateLibraryService)
 
 	apiKeyService := service.NewAPIKeyService(queries)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, projectService)
@@ -577,6 +578,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	mux.Handle("POST /api/v1/projects/{id}/templates", authMW(http.HandlerFunc(templateHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/templates", authMW(http.HandlerFunc(templateHandler.List)))
+	mux.Handle("GET /api/v1/projects/{id}/templates/library", authMW(http.HandlerFunc(templateHandler.LibraryList)))
+	mux.Handle("POST /api/v1/projects/{id}/templates/library/{libraryId}/use", authMW(http.HandlerFunc(templateHandler.LibraryUse)))
 	mux.Handle("GET /api/v1/projects/{id}/templates/{templateId}", authMW(http.HandlerFunc(templateHandler.Get)))
 	mux.Handle("PUT /api/v1/projects/{id}/templates/{templateId}", authMW(http.HandlerFunc(templateHandler.Update)))
 	mux.Handle("DELETE /api/v1/projects/{id}/templates/{templateId}", authMW(http.HandlerFunc(templateHandler.Delete)))

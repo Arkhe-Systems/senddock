@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/arkhe-systems/senddock/pkg/auth"
@@ -12,12 +13,14 @@ import (
 type TemplateHandler struct {
 	templateService *service.TemplateService
 	projectService  *service.ProjectService
+	libraryService  *service.TemplateLibraryService
 }
 
-func NewTemplateHandler(templateService *service.TemplateService, projectService *service.ProjectService) *TemplateHandler {
+func NewTemplateHandler(templateService *service.TemplateService, projectService *service.ProjectService, libraryService *service.TemplateLibraryService) *TemplateHandler {
 	return &TemplateHandler{
 		templateService: templateService,
 		projectService:  projectService,
+		libraryService:  libraryService,
 	}
 }
 
@@ -172,4 +175,76 @@ func (h *TemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *TemplateHandler) LibraryList(w http.ResponseWriter, r *http.Request) {
+	if _, err := h.verifyProjectOwner(r); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	entries, err := h.libraryService.List(r.Context())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(errorResponse{Error: "template library is unavailable"})
+		return
+	}
+
+	if entries == nil {
+		entries = []service.TemplateLibraryEntry{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
+}
+
+func (h *TemplateHandler) LibraryUse(w http.ResponseWriter, r *http.Request) {
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapTemplatesWrite)
+	if !ok {
+		return
+	}
+
+	libraryID := r.PathValue("libraryId")
+	if libraryID == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "library id is required"})
+		return
+	}
+
+	entry, err := h.libraryService.Find(r.Context(), libraryID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		if errors.Is(err, service.ErrTemplateLibraryNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(errorResponse{Error: "template not found in library"})
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(errorResponse{Error: "template library is unavailable"})
+		return
+	}
+
+	html, err := h.libraryService.FetchHTML(r.Context(), entry)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(errorResponse{Error: "failed to fetch template from library"})
+		return
+	}
+
+	template, err := h.templateService.Create(r.Context(), projectID, entry.Name, "", html, "")
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response.FromTemplate(template))
 }
