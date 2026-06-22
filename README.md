@@ -1,14 +1,63 @@
-# SendDock
+<div align="center">
 
-Open-source email marketing platform. Self-hostable, API-first, BYOSMTP. Built with Go and Vue.
+<img src="docs/public/screenshots/hero.png" alt="SendDock" width="720">
 
-Bring your own SMTP. Zero cost per email. Full control over your data.
+**The Mailchimp alternative that doesn't charge you per send.**
 
-Available as a fully-managed cloud at [senddock.dev](https://senddock.dev) or self-host it yourself with Docker (this repo).
+Bring your own SMTP, own your subscriber data, send to unlimited contacts. Self-host in 60 seconds with Docker, or use the [managed cloud](https://senddock.dev). Open source under AGPL-3.0 — core-team-only development.
 
-Part of [Arkhe Systems](https://arkhe.systems).
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/arkhe-systems/senddock?color=brightgreen)](https://github.com/arkhe-systems/senddock/releases)
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8.svg?logo=go&logoColor=white)](https://go.dev)
+[![Vue](https://img.shields.io/badge/Vue-3-4FC08D.svg?logo=vue.js&logoColor=white)](https://vuejs.org)
+[![Docker](https://img.shields.io/badge/docker-multi--arch-2496ED.svg?logo=docker&logoColor=white)](https://github.com/arkhe-systems/senddock/pkgs/container/senddock)
+[![Stars](https://img.shields.io/github/stars/arkhe-systems/senddock?style=social)](https://github.com/arkhe-systems/senddock/stargazers)
 
-## Quick Start (self-host)
+[Website](https://senddock.dev) · [Documentation](https://docs.senddock.dev) · [Cloud](https://senddock.dev) · [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md)
+
+</div>
+
+---
+
+## Why SendDock
+
+Email marketing tools punish you for growing. Mailchimp charges $135/mo at 10k contacts. ConvertKit/Kit charges $104/mo at the same size. Both lock your subscriber list inside their UI and bill you per email or per contact, forever.
+
+SendDock flips the model: you bring your own SMTP relay (AWS SES, Postmark, Postal, your own Postfix — anything that speaks SMTP), the app handles subscribers, templates, campaigns, tracking and analytics, and you pay $0 to the platform — no matter if you send 1 email or 1 million.
+
+### How it compares
+
+| | Mailchimp | Kit (ConvertKit) | Resend | **SendDock** |
+|---|---|---|---|---|
+| Monthly cost @ 10k subscribers | ~$135 | ~$104 | ~$35 | **$0** (+ SMTP) |
+| Self-hostable | — | — | — | **✓** |
+| Open source | — | — | — | **✓ (AGPL-3.0)** |
+| Bring your own SMTP | — | — | — | **✓** |
+| Per-email pricing | ✓ | — | ✓ | **No** |
+| You own subscriber data | — | — | — | **✓** |
+| Visual editor | ✓ | ✓ | — | **✓ (GrapesJS)** |
+| Transactional API | ✓ | — | ✓ | **✓** |
+| Open & click tracking | ✓ | ✓ | ✓ | **✓** |
+| One-click unsubscribe (RFC 8058) | ✓ | ✓ | ✓ | **✓** |
+
+> If you already pay AWS SES ($0.10 per 1,000 emails), sending 100k emails costs you **~$10/month total** with SendDock vs **~$135/month** with Mailchimp.
+
+---
+
+## Install in 60 seconds
+
+On **Ubuntu 22.04+ or Arch Linux** with sudo:
+
+```bash
+curl -fsSL https://senddock.dev/install.sh | sudo bash
+```
+
+The installer takes care of Docker, secrets, the compose file, and starts the stack. When it finishes, open the URL it prints and create your admin account.
+
+> On Debian, Fedora, RHEL, openSUSE, macOS, or any other OS: use the manual Docker Compose path below — it works anywhere Docker runs. Broader installer support is [on the roadmap](https://github.com/Arkhe-Systems/senddock/issues/79).
+
+<details>
+<summary>Manual install with Docker Compose (any Linux with Docker)</summary>
 
 ```bash
 mkdir senddock && cd senddock
@@ -23,214 +72,179 @@ EOF
 docker compose up -d
 ```
 
-Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and create your admin account on the setup screen.
+Open `https://your-domain.com` and complete the setup screen.
 
-See the [full installation guide](docs/self-hosting/installation.md) for Dokploy, reverse proxies, source builds, license activation and updates.
+</details>
 
-## Development Setup
+For Dokploy, reverse-proxy setups, Cloudflare Tunnel, source builds, license activation, and updates, see the [Self-Hosting Guide](https://docs.senddock.dev/self-hosting/installation).
 
-### Prerequisites
+---
 
-- Go 1.25+
-- Node.js 20+
-- Docker and Docker Compose
-- [goose](https://github.com/pressly/goose) — `go install github.com/pressly/goose/v3/cmd/goose@latest`
-- [sqlc](https://github.com/sqlc-dev/sqlc) — `go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest`
+## Features
 
-### Backend
+- **Projects** — separate sending domains and subscriber lists for each product, brand, or client.
+- **Subscribers** — single add, CSV/JSON bulk import, bulk actions (update, delete), status segmentation (active / pending / unsubscribed).
+- **Templates** — Handlebars-based with dynamic variables, visual editor (GrapesJS) and code editor (CodeMirror).
+- **Campaigns** — broadcast to your full list, scheduled sends, send-to-segment, draft and resume.
+- **Transactional API** — `POST /send` with template or raw HTML, batch send, API keys per project.
+- **Deliverability essentials** — open tracking pixel, click tracking with HMAC-signed redirects, RFC 8058 one-click unsubscribe, suppressions and bounces.
+- **SMTP test** — verify your SMTP settings before sending anything.
+- **Rate limiting** — per-project (Redis-backed) and per-IP (global) limiters.
+- **Security** — JWT auth via HttpOnly cookies, refresh-token rotation, encrypted SMTP credentials, bcrypt password hashing.
+- **One-click updates** — bundled Watchtower lets you upgrade from the dashboard.
+- **Multi-arch images** — official Docker image runs on `linux/amd64` and `linux/arm64` (Raspberry Pi, AWS Graviton, Apple Silicon VMs).
 
-```bash
-cd backend
-cp .env.example .env
-make dev
-```
+---
 
-Runs at `http://localhost:8080`.
+## Screenshots
 
-### Frontend
+| | |
+|---|---|
+| ![Projects](docs/public/screenshots/projects.png) | ![Editor](docs/public/screenshots/editor.png) |
+| **Project dashboard** — subscribers, templates, campaigns, SMTP. | **Visual editor** — drag-and-drop email composition with GrapesJS. |
+| ![Campaigns](docs/public/screenshots/campaigns.png) | ![Analytics](docs/public/screenshots/analytics.png) |
+| **Campaigns** — broadcast to your list or schedule for later. | **Analytics (Pro)** — opens-over-time, top templates, top links. |
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+---
 
-Runs at `http://localhost:5173`.
+## Tech stack
 
-### Make commands
+- **Backend** — Go 1.25, `net/http` stdlib, [sqlc](https://sqlc.dev) for type-safe queries, [goose](https://github.com/pressly/goose) for migrations.
+- **Frontend** — Vue 3 + TypeScript + Vite, Tailwind CSS 4, Pinia state, GrapesJS visual editor, CodeMirror code editor.
+- **Storage** — PostgreSQL 17, Redis 7 (rate limits + background queue).
+- **Deploy** — single Docker image, multi-arch (amd64 + arm64), Watchtower-ready for self-updates.
 
-| Command | Description |
-|---------|-------------|
-| `make dev` | Start DB + migrations + server |
-| `make run` | Start server only |
-| `make test` | Run unit tests |
-| `make sqlc` | Regenerate sqlc code |
-| `make migrate` | Run database migrations |
-| `make build` | Build production binary |
-| `make db-up` | Start PostgreSQL and Redis |
-| `make db-down` | Stop PostgreSQL and Redis |
+---
 
-## API
+## Cloud or self-hosted
 
-Authentication is managed via HttpOnly cookies, set automatically on login/register.
+Both modes use the same BYO-SMTP model — Cloud removes the infrastructure work, not the SMTP setup. Pick based on whether you want to run the app yourself or have us run it for you.
 
-### Auth
+| | Self-hosted (this repo) | [Cloud](https://senddock.dev) |
+|---|---|---|
+| Setup | One curl command, ~60s | Zero — just sign up |
+| Cost | $0 (Core) or $9/mo (Pro license) + your SMTP + your VPS | Free up to 1k subs, $19/mo for 10k, scales by tier |
+| Bring your own SMTP | Yes | Yes — same model |
+| You upgrade the app | `docker compose pull` or one-click in UI | Automatic |
+| Backups, monitoring, uptime | Your responsibility | Handled |
+| Data location | Your server, your jurisdiction | EU (Frankfurt) |
+| Pro features (Analytics, Webhooks UI, Audit log) | Pro license required | Bundled from Starter tier upward |
+| Team features (multi-user, roles) | Team license required | Bundled from Growth tier upward |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/auth/register` | Register |
-| POST | `/api/v1/auth/login` | Login |
-| POST | `/api/v1/auth/refresh` | Refresh access token |
-| POST | `/api/v1/auth/logout` | Logout |
-| GET | `/api/v1/me` | Current user |
+---
 
-### Projects
+## Who is this for
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/projects` | Create project |
-| GET | `/api/v1/projects` | List projects |
-| GET | `/api/v1/projects/{id}` | Get project |
-| PUT | `/api/v1/projects/{id}` | Update project |
-| DELETE | `/api/v1/projects/{id}` | Delete project |
-| PUT | `/api/v1/projects/{id}/smtp` | Update SMTP settings |
+**SendDock is built for:**
 
-### Subscribers
+- **Engineers and indie hackers** who already have SMTP figured out (AWS SES, Postmark, Postal, your own Postfix) and want a clean dashboard + API instead of building one themselves.
+- **Newsletter publishers and agencies** who refuse to pay $135/mo to Mailchimp for the privilege of managing a subscriber list.
+- **Privacy-conscious teams** who need subscriber data to live on their own infrastructure (EU strict residency, healthcare, government, white-label client work).
+- **Self-hosting enthusiasts** looking for a modern alternative to Listmonk with Pro analytics, A/B testing, and a polished UI.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/projects/{id}/subscribers` | Add subscriber |
-| GET | `/api/v1/projects/{id}/subscribers` | List subscribers |
-| POST | `/api/v1/projects/{id}/subscribers/import` | Bulk import subscribers |
-| POST | `/api/v1/projects/{id}/subscribers/bulk` | Bulk action (update status / delete) |
-| PATCH | `/api/v1/projects/{id}/subscribers/{subscriberId}` | Update status |
-| DELETE | `/api/v1/projects/{id}/subscribers/{subscriberId}` | Remove subscriber |
+**SendDock is *not* for:**
 
-### Templates
+- **People who want zero-config deliverability bundled in.** Both self-host and Cloud are BYO-SMTP — you are responsible for sender reputation, dedicated IPs, blocklist monitoring. If you want that handled for you, use Mailchimp, Resend, or Postmark instead.
+- **Marketers who need drag-and-drop landing pages, forms, and visual automation workflows today.** These are on the [roadmap](ROADMAP.md) but not yet shipped. Today SendDock excels at transactional email, broadcasts, and templates — not full marketing automation.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/projects/{id}/templates` | Create template |
-| GET | `/api/v1/projects/{id}/templates` | List templates |
-| GET | `/api/v1/projects/{id}/templates/{templateId}` | Get template |
-| PUT | `/api/v1/projects/{id}/templates/{templateId}` | Update template |
-| DELETE | `/api/v1/projects/{id}/templates/{templateId}` | Delete template |
+---
 
-### API Keys
+## Documentation
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/projects/{id}/keys` | Create API key |
-| GET | `/api/v1/projects/{id}/keys` | List API keys |
-| DELETE | `/api/v1/projects/{id}/keys/{keyId}` | Revoke API key |
+| | |
+|---|---|
+| [Getting Started](https://docs.senddock.dev/guide/getting-started) | First-time walkthrough |
+| [Self-Hosting Installation](https://docs.senddock.dev/self-hosting/installation) | Docker, Dokploy, reverse proxy, Cloudflare Tunnel |
+| [Configuration](https://docs.senddock.dev/self-hosting/configuration) | All environment variables explained |
+| [Updating](https://docs.senddock.dev/self-hosting/updating) | One-click and manual updates |
+| [Troubleshooting & FAQ](https://docs.senddock.dev/self-hosting/troubleshooting) | SMTP issues, common errors |
+| [API Reference](https://docs.senddock.dev/api/authentication) | All endpoints, auth, examples |
 
-### Email Sending
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/v1/projects/{id}/send` | Cookie or API key | Send email (template or direct) |
-| POST | `/api/v1/projects/{id}/send/batch` | Cookie or API key | Send template to multiple recipients |
-| POST | `/api/v1/projects/{id}/broadcast` | Cookie or API key | Send template to all active subscribers |
-| POST | `/api/v1/projects/{id}/smtp/test` | Cookie | Test SMTP connection |
-| GET | `/api/v1/projects/{id}/logs` | Cookie | List email logs |
-| GET | `/api/v1/projects/{id}/stats` | Cookie or API key | Get email stats |
-| GET | `/unsubscribe/{id}/{subscriberId}` | Public | Unsubscribe confirmation page |
-| POST | `/unsubscribe/{id}/{subscriberId}` | Public | One-click unsubscribe (RFC 8058) |
-| GET | `/t/{logId}.gif` | Public | Open tracking pixel |
-| GET | `/c/{logId}/{payload}` | Public | Click tracking redirect |
-
-### Campaigns
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/projects/{id}/campaigns` | Create campaign |
-| GET | `/api/v1/projects/{id}/campaigns` | List campaigns |
-| DELETE | `/api/v1/projects/{id}/campaigns/{campaignId}` | Delete/cancel campaign (scheduled only) |
-
-### Waitlist
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/v1/projects/{id}/waitlist` | Public | Join waitlist (creates subscriber + sends confirmation email) |
-
-### Setup
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/setup/status` | Check if setup is required |
-| POST | `/api/v1/setup` | Create admin account (first-time only) |
-
-### Pro endpoints
-
-Gated by a valid `SENDDOCK_LICENSE_KEY` (or self-hosted with empty key for local development). Compiled into the official `ghcr.io/arkhe-systems/senddock` image; not present in source builds.
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/projects/{id}/analytics/overview` | Aggregated metrics for the Analytics dashboard |
-| POST | `/api/v1/projects/{id}/webhooks` | Create webhook |
-| GET | `/api/v1/projects/{id}/webhooks` | List webhooks |
-| GET | `/api/v1/projects/{id}/webhooks/{webhookId}` | Get webhook |
-| PATCH | `/api/v1/projects/{id}/webhooks/{webhookId}` | Pause/resume webhook |
-| DELETE | `/api/v1/projects/{id}/webhooks/{webhookId}` | Delete webhook |
-| GET | `/api/v1/projects/{id}/webhooks/{webhookId}/deliveries` | List recent delivery attempts |
-
-API key auth uses `Authorization: Bearer sk_...` header.
+---
 
 ## Core vs Pro
 
-SendDock is open-core: the open-source binary you can self-host today is fully usable on its own. A license key unlocks an extra dashboard and management surface for teams that want it.
+SendDock is **open-core**. The free Core binary in this repo is a complete, production-ready email platform on its own. A license key unlocks an extra management surface for teams that want it.
 
-**Core (AGPL, free, in this repo)**
-- Project, subscriber, template, API key, campaign and SMTP management
+**Core** (AGPL-3.0, free, in this repo)
+- Projects, subscribers, templates, API keys, campaigns, SMTP management
 - Transactional sends, broadcasts, batch sends, scheduled campaigns
-- Open tracking, click tracking, one-click unsubscribe (RFC 8058)
+- Open & click tracking, one-click unsubscribe (RFC 8058)
 - Webhook **dispatcher** with HMAC signing and retries — webhooks created on a Pro instance keep firing here
-- Per-project rate limits (Redis-backed), encrypted SMTP credentials, JWT auth
-- Update-available notice in the dashboard polled from GitHub releases
+- Per-project rate limits, encrypted SMTP credentials, JWT auth
+- One-click updates via bundled Watchtower
 
-**Pro (private, license-gated)**
-- Analytics dashboard with funnel, opens-over-time, top templates, top clicked links, insights and trend pills against the previous period
-- Webhooks management UI and REST API (CRUD, pause/resume, deliveries history)
-- Future: team members + roles, SMTP failover, SSO/LDAP, white-label
+**Pro** (license-gated, included in cloud)
+- Analytics dashboard — funnel, opens-over-time, top templates, top clicked links, trend pills
+- Webhooks management UI and REST API (CRUD, pause/resume, delivery history)
+- Roadmap: team members & roles, SMTP failover, SSO/LDAP, white-label
 
-An empty `SENDDOCK_LICENSE_KEY` keeps Pro locked in any deployment mode — Core stays fully usable for free, Pro requires a license. See [docs/self-hosting/configuration.md](docs/self-hosting/configuration.md) for details.
+A license key (Lemon Squeezy) is available at [senddock.dev/pricing](https://senddock.dev/pricing). An empty `SENDDOCK_LICENSE_KEY` keeps the deployment on Core — fully functional, free forever.
 
-## Environment Variables
+---
 
-Short reference — the canonical list with full descriptions lives in [docs/guide/environment.md](docs/guide/environment.md).
+## Roadmap
 
-**Required**
+See [ROADMAP.md](ROADMAP.md) for milestones and [GitHub Issues](https://github.com/arkhe-systems/senddock/issues) for what's actively being worked on. Comments, +1s, and well-described feature requests on existing issues help us prioritize.
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret for JWT signing and click-tracking HMAC (min 32 chars) |
+---
 
-**Optional**
+## Running from source
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | HTTP server port | `8080` |
-| `REDIS_URL` | Redis connection string. Required for `/send`, `/send/batch`, `/broadcast` rate limits and the global per-IP limiter. | — |
-| `FRONTEND_URL` | Frontend origin for CORS | `http://localhost:5173` |
-| `PUBLIC_URL` | Public URL of the instance, used in unsubscribe and tracking links inside outgoing emails | falls back to `FRONTEND_URL` |
-| `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
-| `SENDDOCK_LICENSE_KEY` | Pro / Team license key (Lemon Squeezy). Empty leaves the deployment on the free tier (Core only). | — |
-| `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the global rate limiter (rolling 60s window). Only enforced when `REDIS_URL` is set. | `600` |
-| `SENDDOCK_WATCHTOWER_URL` | Watchtower HTTP API URL — enables the "Update now" button in the dashboard. | — |
-| `SENDDOCK_WATCHTOWER_TOKEN` | Bearer token for the Watchtower HTTP API. Required when `SENDDOCK_WATCHTOWER_URL` is set. | — |
+For auditing, forking, or running a modified copy on your own infrastructure.
 
-**Compose-only (read by docker-compose.image.yml, not by the binary)**
+```bash
+# Backend
+cd backend && cp .env.example .env && make dev   # http://localhost:8080
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `POSTGRES_PASSWORD` | Postgres password — required by the bundled Postgres service. | — |
-| `SENDDOCK_PORT` | Host port to expose. The container always listens on `8080` internally. | `8080` |
+# Frontend
+cd frontend && npm install && npm run dev        # http://localhost:5173
+```
+
+Prerequisites: Go 1.25+, Node 20+, Docker, [goose](https://github.com/pressly/goose), [sqlc](https://sqlc.dev).
+
+| Make target | What it does |
+|---|---|
+| `make dev` | DB + migrations + server |
+| `make run` | Server only |
+| `make test` | Unit tests |
+| `make sqlc` | Regenerate sqlc code |
+| `make migrate` | Apply pending migrations |
+| `make build` | Production binary |
+| `make db-up` / `make db-down` | Start/stop Postgres + Redis |
+
+---
+
+## Contributing
+
+**Bug reports, feature requests, and security disclosures: very welcome — these are the most useful way to contribute.** Open an issue with reproduction steps, expected vs actual behavior, and your environment.
+
+**Pull requests with code: not accepted on the official repository.** The reason is straightforward — SendDock has a paid Pro tier, and we are not comfortable monetizing volunteer code. The AGPL gives you full freedom to fork, modify, and run your own version with whatever changes you need.
+
+Questions, ideas, or want to show what you've built with SendDock? Open a [GitHub Discussion](https://github.com/arkhe-systems/senddock/discussions) or email **hello@senddock.dev**.
+
+---
+
+## Star history
+
+If SendDock saves you money or pain, a star helps other people find the project.
+
+[![Star History Chart](https://api.star-history.com/svg?repos=arkhe-systems/senddock&type=Date)](https://star-history.com/#arkhe-systems/senddock&Date)
+
+---
 
 ## License
 
-AGPL-3.0 — See [LICENSE](LICENSE).
+AGPL-3.0 — see [LICENSE](LICENSE).
 
-This software is free to use and self-host. If you modify SendDock and offer it as a hosted service, you must open-source your modifications under the same license.
+In short: use it internally, fork it, modify it. The AGPL's copyleft clause only triggers if you offer SendDock **as a hosted service to third parties** — in that case, you must release your modifications under the same license.
 
-For commercial licensing, contact hello@senddock.dev.
+For a commercial license that exempts you from the AGPL copyleft clause, contact **hello@senddock.dev**.
+
+---
+
+<div align="center">
+
+Part of [Arkhe Systems](https://arkhe.systems)
+
+</div>
