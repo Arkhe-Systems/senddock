@@ -11,6 +11,7 @@ import { html } from '@codemirror/lang-html'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { EditorView } from '@codemirror/view'
 import EmailEditor from '@/components/ui/EmailEditor.vue'
+import TemplateLibraryBrowser from '@/views/project/TemplateLibraryBrowser.vue'
 
 interface Template {
     id: string
@@ -33,6 +34,13 @@ const extensions = [html(), oneDark, EditorView.lineWrapping]
 const showCreateModal = ref(false)
 const newName = ref('')
 const createLoading = ref(false)
+
+const showLibraryModal = ref(false)
+
+function handleLibraryUsed(tmpl: Template) {
+    fetchTemplates()
+    openEditor(tmpl)
+}
 
 const editing = ref<Template | null>(null)
 const editName = ref('')
@@ -254,7 +262,12 @@ onMounted(fetchTemplates)
         <div v-else>
             <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <h1 class="text-2xl font-bold text-white">Templates</h1>
-                <AppButton @click="showCreateModal = true" class="w-auto! px-4">+ New Template</AppButton>
+                <div class="flex items-center gap-2">
+                    <AppButton variant="secondary" @click="showLibraryModal = true" class="w-auto! px-4">
+                        ★ Browse library
+                    </AppButton>
+                    <AppButton @click="showCreateModal = true" class="w-auto! px-4">+ New Template</AppButton>
+                </div>
             </div>
 
             <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
@@ -297,6 +310,13 @@ onMounted(fetchTemplates)
                 </AppButton>
             </form>
         </AppModal>
+
+        <TemplateLibraryBrowser
+            :show="showLibraryModal"
+            :project-id="props.project.id"
+            @close="showLibraryModal = false"
+            @used="handleLibraryUsed" />
+
 
         <AppModal :show="showDeleteModal" title="Delete Template" @close="showDeleteModal = false">
             <div class="space-y-4">
