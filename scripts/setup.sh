@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup.sh — SendDock self-host installer for Ubuntu.
+# setup.sh — SendDock self-host installer for Ubuntu and Arch Linux.
 #
 # Installs Docker (if missing), downloads the official compose file,
 # generates a .env with random secrets, and starts the stack
@@ -49,30 +49,58 @@ die()  { echo "${r}✗ $*${n}" >&2; exit 1; }
 [[ -r /etc/os-release ]] || die "Can't read /etc/os-release — unsupported distribution."
 # shellcheck disable=SC1091
 . /etc/os-release
-[[ "${ID:-}" == "ubuntu" ]] || die "This installer currently only supports Ubuntu (detected: ${PRETTY_NAME:-unknown}). For other distros, see https://docs.senddock.dev/self-hosting/installation"
+
+case "${ID:-}" in
+  ubuntu)
+    FAMILY="ubuntu"
+    ;;
+  arch|manjaro|endeavouros|cachyos|garuda)
+    FAMILY="arch"
+    ;;
+  *)
+    case "${ID_LIKE:-}" in
+      *arch*) FAMILY="arch" ;;
+      *) die "This installer supports Ubuntu and Arch-based distros (detected: ${PRETTY_NAME:-unknown}). For other distros, see https://docs.senddock.dev/self-hosting/installation" ;;
+    esac
+    ;;
+esac
 
 [[ $EUID -eq 0 ]] || die "Run with sudo: sudo bash setup.sh"
 
+ensure_pkg() {
+  local pkg="$1"
+  command -v "$pkg" >/dev/null 2>&1 && return 0
+  say "Installing missing dependency: $pkg"
+  case "$FAMILY" in
+    ubuntu) apt-get update -qq && apt-get install -y -qq "$pkg" ;;
+    arch)   pacman -Sy --noconfirm --needed "$pkg" ;;
+  esac
+}
+
 for cmd in curl openssl; do
-  command -v "$cmd" >/dev/null 2>&1 || {
-    say "Installing missing dependency: $cmd"
-    apt-get update -qq && apt-get install -y -qq "$cmd"
-  }
+  ensure_pkg "$cmd"
 done
 
 # --- Docker ------------------------------------------------------------------
 
 install_docker() {
-  say "Installing Docker (official repository)…"
-  apt-get update -qq
-  apt-get install -y -qq ca-certificates curl gnupg
-  install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-  chmod a+r /etc/apt/keyrings/docker.asc
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
-    > /etc/apt/sources.list.d/docker.list
-  apt-get update -qq
-  apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  say "Installing Docker…"
+  case "$FAMILY" in
+    ubuntu)
+      apt-get update -qq
+      apt-get install -y -qq ca-certificates curl gnupg
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      chmod a+r /etc/apt/keyrings/docker.asc
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
+        > /etc/apt/sources.list.d/docker.list
+      apt-get update -qq
+      apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      ;;
+    arch)
+      pacman -Sy --noconfirm --needed docker docker-buildx docker-compose
+      ;;
+  esac
   systemctl enable --now docker
   ok "Docker installed."
 }
@@ -232,6 +260,10 @@ SENDDOCK_LICENSE_KEY=
 
 # Per-IP request cap, rolling 60s window. Default 600. Only enforced with Redis.
 # RATE_LIMIT_PER_MINUTE=600
+
+# Manifest URL for the starter template library. Defaults to the public
+# Arkhe-Systems/senddock-templates repo. Uncomment to point at your own fork.
+# TEMPLATE_LIBRARY_URL=https://raw.githubusercontent.com/Arkhe-Systems/senddock-templates/main/index.json
 EOF
   chmod 600 .env
   ok ".env written (mode 600)."

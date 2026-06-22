@@ -104,45 +104,71 @@
 - [x] Webhooks management UI — PRO
 - [x] Per-webhook deliveries view — PRO
 
-## Phase 10: Team Members — PRO
-- [ ] Team members table + migration
-- [ ] Invite system
-- [ ] Role-based access (owner, admin, member, viewer)
-- [ ] Team member management endpoints
-- [ ] Team management UI
-
-## Phase 11: Advanced SMTP — PRO
-- [ ] Multi-SMTP configuration per project
-- [ ] Automatic failover between SMTP providers
-- [ ] SMTP health checking
-- [ ] Weighted SMTP routing
-
-## Phase 12: Admin Panel
-- [ ] Admin users table + migration
-- [ ] Admin authentication (separate from user auth)
-- [ ] User management (list, view, ban/unban)
-- [ ] Financial dashboard (subscriptions, revenue)
-- [ ] System health monitoring
-- [ ] Activation codes for plan upgrades
-
 ## Phase 13: Deployment & Self-hosting
 - [x] Production Dockerfile (multi-stage: Go build + Vue build)
 - [x] Docker Compose for self-hosting (app + postgres + redis)
 - [x] Go serves Vue static files (single binary/container)
-- [ ] Environment configuration documentation
 - [x] Health check endpoints for container orchestration
 - [ ] Graceful shutdown handling
-- [ ] CLI tool for admin tasks (create admin, reset password)
-
-## Phase 14: Enterprise Features — PRO
-- [ ] SSO / LDAP integration
-- [ ] Audit logs
-- [ ] White-label (remove SendDock branding)
-- [ ] Custom domain support
-- [ ] Data export tools
-- [ ] SLA monitoring
-- [ ] Internationalization (English + Spanish)
+- [ ] Environment configuration documentation
 
 ---
 
-Items marked **PRO** live in the private `senddock-pro` repository and are not included in the community edition.
+## Upcoming milestones
+
+Phases 1–9 above document the foundation that shipped. The list below groups upcoming work into release-themed milestones rather than fixed version numbers — specific version numbers and dates are decided at release time as scope settles. 1.0 is reserved for when the platform is genuinely polished end-to-end; it is not the next release. Milestones ship in the order listed, but each one may end up as several smaller patch releases depending on how the work breaks down.
+
+### Milestone: Marketing-ready
+
+Typed subscriber data + the first piece of segmentation, so SendDock stops being "send to everyone" and starts being a real marketing tool.
+
+- [ ] Tags + segmentation — [#40](https://github.com/Arkhe-Systems/senddock/issues/40) — Core
+- [ ] Custom fields for subscribers — [#72](https://github.com/Arkhe-Systems/senddock/issues/72) — Core
+- [ ] Starter template library — [#73](https://github.com/Arkhe-Systems/senddock/issues/73) — Core
+
+### Milestone: Acquisition
+
+Lower the friction of bringing users and existing subscriber lists into the platform.
+
+- [ ] Google OAuth sign-in — [#70](https://github.com/Arkhe-Systems/senddock/issues/70) — Core
+- [ ] Migration wizard (Mailchimp / EmailOctopus / ConvertKit) — [#74](https://github.com/Arkhe-Systems/senddock/issues/74) — Core
+- [ ] Embeddable signup form widget — [#75](https://github.com/Arkhe-Systems/senddock/issues/75) — Core
+
+### Milestone: Trust + automation foundation
+
+What teams evaluate before committing their list. Plus the first phase of drips — linear sequences cover most automation demand on their own.
+
+- [ ] Drip automations · Phase 1: linear sequences — [#77](https://github.com/Arkhe-Systems/senddock/issues/77) — Pro
+- [ ] DNS deliverability check (SPF / DKIM / DMARC) — [#64](https://github.com/Arkhe-Systems/senddock/issues/64) — Pro
+- [ ] GDPR / data subject tools — [#46](https://github.com/Arkhe-Systems/senddock/issues/46) — Core
+
+### Milestone: Automation parity
+
+Closes the marketing-automation gap with EmailOctopus and Mailchimp.
+
+- [ ] Drip automations · Phase 2: branches, all triggers, goal tracking — [#77](https://github.com/Arkhe-Systems/senddock/issues/77) — Pro
+- [ ] Polish + bug bash across previously shipped milestones
+
+### Backlog (no committed milestone)
+
+Picked up as demand surfaces or as bandwidth allows.
+
+- [ ] `senddock-cli` (admin & ops CLI) — [#76](https://github.com/Arkhe-Systems/senddock/issues/76) — Core
+- [ ] Multi-distro support for the one-line installer (Debian, Fedora, RHEL, openSUSE) — [#79](https://github.com/Arkhe-Systems/senddock/issues/79) — Core. Arch shipped in v0.6.8 ([#81](https://github.com/Arkhe-Systems/senddock/issues/81)); macOS tracked separately ([#82](https://github.com/Arkhe-Systems/senddock/issues/82)).
+- [ ] Custom tracking domain / white-label — [#45](https://github.com/Arkhe-Systems/senddock/issues/45) — Pro / Enterprise
+- [ ] Send-time heatmap and recommendation — [#51](https://github.com/Arkhe-Systems/senddock/issues/51) — Pro
+- [ ] Email approval workflow for broadcasts — [#59](https://github.com/Arkhe-Systems/senddock/issues/59) — Team
+
+### Deferred (no scheduled milestone)
+
+Captured for visibility, not actively scoped. Will be promoted when there is a concrete customer ask.
+
+- [ ] Multi-SMTP failover (was Phase 11) — Pro
+- [ ] Admin panel for cloud operators (was Phase 12)
+- [ ] SSO / LDAP integration (was Phase 14) — Enterprise
+- [ ] Internationalization (English + Spanish) (was Phase 14)
+- [ ] Resend campaign to non-openers — [#78](https://github.com/Arkhe-Systems/senddock/issues/78) — Pro
+
+---
+
+Items marked **Pro** or **Team** live in the private `senddock-pro` repository and are gated by `SENDDOCK_LICENSE_KEY`. They are not part of the AGPL Community edition.
