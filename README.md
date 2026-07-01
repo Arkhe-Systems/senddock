@@ -123,7 +123,7 @@ Both modes use the same BYO-SMTP model — Cloud removes the infrastructure work
 | | Self-hosted (this repo) | [Cloud](https://senddock.dev) |
 |---|---|---|
 | Setup | One curl command, ~60s | Zero — just sign up |
-| Cost | $0 (Core) or $9/mo (Pro license) + your SMTP + your VPS | Free up to 1k subs, $19/mo for 10k, scales by tier |
+| Cost | $0 (Core) or $9/mo (Pro license) + your SMTP + your VPS | Free up to 2,000 subs, $19/mo for 10k, scales by tier |
 | Bring your own SMTP | Yes | Yes — same model |
 | You upgrade the app | `docker compose pull` or one-click in UI | Automatic |
 | Backups, monitoring, uptime | Your responsibility | Handled |

@@ -81,7 +81,7 @@ SENDDOCK_LICENSE_KEY=
 ```
 
 ::: info Self-hosted prices below are flat per instance
-The `$9` and `$29` prices on this page are the **self-hosted** rates — one license per SendDock instance, unlimited subscribers, unlimited sends. The [managed cloud at senddock.dev](https://senddock.dev/#pricing) is live and priced separately on a per-subscriber tier basis (Free up to 1k, then $19 / $49 / $129 per month) because we operate the platform for you. BYO SMTP applies to both — neither path charges per send.
+The `$9` and `$29` prices on this page are the **self-hosted** rates — one license per SendDock instance, unlimited subscribers, unlimited sends. The [managed cloud at senddock.dev](https://senddock.dev/#pricing) is live and priced separately on a per-subscriber tier basis (Free up to 2,000, then $19 / $49 / $129 per month) because we operate the platform for you. BYO SMTP applies to both — neither path charges per send.
 :::
 
 ### What each tier unlocks
