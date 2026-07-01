@@ -1,0 +1,30 @@
+name: Version guard
+
+# Fail loudly if a version tag is pushed while backend/internal/version/version.go
+# still holds a different version. Without this, the binary reports the stale
+# version and every self-hosted instance shows a permanent "Update available".
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      expected:
+        description: "Version to check version.go against (e.g. 0.6.8)"
+        required: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify version.go matches the release version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            bash scripts/check-version.sh "${{ github.event.inputs.expected }}"
+          else
+            bash scripts/check-version.sh "${GITHUB_REF_NAME#v}"
+          fi

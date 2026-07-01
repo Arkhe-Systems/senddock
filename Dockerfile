@@ -6,13 +6,18 @@ COPY frontend/ .
 RUN npm run build
 
 FROM golang:1.25-alpine AS backend
+# Version stamped into the binary so /version reports the released tag.
+# Injected from the release tag in CI; defaults to "dev" for local builds.
+ARG VERSION=dev
 RUN apk add --no-cache git
 WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ .
 COPY --from=frontend /app/frontend/dist ../frontend/dist
-RUN CGO_ENABLED=0 go build -o /senddock cmd/server/main.go
+RUN CGO_ENABLED=0 go build \
+    -ldflags="-X github.com/arkhe-systems/senddock/internal/version.Version=${VERSION}" \
+    -o /senddock cmd/server/main.go
 RUN go install github.com/pressly/goose/v3/cmd/goose@latest
 
 FROM alpine:3.20
