@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/cache"
-	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
+	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/google/uuid"
 )
 
@@ -39,13 +39,13 @@ func nullUUIDStr(v uuid.NullUUID) string {
 }
 
 const (
-	maxBatchRecipients     = 500
-	sendRateLimit          = 60
-	sendRateWindow         = time.Minute
-	batchRateLimit         = 10
-	batchRateWindow        = time.Minute
-	broadcastRateLimit     = 5
-	broadcastRateWindow    = time.Hour
+	maxBatchRecipients  = 500
+	sendRateLimit       = 60
+	sendRateWindow      = time.Minute
+	batchRateLimit      = 10
+	batchRateWindow     = time.Minute
+	broadcastRateLimit  = 5
+	broadcastRateWindow = time.Hour
 )
 
 type EmailHandler struct {
@@ -95,6 +95,7 @@ type broadcastRequest struct {
 	TemplateID string            `json:"template_id"`
 	Subject    string            `json:"subject"`
 	Variables  map[string]string `json:"variables"`
+	SegmentID  string            `json:"segment_id"`
 }
 
 type batchRecipient struct {
@@ -219,7 +220,7 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		varsJSON, _ = json.Marshal(req.Variables)
 	}
 
-	result, err := h.emailService.Broadcast(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.Subject, varsJSON)
+	result, err := h.emailService.Broadcast(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.Subject, varsJSON, req.SegmentID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -276,7 +277,7 @@ func (h *EmailHandler) BatchSend(w http.ResponseWriter, r *http.Request) {
 			failed++
 			continue
 		}
-		err := h.emailService.SendWithTemplate(r.Context(), projectID, req.TemplateID, rcpt.To, req.Subject, rcpt.Data)
+		err := h.emailService.SendWithTemplate(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, rcpt.To, req.Subject, rcpt.Data)
 		if errors.Is(err, service.ErrRecipientSuppressed) {
 			suppressed++
 			continue

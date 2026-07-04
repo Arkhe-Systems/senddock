@@ -44,15 +44,15 @@ type App struct {
 
 	worker          *service.CampaignWorker
 	broadcastWorker *service.BroadcastWorker
-	webhooks     *webhooks.Service
-	suppressions *service.SuppressionService
-	audit        *service.AuditService
-	bouncePoller *service.BounceIMAPPoller
-	workspaces   *service.WorkspaceService
-	projects     *service.ProjectService
-	subscribers  *service.SubscriberService
-	watchtower   *service.WatchtowerClient
-	authHandler  *handler.AuthHandler
+	webhooks        *webhooks.Service
+	suppressions    *service.SuppressionService
+	audit           *service.AuditService
+	bouncePoller    *service.BounceIMAPPoller
+	workspaces      *service.WorkspaceService
+	projects        *service.ProjectService
+	subscribers     *service.SubscriberService
+	watchtower      *service.WatchtowerClient
+	authHandler     *handler.AuthHandler
 
 	server *http.Server
 
@@ -313,6 +313,9 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	authService := service.NewAuthService(queries, cfg.JWTSecret)
 	authHandler := handler.NewAuthHandler(authService)
+	if a.cache != nil {
+		authHandler.SetLoginLimiter(a.cache)
+	}
 	a.authHandler = authHandler
 
 	projectService := service.NewProjectService(queries, cfg.JWTSecret)
@@ -324,10 +327,20 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, projectService)
 
 	emailValidator := service.NewEmailValidator()
+	fieldService := service.NewFieldDefinitionService(queries)
 	subscriberService := service.NewSubscriberService(queries, a.webhooks, emailValidator, a.suppressions)
+	subscriberService.SetFieldService(fieldService)
 	a.subscribers = subscriberService
 	suppressionHandler := handler.NewSuppressionHandler(a.suppressions, projectService)
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
+	fieldHandler := handler.NewFieldDefinitionHandler(fieldService, projectService)
+
+	segmentService := service.NewSegmentService(queries, a.conn)
+	emailService.SetSegmentService(segmentService)
+	segmentHandler := handler.NewSegmentHandler(segmentService, projectService)
+
+	webhookService := service.NewWebhookService(queries)
+	webhookHandler := handler.NewWebhookHandler(webhookService, projectService)
 
 	templateService := service.NewTemplateService(queries)
 	templateLibraryService := service.NewTemplateLibraryService(cfg.TemplateLibraryURL, a.cache)
@@ -345,6 +358,9 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 
 	projectHandler.Audit = a.audit
 	subscriberHandler.Audit = a.audit
+	fieldHandler.Audit = a.audit
+	segmentHandler.Audit = a.audit
+	webhookHandler.Audit = a.audit
 	apiKeyHandler.Audit = a.audit
 	emailHandler.Audit = a.audit
 	suppressionHandler.Audit = a.audit
@@ -567,6 +583,27 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("PATCH /api/v1/projects/{id}/subscribers/{subscriberId}", authMW(http.HandlerFunc(subscriberHandler.UpdateStatus)))
 	mux.Handle("DELETE /api/v1/projects/{id}/subscribers/{subscriberId}", authMW(http.HandlerFunc(subscriberHandler.Delete)))
 	mux.Handle("POST /api/v1/projects/{id}/subscribers/import", eitherAuth(http.HandlerFunc(subscriberHandler.Import)))
+
+	mux.Handle("POST /api/v1/projects/{id}/fields", authMW(http.HandlerFunc(fieldHandler.Create)))
+	mux.Handle("GET /api/v1/projects/{id}/fields", authMW(http.HandlerFunc(fieldHandler.List)))
+	mux.Handle("PATCH /api/v1/projects/{id}/fields/{fieldId}", authMW(http.HandlerFunc(fieldHandler.Update)))
+	mux.Handle("DELETE /api/v1/projects/{id}/fields/{fieldId}", authMW(http.HandlerFunc(fieldHandler.Delete)))
+
+	mux.Handle("GET /api/v1/projects/{id}/tags", authMW(http.HandlerFunc(subscriberHandler.ListTags)))
+	mux.Handle("PUT /api/v1/projects/{id}/subscribers/{subscriberId}/tags", authMW(http.HandlerFunc(subscriberHandler.SetTags)))
+
+	mux.Handle("POST /api/v1/projects/{id}/segments", authMW(http.HandlerFunc(segmentHandler.Create)))
+	mux.Handle("GET /api/v1/projects/{id}/segments", authMW(http.HandlerFunc(segmentHandler.List)))
+	mux.Handle("POST /api/v1/projects/{id}/segments/preview", authMW(http.HandlerFunc(segmentHandler.Preview)))
+	mux.Handle("PATCH /api/v1/projects/{id}/segments/{segmentId}", authMW(http.HandlerFunc(segmentHandler.Update)))
+	mux.Handle("DELETE /api/v1/projects/{id}/segments/{segmentId}", authMW(http.HandlerFunc(segmentHandler.Delete)))
+
+	mux.Handle("POST /api/v1/projects/{id}/webhooks", authMW(http.HandlerFunc(webhookHandler.Create)))
+	mux.Handle("GET /api/v1/projects/{id}/webhooks", authMW(http.HandlerFunc(webhookHandler.List)))
+	mux.Handle("GET /api/v1/projects/{id}/webhooks/{webhookId}", authMW(http.HandlerFunc(webhookHandler.Get)))
+	mux.Handle("PATCH /api/v1/projects/{id}/webhooks/{webhookId}", authMW(http.HandlerFunc(webhookHandler.Patch)))
+	mux.Handle("DELETE /api/v1/projects/{id}/webhooks/{webhookId}", authMW(http.HandlerFunc(webhookHandler.Delete)))
+	mux.Handle("GET /api/v1/projects/{id}/webhooks/{webhookId}/deliveries", authMW(http.HandlerFunc(webhookHandler.Deliveries)))
 
 	mux.Handle("GET /api/v1/projects/{id}/suppressions", authMW(http.HandlerFunc(suppressionHandler.List)))
 	mux.Handle("POST /api/v1/projects/{id}/suppressions", authMW(http.HandlerFunc(suppressionHandler.Add)))
