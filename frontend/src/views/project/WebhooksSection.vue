@@ -2,14 +2,12 @@
 import { ref, onMounted, computed } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
-import { useLicenseStore } from '@/stores/license'
 import type { Project } from '@/stores/projects'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
-import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 
 interface Webhook {
     id: string
@@ -44,11 +42,10 @@ const ALL_EVENTS = [
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
-const licenseStore = useLicenseStore()
 
 const webhooks = ref<Webhook[]>([])
 const loading = ref(true)
-const errorState = ref<'none' | 'paywall' | 'generic'>('none')
+const errorState = ref<'none' | 'generic'>('none')
 
 const showCreate = ref(false)
 const creating = ref(false)
@@ -72,19 +69,11 @@ const sortedWebhooks = computed(() =>
 async function load() {
     loading.value = true
     errorState.value = 'none'
-    await licenseStore.fetch()
-    if (!licenseStore.allowsPro) {
-        errorState.value = 'paywall'
-        loading.value = false
-        return
-    }
     try {
         const res = await api<{ webhooks: Webhook[] }>(`/projects/${props.project.id}/webhooks`)
         webhooks.value = res.webhooks ?? []
-    } catch (e) {
-        const msg = e instanceof Error ? e.message : ''
-        if (msg.includes('license required')) errorState.value = 'paywall'
-        else errorState.value = 'generic'
+    } catch {
+        errorState.value = 'generic'
     } finally {
         loading.value = false
     }
@@ -215,10 +204,7 @@ onMounted(load)
     <div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-bold text-white">Webhooks</h1>
-                    <span class="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">Pro</span>
-                </div>
+                <h1 class="text-2xl font-bold text-white">Webhooks</h1>
                 <p class="text-sm text-zinc-500 mt-1">Receive HTTP notifications when events happen in this project</p>
             </div>
             <button v-if="errorState === 'none' && !loading" @click="openCreate"
@@ -228,10 +214,6 @@ onMounted(load)
         </div>
 
         <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
-
-        <AppProPaywall v-else-if="errorState === 'paywall'"
-            title="Webhooks"
-            description="Webhook delivery, signed payloads and retries for real-time event notifications in your own systems." />
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">

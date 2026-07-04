@@ -20,6 +20,11 @@ WHERE id = $1 AND project_id = $2;
 SELECT * FROM webhooks
 WHERE id = $1;
 
+-- name: UpdateWebhookActive :one
+UPDATE webhooks SET active = $3
+WHERE id = $1 AND project_id = $2
+RETURNING *;
+
 -- name: DeleteWebhook :exec
 DELETE FROM webhooks
 WHERE id = $1 AND project_id = $2;

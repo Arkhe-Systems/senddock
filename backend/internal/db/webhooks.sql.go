@@ -382,3 +382,30 @@ func (q *Queries) MarkDeliverySuccess(ctx context.Context, arg MarkDeliverySucce
 	_, err := q.db.ExecContext(ctx, markDeliverySuccess, arg.ID, arg.LastStatusCode)
 	return err
 }
+
+const updateWebhookActive = `-- name: UpdateWebhookActive :one
+UPDATE webhooks SET active = $3
+WHERE id = $1 AND project_id = $2
+RETURNING id, project_id, url, secret, events, active, created_at
+`
+
+type UpdateWebhookActiveParams struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Active    bool
+}
+
+func (q *Queries) UpdateWebhookActive(ctx context.Context, arg UpdateWebhookActiveParams) (Webhook, error) {
+	row := q.db.QueryRowContext(ctx, updateWebhookActive, arg.ID, arg.ProjectID, arg.Active)
+	var i Webhook
+	err := row.Scan(
+		&i.ID,
+		&i.ProjectID,
+		&i.Url,
+		&i.Secret,
+		pq.Array(&i.Events),
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
