@@ -1,6 +1,6 @@
 -- name: CreateSubscriber :one
-INSERT INTO subscribers (project_id, email, name, status)
-VALUES ($1, $2, $3, $4)
+INSERT INTO subscribers (project_id, email, name, status, metadata, tags)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: GetSubscriberByID :one
@@ -41,6 +41,38 @@ UPDATE subscribers SET
     updated_at = NOW()
 WHERE id = $1 AND project_id = $2
 RETURNING *;
+
+-- name: UpdateSubscriberMetadata :one
+UPDATE subscribers SET
+    metadata = $3,
+    updated_at = NOW()
+WHERE id = $1 AND project_id = $2
+RETURNING *;
+
+-- name: SetSubscriberTags :one
+UPDATE subscribers SET
+    tags = $3,
+    updated_at = NOW()
+WHERE id = $1 AND project_id = $2
+RETURNING *;
+
+-- name: ListDistinctTagsByProject :many
+SELECT DISTINCT unnest(tags)::text AS tag
+FROM subscribers
+WHERE project_id = $1
+ORDER BY tag;
+
+-- name: BulkAddSubscriberTags :exec
+UPDATE subscribers SET
+    tags = ARRAY(SELECT DISTINCT unnest(tags || $3::text[])),
+    updated_at = NOW()
+WHERE project_id = $1 AND id = ANY($2::uuid[]);
+
+-- name: BulkRemoveSubscriberTags :exec
+UPDATE subscribers SET
+    tags = ARRAY(SELECT unnest(tags) EXCEPT SELECT unnest($3::text[])),
+    updated_at = NOW()
+WHERE project_id = $1 AND id = ANY($2::uuid[]);
 
 -- name: DeleteSubscriber :exec
 DELETE FROM subscribers WHERE id = $1 AND project_id = $2;

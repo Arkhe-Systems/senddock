@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/internal/webhooks"
@@ -16,6 +18,7 @@ type SubscriberService struct {
 	validator    *EmailValidator
 	suppressions *SuppressionService
 	quota        QuotaGate
+	fields       *FieldDefinitionService
 }
 
 func NewSubscriberService(queries *db.Queries, hooks WebhookDispatcher, validator *EmailValidator, suppressions *SuppressionService) *SubscriberService {
@@ -26,7 +29,21 @@ func (s *SubscriberService) SetQuotaGate(g QuotaGate) {
 	s.quota = g
 }
 
-func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, status string) (db.Subscriber, error) {
+func (s *SubscriberService) SetFieldService(f *FieldDefinitionService) {
+	s.fields = f
+}
+
+func (s *SubscriberService) validateFields(ctx context.Context, projectID string, fields map[string]any) (json.RawMessage, error) {
+	if s.fields != nil {
+		return s.fields.ValidateFields(ctx, projectID, fields)
+	}
+	if len(fields) == 0 {
+		return json.RawMessage("{}"), nil
+	}
+	return json.Marshal(fields)
+}
+
+func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, status string, fields map[string]any, tags []string) (db.Subscriber, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return db.Subscriber{}, errors.New("invalid project id")
@@ -34,6 +51,11 @@ func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, 
 
 	if status == "" {
 		status = "active"
+	}
+
+	metadata, err := s.validateFields(ctx, projectID, fields)
+	if err != nil {
+		return db.Subscriber{}, err
 	}
 
 	if s.quota != nil {
@@ -47,6 +69,8 @@ func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, 
 		Email:     email,
 		Name:      name,
 		Status:    status,
+		Metadata:  metadata,
+		Tags:      normalizeTags(tags),
 	})
 	if err != nil {
 		return sub, err
@@ -54,6 +78,115 @@ func (s *SubscriberService) Create(ctx context.Context, projectID, email, name, 
 
 	s.dispatch(ctx, "subscriber.created", sub)
 	return sub, nil
+}
+
+func normalizeTags(tags []string) []string {
+	result := make([]string, 0, len(tags))
+	seen := make(map[string]bool, len(tags))
+	for _, tag := range tags {
+		trimmed := strings.TrimSpace(tag)
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		result = append(result, trimmed)
+	}
+	return result
+}
+
+func (s *SubscriberService) SetTags(ctx context.Context, subscriberID, projectID string, tags []string) (db.Subscriber, error) {
+	sid, err := uuid.Parse(subscriberID)
+	if err != nil {
+		return db.Subscriber{}, errors.New("invalid subscriber id")
+	}
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.Subscriber{}, errors.New("invalid project id")
+	}
+	return s.queries.SetSubscriberTags(ctx, db.SetSubscriberTagsParams{
+		ID:        sid,
+		ProjectID: pid,
+		Tags:      normalizeTags(tags),
+	})
+}
+
+func (s *SubscriberService) ListTags(ctx context.Context, projectID string) ([]string, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return nil, errors.New("invalid project id")
+	}
+	tags, err := s.queries.ListDistinctTagsByProject(ctx, pid)
+	if err != nil {
+		return nil, err
+	}
+	if tags == nil {
+		return []string{}, nil
+	}
+	return tags, nil
+}
+
+func (s *SubscriberService) parseIDs(ids []string) []uuid.UUID {
+	uuids := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if uid, err := uuid.Parse(id); err == nil {
+			uuids = append(uuids, uid)
+		}
+	}
+	return uuids
+}
+
+func (s *SubscriberService) BulkAddTags(ctx context.Context, projectID string, ids, tags []string) error {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return errors.New("invalid project id")
+	}
+	uuids := s.parseIDs(ids)
+	if len(uuids) == 0 {
+		return nil
+	}
+	return s.queries.BulkAddSubscriberTags(ctx, db.BulkAddSubscriberTagsParams{
+		ProjectID: pid,
+		Column2:   uuids,
+		Column3:   normalizeTags(tags),
+	})
+}
+
+func (s *SubscriberService) BulkRemoveTags(ctx context.Context, projectID string, ids, tags []string) error {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return errors.New("invalid project id")
+	}
+	uuids := s.parseIDs(ids)
+	if len(uuids) == 0 {
+		return nil
+	}
+	return s.queries.BulkRemoveSubscriberTags(ctx, db.BulkRemoveSubscriberTagsParams{
+		ProjectID: pid,
+		Column2:   uuids,
+		Column3:   normalizeTags(tags),
+	})
+}
+
+func (s *SubscriberService) UpdateFields(ctx context.Context, subscriberID, projectID string, fields map[string]any) (db.Subscriber, error) {
+	sid, err := uuid.Parse(subscriberID)
+	if err != nil {
+		return db.Subscriber{}, errors.New("invalid subscriber id")
+	}
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.Subscriber{}, errors.New("invalid project id")
+	}
+
+	metadata, err := s.validateFields(ctx, projectID, fields)
+	if err != nil {
+		return db.Subscriber{}, err
+	}
+
+	return s.queries.UpdateSubscriberMetadata(ctx, db.UpdateSubscriberMetadataParams{
+		ID:        sid,
+		ProjectID: pid,
+		Metadata:  metadata,
+	})
 }
 
 func (s *SubscriberService) dispatch(ctx context.Context, eventType string, sub db.Subscriber) {
@@ -90,9 +223,11 @@ type RejectedRow struct {
 }
 
 type ImportSubscriber struct {
-	Email  string `json:"email"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	Email  string         `json:"email"`
+	Name   string         `json:"name"`
+	Status string         `json:"status"`
+	Fields map[string]any `json:"fields"`
+	Tags   []string       `json:"tags"`
 }
 
 type ImportOptions struct {
@@ -140,11 +275,20 @@ func (s *SubscriberService) BulkImport(ctx context.Context, projectID string, su
 		if status == "" {
 			status = "active"
 		}
-		_, err := s.queries.CreateSubscriber(ctx, db.CreateSubscriberParams{
+
+		metadata, err := s.validateFields(ctx, projectID, sub.Fields)
+		if err != nil {
+			result.Rejected = append(result.Rejected, RejectedRow{Email: normalized, Name: sub.Name, Reason: err.Error()})
+			continue
+		}
+
+		_, err = s.queries.CreateSubscriber(ctx, db.CreateSubscriberParams{
 			ProjectID: pid,
 			Email:     normalized,
 			Name:      sub.Name,
 			Status:    status,
+			Metadata:  metadata,
+			Tags:      normalizeTags(sub.Tags),
 		})
 		if err != nil {
 			result.Duplicates++

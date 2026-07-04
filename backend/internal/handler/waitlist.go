@@ -53,7 +53,7 @@ func (h *WaitlistHandler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.subscriberService.Create(r.Context(), projectID, req.Email, "", "pending")
+	_, err := h.subscriberService.Create(r.Context(), projectID, req.Email, "", "pending", nil, nil)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)

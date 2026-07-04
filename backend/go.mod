@@ -3,22 +3,24 @@ module github.com/arkhe-systems/senddock
 go 1.25.7
 
 require (
+	github.com/PuerkitoBio/goquery v1.12.0
+	github.com/emersion/go-imap/v2 v2.0.0-beta.8
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.11.2
+	github.com/pquerna/otp v1.5.0
 	github.com/redis/go-redis/v9 v9.18.0
+	github.com/sqlc-dev/pqtype v0.3.0
 	github.com/vanng822/go-premailer v1.33.0
 	golang.org/x/crypto v0.49.0
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.12.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/emersion/go-imap/v2 v2.0.0-beta.8 // indirect
 	github.com/emersion/go-message v0.18.2 // indirect
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6 // indirect
 	github.com/fatih/color v1.18.0 // indirect
@@ -30,9 +32,7 @@ require (
 	github.com/olekukonko/errors v1.1.0 // indirect
 	github.com/olekukonko/ll v0.0.9 // indirect
 	github.com/olekukonko/tablewriter v1.0.7 // indirect
-	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/sqlc-dev/pqtype v0.3.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
 	github.com/vanng822/css v1.0.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
