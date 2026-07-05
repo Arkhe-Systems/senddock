@@ -12,7 +12,9 @@
     "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@codemirror/lang-html": "^6.4.11",
@@ -34,12 +36,14 @@
     "@types/node": "^24.10.13",
     "@vitejs/plugin-vue": "^6.0.4",
     "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.8.1",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-oxlint": "~1.50.0",
     "eslint-plugin-vue": "~10.8.0",
     "jiti": "^2.6.1",
+    "jsdom": "^29.1.1",
     "npm-run-all2": "^8.0.4",
     "oxlint": "~1.50.0",
     "prettier": "^3.8.1",
@@ -47,6 +51,7 @@
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-vue-devtools": "^8.0.6",
+    "vitest": "^4.1.9",
     "vue-tsc": "^3.2.5"
   },
   "engines": {
