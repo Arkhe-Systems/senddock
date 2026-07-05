@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
+import { useFieldStore } from '@/stores/fields'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -9,26 +10,95 @@ import AppModal from '@/components/ui/AppModal.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import SubscriberFieldInputs from '@/components/SubscriberFieldInputs.vue'
+import AppTagInput from '@/components/ui/AppTagInput.vue'
+import { validateFieldValues } from '@/utils/fieldValidation'
 
 interface Subscriber {
     id: string
     email: string
     name: string
     status: string
+    fields: Record<string, any>
+    tags: string[]
     created_at: string
 }
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
+const fieldStore = useFieldStore()
+
+const fieldDefinitions = computed(() => fieldStore.fields(props.project.id))
 
 const subscribers = ref<Subscriber[]>([])
 const total = ref(0)
 const loading = ref(true)
 
+const tagSuggestions = ref<string[]>([])
+
 const showAddModal = ref(false)
 const newEmail = ref('')
 const newName = ref('')
+const newFields = ref<Record<string, any>>({})
+const newTags = ref<string[]>([])
 const addLoading = ref(false)
+const addEmailError = ref('')
+const addFieldErrors = ref<Record<string, string>>({})
+
+const showEditModal = ref(false)
+const editingSubscriber = ref<Subscriber | null>(null)
+const editFields = ref<Record<string, any>>({})
+const editTags = ref<string[]>([])
+const editLoading = ref(false)
+const editFieldErrors = ref<Record<string, string>>({})
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function openAddModal() {
+    newEmail.value = ''
+    newName.value = ''
+    newFields.value = {}
+    newTags.value = []
+    addEmailError.value = ''
+    addFieldErrors.value = {}
+    showAddModal.value = true
+}
+
+const showBulkTagModal = ref(false)
+const bulkTags = ref<string[]>([])
+const bulkTagLoading = ref(false)
+
+async function fetchTagSuggestions() {
+    try {
+        tagSuggestions.value = await api<string[]>(`/projects/${props.project.id}/tags`) || []
+    } catch {
+        tagSuggestions.value = []
+    }
+}
+
+async function handleBulkTags(action: 'add_tags' | 'remove_tags') {
+    if (bulkTags.value.length === 0) {
+        toast.error('Add at least one tag')
+        return
+    }
+    bulkTagLoading.value = true
+    try {
+        await api(`/projects/${props.project.id}/subscribers/bulk`, {
+            method: 'POST',
+            body: { action, tags: bulkTags.value, subscriber_ids: selectedIds.value },
+        })
+        toast.success('Tags updated')
+        showBulkTagModal.value = false
+        bulkTags.value = []
+        selectedIds.value = []
+        fetchSubscribers()
+        fetchTagSuggestions()
+    } catch (e: any) {
+        toast.error(e.message || 'Failed to update tags')
+    } finally {
+        bulkTagLoading.value = false
+    }
+}
 
 const showImportModal = ref(false)
 const importText = ref('')
@@ -119,26 +189,73 @@ async function fetchSubscribers() {
 }
 
 async function handleAdd() {
-    if (!newEmail.value) {
-        toast.error('Email is required')
+    addEmailError.value = ''
+    if (!newEmail.value.trim()) {
+        addEmailError.value = 'Email is required'
+    } else if (!EMAIL_RE.test(newEmail.value.trim())) {
+        addEmailError.value = 'Enter a valid email address'
+    }
+    addFieldErrors.value = validateFieldValues(fieldDefinitions.value, newFields.value)
+    if (addEmailError.value || Object.keys(addFieldErrors.value).length > 0) {
         return
     }
+
     addLoading.value = true
     try {
         await api(`/projects/${props.project.id}/subscribers`, {
             method: 'POST',
-            body: { email: newEmail.value, name: newName.value },
+            body: { email: newEmail.value.trim(), name: newName.value, fields: newFields.value, tags: newTags.value },
         })
         showAddModal.value = false
-        newEmail.value = ''
-        newName.value = ''
         toast.success('Subscriber added')
         fetchSubscribers()
+        fetchTagSuggestions()
     } catch (e: any) {
         toast.error(e.message || 'Failed to add subscriber')
     } finally {
         addLoading.value = false
     }
+}
+
+function openEditModal(sub: Subscriber) {
+    editingSubscriber.value = sub
+    editFields.value = { ...sub.fields }
+    editTags.value = [...(sub.tags ?? [])]
+    editFieldErrors.value = {}
+    showEditModal.value = true
+}
+
+async function handleEditFields() {
+    if (!editingSubscriber.value) return
+    editFieldErrors.value = validateFieldValues(fieldDefinitions.value, editFields.value)
+    if (Object.keys(editFieldErrors.value).length > 0) return
+    editLoading.value = true
+    const id = editingSubscriber.value.id
+    try {
+        await api(`/projects/${props.project.id}/subscribers/${id}`, {
+            method: 'PATCH',
+            body: { fields: editFields.value },
+        })
+        await api(`/projects/${props.project.id}/subscribers/${id}/tags`, {
+            method: 'PUT',
+            body: { tags: editTags.value },
+        })
+        showEditModal.value = false
+        editingSubscriber.value = null
+        toast.success('Subscriber updated')
+        fetchSubscribers()
+        fetchTagSuggestions()
+    } catch (e: any) {
+        toast.error(e.message || 'Failed to update subscriber')
+    } finally {
+        editLoading.value = false
+    }
+}
+
+function formatFieldValue(value: any): string {
+    if (value === undefined || value === null || value === '') return '-'
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+    return String(value)
 }
 
 async function toggleStatus(sub: Subscriber) {
@@ -182,23 +299,70 @@ async function handleDelete() {
     }
 }
 
-function parseImportText(text: string): { email: string; name: string }[] {
-    const rows: { email: string; name: string }[] = []
+interface ImportRow { email: string; name: string; fields: Record<string, any> }
+
+function splitCsvLine(line: string): string[] {
+    return line.split(',').map(p => p.trim().replace(/^"|"$/g, ''))
+}
+
+function resolveFieldKey(header: string): string | null {
+    const normalized = header.trim().toLowerCase()
+    for (const def of fieldDefinitions.value) {
+        if (def.key.toLowerCase() === normalized || def.label.toLowerCase() === normalized) {
+            return def.key
+        }
+    }
+    return null
+}
+
+function coerceFieldValue(key: string, raw: string): any {
+    const def = fieldDefinitions.value.find(d => d.key === key)
+    if (!def) return raw
+    if (def.field_type === 'number') {
+        const parsed = Number(raw)
+        return Number.isNaN(parsed) ? raw : parsed
+    }
+    if (def.field_type === 'boolean') {
+        return ['true', '1', 'yes', 'y'].includes(raw.toLowerCase())
+    }
+    return raw
+}
+
+function parseImportText(text: string): ImportRow[] {
+    const rows: ImportRow[] = []
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
     if (lines.length === 0) return rows
 
     let startIdx = 0
+    const columnKeys: (string | null)[] = []
     const first = lines[0]!.toLowerCase()
-    if (first.startsWith('email,') || first === 'email' || first.startsWith('email ')) {
+    const hasHeader = first.startsWith('email,') || first === 'email' || first.startsWith('email ')
+    if (hasHeader) {
         startIdx = 1
+        const headers = splitCsvLine(lines[0]!)
+        headers.forEach((header, idx) => {
+            if (idx === 0 || idx === 1) {
+                columnKeys.push(null)
+            } else {
+                columnKeys.push(resolveFieldKey(header))
+            }
+        })
     }
 
     for (let i = startIdx; i < lines.length; i++) {
-        const line = lines[i]!
-        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''))
+        const parts = splitCsvLine(lines[i]!)
         const email = parts[0] ?? ''
         const name = parts[1] ?? ''
-        if (email) rows.push({ email, name })
+        if (!email) continue
+        const fields: Record<string, any> = {}
+        for (let c = 2; c < parts.length; c++) {
+            const key = columnKeys[c]
+            const value = parts[c]
+            if (key && value !== undefined && value !== '') {
+                fields[key] = coerceFieldValue(key, value)
+            }
+        }
+        rows.push({ email, name, fields })
     }
     return rows
 }
@@ -283,7 +447,11 @@ function handleFileDrop(event: DragEvent) {
     if (file) readFile(file)
 }
 
-onMounted(fetchSubscribers)
+onMounted(() => {
+    fetchSubscribers()
+    fieldStore.fetchFields(props.project.id)
+    fetchTagSuggestions()
+})
 </script>
 
 <template>
@@ -295,7 +463,7 @@ onMounted(fetchSubscribers)
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <AppButton variant="ghost" size="sm" @click="showImportModal = true">Import CSV</AppButton>
-                <AppButton size="sm" @click="showAddModal = true">+ Add Subscriber</AppButton>
+                <AppButton size="sm" @click="openAddModal">+ Add Subscriber</AppButton>
             </div>
         </div>
 
@@ -308,6 +476,9 @@ onMounted(fetchSubscribers)
                     <option value="pending">Mark Pending</option>
                     <option value="unsubscribed">Mark Unsubscribed</option>
                 </select>
+                <button @click="showBulkTagModal = true" class="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-3 py-1.5 text-white hover:bg-zinc-800 transition cursor-pointer">
+                    Tags
+                </button>
                 <button @click="confirmBulkDelete" :disabled="bulkLoading" class="text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-md px-3 py-1.5 transition cursor-pointer disabled:opacity-50">
                     Delete
                 </button>
@@ -325,6 +496,8 @@ onMounted(fetchSubscribers)
                         </th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Email</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Name</th>
+                        <th v-for="def in fieldDefinitions" :key="def.id" class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">{{ def.label }}</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Tags</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Status</th>
                         <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Added</th>
                         <th class="text-right px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Actions</th>
@@ -337,6 +510,13 @@ onMounted(fetchSubscribers)
                         </td>
                         <td class="px-4 py-3 text-sm text-white">{{ sub.email }}</td>
                         <td class="px-4 py-3 text-sm text-zinc-400">{{ sub.name || '-' }}</td>
+                        <td v-for="def in fieldDefinitions" :key="def.id" class="px-4 py-3 text-sm text-zinc-400">{{ formatFieldValue(sub.fields?.[def.key]) }}</td>
+                        <td class="px-4 py-3">
+                            <div v-if="sub.tags?.length" class="flex flex-wrap gap-1">
+                                <span v-for="tag in sub.tags" :key="tag" class="text-xs bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded border border-zinc-700">{{ tag }}</span>
+                            </div>
+                            <span v-else class="text-sm text-zinc-600">-</span>
+                        </td>
                         <td class="px-4 py-3">
                             <span :class="[
                                 'text-xs px-2 py-1 rounded-full',
@@ -349,6 +529,10 @@ onMounted(fetchSubscribers)
                         </td>
                         <td class="px-4 py-3 text-sm text-zinc-500">{{ new Date(sub.created_at).toLocaleDateString() }}</td>
                         <td class="px-4 py-3 text-right space-x-3">
+                            <button @click="openEditModal(sub)"
+                                class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
+                                Edit
+                            </button>
                             <button @click="toggleStatus(sub)"
                                 class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
                                 {{ sub.status === 'active' ? 'Unsubscribe' : 'Activate' }}
@@ -375,13 +559,36 @@ onMounted(fetchSubscribers)
             @change="fetchSubscribers" />
 
         <AppModal :show="showAddModal" title="Add Subscriber" @close="showAddModal = false">
-            <form @submit.prevent="handleAdd" class="space-y-4">
-                <AppInput v-model="newEmail" label="Email" type="email" placeholder="subscriber@example.com" required />
+            <form @submit.prevent="handleAdd" class="space-y-4" novalidate>
+                <AppInput v-model="newEmail" label="Email" type="email" placeholder="subscriber@example.com" :error="addEmailError" />
                 <AppInput v-model="newName" label="Name" placeholder="John Doe" />
+                <SubscriberFieldInputs v-model="newFields" :definitions="fieldDefinitions" :errors="addFieldErrors" />
+                <AppTagInput v-model="newTags" label="Tags" :suggestions="tagSuggestions" />
                 <AppButton :loading="addLoading">
                     {{ addLoading ? 'Adding...' : 'Add Subscriber' }}
                 </AppButton>
             </form>
+        </AppModal>
+
+        <AppModal :show="showEditModal" :title="editingSubscriber ? `Edit ${editingSubscriber.email}` : 'Edit subscriber'" @close="showEditModal = false">
+            <form @submit.prevent="handleEditFields" class="space-y-4" novalidate>
+                <SubscriberFieldInputs v-model="editFields" :definitions="fieldDefinitions" :errors="editFieldErrors" />
+                <AppTagInput v-model="editTags" label="Tags" :suggestions="tagSuggestions" />
+                <AppButton :loading="editLoading">
+                    {{ editLoading ? 'Saving...' : 'Save' }}
+                </AppButton>
+            </form>
+        </AppModal>
+
+        <AppModal :show="showBulkTagModal" title="Tag selected subscribers" @close="showBulkTagModal = false">
+            <div class="space-y-4">
+                <p class="text-sm text-zinc-400">{{ selectedIds.length }} subscriber(s) selected.</p>
+                <AppTagInput v-model="bulkTags" label="Tags" :suggestions="tagSuggestions" />
+                <div class="flex gap-2">
+                    <AppButton variant="ghost" size="sm" class="flex-1" :loading="bulkTagLoading" @click="handleBulkTags('remove_tags')">Remove</AppButton>
+                    <AppButton size="sm" class="flex-1" :loading="bulkTagLoading" @click="handleBulkTags('add_tags')">Add</AppButton>
+                </div>
+            </div>
         </AppModal>
 
         <AppConfirmModal
@@ -424,7 +631,7 @@ onMounted(fetchSubscribers)
                         <textarea v-model="importText" rows="8" placeholder="email,name&#10;ada@example.com,Ada Lovelace&#10;alan@example.com,Alan Turing&#10;&#10;…or drop a .csv file here"
                             class="w-full px-3 py-2 bg-zinc-950 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition resize-y" />
                     </div>
-                    <p class="text-xs text-zinc-500 mt-1">First line can be a header (<code class="text-zinc-400">email,name</code>). Name column is optional. Drop a .csv file or pick one above.</p>
+                    <p class="text-xs text-zinc-500 mt-1">First line can be a header (<code class="text-zinc-400">email,name</code>). Name column is optional. Extra columns whose header matches a custom field key or label are imported into that field. Drop a .csv file or pick one above.</p>
                 </div>
 
                 <div class="space-y-2">

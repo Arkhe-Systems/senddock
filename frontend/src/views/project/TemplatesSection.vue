@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
+import { useFieldStore } from '@/stores/fields'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -25,6 +26,9 @@ interface Template {
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
+const fieldStore = useFieldStore()
+
+const customVariables = computed(() => fieldStore.fields(props.project.id))
 
 const templates = ref<Template[]>([])
 const loading = ref(true)
@@ -57,7 +61,7 @@ const previewHtml = computed(() => {
 
 const detectedVariables = computed(() => {
     const text = editHtml.value + ' ' + editSubject.value
-    const regex = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g
+    const regex = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g
     const matches = Array.from(text.matchAll(regex)).map(m => m[1])
     return [...new Set(matches)]
 })
@@ -170,7 +174,15 @@ function varLabel(v: string | undefined) {
     return '{{' + (v ?? '') + '}}'
 }
 
-onMounted(fetchTemplates)
+async function copyVariable(key: string) {
+    await navigator.clipboard.writeText(`{{custom.${key}}}`)
+    toast.success('Variable copied')
+}
+
+onMounted(() => {
+    fetchTemplates()
+    fieldStore.fetchFields(props.project.id)
+})
 </script>
 
 <template>
@@ -256,6 +268,17 @@ onMounted(fetchTemplates)
                     <code class="text-zinc-400">subscriber_id</code>,
                     <code class="text-zinc-400">unsubscribe_url</code>
                 </p>
+                <div v-if="customVariables.length > 0" class="mt-3 pt-3 border-t border-zinc-800">
+                    <p class="text-xs text-zinc-400 font-medium mb-2">Custom fields (click to copy):</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button v-for="def in customVariables" :key="def.id" type="button"
+                            @click="copyVariable(def.key)"
+                            :title="def.label"
+                            class="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded border border-zinc-700 font-mono hover:border-zinc-500 hover:text-white transition cursor-pointer">
+                            {{ varLabel('custom.' + def.key) }}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
