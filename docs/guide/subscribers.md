@@ -2,6 +2,8 @@
 
 Subscribers are the people who receive your emails. Each subscriber belongs to a project and has a unique email within that project.
 
+![The subscribers table with custom-field columns (Plan tier, Country, Signup date) and tags](/screenshots/subscribers-fields-tags.png)
+
 ## Adding Subscribers
 
 ### Via the UI
@@ -34,8 +36,8 @@ Bulk-import subscribers from a CSV or JSON file. Open the **Subscribers** tab, c
 
 ### File formats
 
-- **CSV** — first row is the header. Recognized columns: `email` (required), `name`, `status`. Extra columns are ignored.
-- **JSON** — an array of `{ "email": "...", "name": "...", "status": "..." }` objects.
+- **CSV** — first row is the header. Recognized columns: `email` (required), `name`, `status`. Any extra column whose header matches a [custom field](#custom-fields) key or label is imported into that field; unmatched extra columns are ignored.
+- **JSON** — an array of `{ "email": "...", "name": "...", "status": "...", "fields": {...}, "tags": [...] }` objects.
 
 ### Email validation
 
@@ -72,7 +74,43 @@ From the subscribers table you can:
 
 - **Activate** a pending or unsubscribed subscriber
 - **Unsubscribe** an active subscriber
+- **Edit** a subscriber's custom fields and tags
 - **Delete** a subscriber permanently
+
+## Custom Fields
+
+Out of the box a subscriber has `email`, `name` and `status`. **Custom fields** let you store typed attributes beyond that — `plan_tier`, `country`, `birthday`, `signup_source`, whatever your use case needs.
+
+::: tip Two levels — this is the key thing to understand
+A custom field is **defined once for the whole project** (that's the part that "applies to all subscribers"), and then each subscriber holds its **own value** for it. You don't create fields from the Subscribers table — you create the *definition* in **Settings**, and the Subscribers table then gains a column and an input for it.
+:::
+
+![The Custom Fields section in project Settings, listing each definition with its key and type](/screenshots/custom-fields-settings.png)
+
+You define fields once per project under **Project → Settings → Custom Fields**. Each definition has:
+
+- a **key** (machine name, e.g. `plan_tier`) and a **label** for the UI;
+- a **type** — `string`, `number`, `date`, `boolean`, or `enum` (a dropdown with a fixed option list);
+- an optional **required** flag.
+
+![Creating a custom field: key, label, type picker and required toggle](/screenshots/custom-fields-modal.png)
+
+Once defined, the field shows up as an input in the add/edit subscriber modal (with the right control per type), as a column in the subscribers table, and as a mappable column in the CSV importer. Values are validated on write — a `number` field rejects non-numbers, an `enum` rejects values outside its options, unknown keys are rejected entirely.
+
+![The edit-subscriber modal rendering each custom field with a type-appropriate input, plus a tag editor](/screenshots/subscribers-edit-modal.png)
+
+Custom fields pay off in two places:
+
+- **Templates** — reference them as <span v-pre>`{{custom.KEY}}`</span>, e.g. <span v-pre>`Hi {{name}}, your {{custom.plan_tier}} plan renews soon.`</span> See [Templates → variables](/guide/templates#template-variables).
+- **Segments** — filter on them (`plan_tier is pro`, `signup_date after …`). See [Segments](/guide/segments).
+
+Deleting a definition leaves existing subscriber values in place until each subscriber's next write.
+
+## Tags
+
+Tags are lightweight, free-form labels — `vip`, `beta`, `paid`, `newsletter`. Unlike custom fields there's nothing to define first: type a tag and it exists.
+
+Add or edit tags from the add/edit subscriber modal, or select rows in the subscribers table and use the **Tags** bulk action to add or remove tags across many subscribers at once. Tags are a first-class [segment](/guide/segments) filter (has any of / has all of / has none of), which makes them the quickest way to carve out an audience for a broadcast.
 
 ## Constraints
 

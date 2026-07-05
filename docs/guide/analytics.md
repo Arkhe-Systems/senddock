@@ -35,6 +35,10 @@ The "Custom" option opens a small popover with two date inputs (`From` / `To`). 
 
 The granularity is decided server-side from the range length, so picking a custom 60-day window gives you daily buckets but a custom 200-day window gives you weekly. You don't need to think about it.
 
+## Segment filter
+
+If the project has any [segments](/guide/segments), a dropdown next to the date presets lets you scope the whole dashboard to one of them. Pick a segment and every metric — funnel, opens over time, top templates, top links, rates and trend pills — recomputes over just the subscribers that match it; switch back to *All subscribers* to see the project as a whole. The only panel that ignores the filter is *Broadcasts in flight*, since it tracks send queues rather than per-subscriber engagement.
+
 ## Trends
 
 Each card's pill compares the current window to a same-length window immediately before it. So with the **30d** preset selected, "vs previous 30d" compares this month to the previous month. With **Custom** the comparison label collapses to "vs previous period".

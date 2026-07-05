@@ -96,13 +96,13 @@
 - [ ] Billing page UI
 
 ## Phase 9: Webhooks
-- [x] Webhook configuration per project — Pro UI/API, Core dispatcher
+- [x] Webhook configuration per project — Core UI/API + dispatcher (management moved from Pro to Core: webhooks are developer table stakes)
 - [x] Webhook dispatcher (FOR UPDATE SKIP LOCKED, batch claim) — Core
 - [x] Webhook retry logic with exponential backoff (30s → 2h, 5 attempts) — Core
 - [x] Webhook signature verification (HMAC-SHA256, `X-SendDock-Signature: t=<ts>,v1=<hex>`) — Core
 - [x] Webhook event types (email.sent/failed/opened/clicked, subscriber.created/unsubscribed) — Core
-- [x] Webhooks management UI — PRO
-- [x] Per-webhook deliveries view — PRO
+- [x] Webhooks management UI — Core
+- [x] Per-webhook deliveries view — Core
 
 ## Phase 13: Deployment & Self-hosting
 - [x] Production Dockerfile (multi-stage: Go build + Vue build)
@@ -122,9 +122,9 @@ Phases 1–9 above document the foundation that shipped. The list below groups u
 
 Typed subscriber data + the first piece of segmentation, so SendDock stops being "send to everyone" and starts being a real marketing tool.
 
-- [ ] Tags + segmentation — [#40](https://github.com/Arkhe-Systems/senddock/issues/40) — Core
-- [ ] Custom fields for subscribers — [#72](https://github.com/Arkhe-Systems/senddock/issues/72) — Core
-- [ ] Starter template library — [#73](https://github.com/Arkhe-Systems/senddock/issues/73) — Core
+- [x] Tags + segmentation — [#40](https://github.com/Arkhe-Systems/senddock/issues/40) — Core
+- [x] Custom fields for subscribers — [#72](https://github.com/Arkhe-Systems/senddock/issues/72) — Core
+- [x] Starter template library — [#73](https://github.com/Arkhe-Systems/senddock/issues/73) — Core
 
 ### Milestone: Acquisition
 

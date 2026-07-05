@@ -23,8 +23,10 @@ features:
     details: Connect Mailgun, SES, Postmark, your VPS, anything that speaks SMTP. No per-email markup.
   - title: Open + Click Tracking
     details: Pixel-based opens and HMAC-signed click redirects, on by default for every send.
+  - title: Fields, Tags & Segments
+    details: Typed custom fields, free-form tags, and saved segment filters over status, tags and custom.* — target broadcasts at any subset of your list.
   - title: Webhooks
-    details: Six event types with HMAC-SHA256 signing and exponential-backoff retries. Built into Core, manageable from the Pro UI.
+    details: Seven event types with HMAC-SHA256 signing and exponential-backoff retries. Fully in Core — dispatcher, UI and API, no license required.
   - title: Pro Analytics
-    details: Funnel, opens-over-time, top templates, top clicked links and trend pills against the previous period — all from a single endpoint.
+    details: Funnel, opens-over-time, top templates, top clicked links and trend pills against the previous period — with an optional segment filter, all from a single endpoint.
 ---

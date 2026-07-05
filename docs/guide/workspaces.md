@@ -22,7 +22,7 @@ Four assignable roles, with a fixed capability matrix:
 | Send transactional (`POST /send`) | ✓ | ✓ | ✓ | — |
 | Broadcast / batch send / campaigns | ✓ | ✓ | — | — |
 | Manage suppressions | ✓ | ✓ | — | — |
-| Manage webhooks (Pro) | ✓ | ✓ | — | — |
+| Manage webhooks | ✓ | ✓ | — | — |
 | Read templates, subscribers, logs, analytics, audit log | ✓ | ✓ | ✓ | ✓ |
 
 A few notes:
@@ -87,7 +87,7 @@ The license check is deployment-wide, not per-workspace. SendDock has two paid t
 
 | Plan | What it unlocks |
 |---|---|
-| **Pro** | Analytics dashboard, Webhooks, Audit log. |
+| **Pro** | Analytics dashboard, Audit log. |
 | **Team** | Everything in Pro **plus** multi-member workspaces, role management and admin user creation. |
 
 Without any license, member management endpoints return `402 Payment Required` and the Members page renders a paywall card. The single-user flow stays free: you can still have multiple workspaces, organize your projects, and use Core features unchanged.

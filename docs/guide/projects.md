@@ -4,6 +4,8 @@ A project is the isolation boundary inside a [workspace](./workspaces). Each pro
 
 In a single-user (Free or Pro) install, you have one workspace with one or more projects in it. On Team, multiple users share workspaces and roles control access to all projects within.
 
+![The dashboard listing your projects](/screenshots/dashboard.png)
+
 ## Creating a Project
 
 From the dashboard, click **+ New Project** and provide a name and optional description.
@@ -33,7 +35,7 @@ In **Settings** you can:
 - Configure the [bounce webhook](./bounces#2-public-webhook-endpoint) URL and IMAP poller
 - Delete the project (requires typing the project name to confirm)
 
-Each project also gets its own tabs in the sidebar for [Suppressions](./suppressions), [Webhooks](./webhooks) (Pro) and [Audit Log](./audit-log) (Pro) — they're scoped to the current project, not the workspace.
+Each project also gets its own tabs in the sidebar for [Suppressions](./suppressions), [Webhooks](./webhooks) and [Audit Log](./audit-log) (Pro) — they're scoped to the current project, not the workspace.
 
 ## API
 

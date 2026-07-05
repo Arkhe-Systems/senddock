@@ -170,8 +170,8 @@ If you want the dashboard's **"Update now"** button to work (so you never have t
 
 | `SENDDOCK_LICENSE_KEY` | Behavior |
 |---|---|
-| empty | Free tier — Core features only (projects, subscribers, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, suppression list, webhook dispatcher). |
-| valid Pro key | Pro tier — adds the [Analytics dashboard](/guide/analytics), [Webhooks management UI](/guide/webhooks), and the audit log. |
+| empty | Free tier — Core features only (projects, subscribers, custom fields, tags, segments, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, suppression list, [webhooks](/guide/webhooks)). |
+| valid Pro key | Pro tier — adds the [Analytics dashboard](/guide/analytics) and the [audit log](/guide/audit-log). |
 | valid Team key | Team tier — Pro features plus [multi-user workspaces with roles](/guide/workspaces) and admin user creation. |
 
 The image is the same in all cases. The license key, validated against a hosted endpoint, toggles the gated routes. Read the full tier matrix on the [pricing page](https://senddock.dev/#pricing) or in [Configuration → Plans and licensing](/self-hosting/configuration#plans-and-licensing).
@@ -222,7 +222,7 @@ Windows users run the same `docker compose` command from PowerShell — no separ
 
 This path runs `docker-compose.prod.yml`, which builds the image locally instead of pulling the prebuilt one. To update later, `git pull && docker compose -f docker-compose.prod.yml up -d --build`. To reset, run `docker compose -f docker-compose.prod.yml down -v && rm .env` (**this deletes all data**, so use it only on test instances) and repeat the fresh-install steps above.
 
-The result is the **Core only** — Pro features (Analytics dashboard, Webhooks management) ship only in the official prebuilt image, not in source builds. To run Pro, use the prebuilt image (Options 1–3) with a license key.
+The result is the **Core only** — Pro features (Analytics dashboard, Audit log) ship only in the official prebuilt image, not in source builds. Everything else, webhooks included, is in Core. To run Pro, use the prebuilt image (Options 1–3) with a license key.
 
 ### What gets started
 

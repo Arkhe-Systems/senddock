@@ -16,7 +16,37 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 ## [Unreleased]
 
-_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+The "Marketing-ready" milestone — SendDock stops being send-to-everyone and becomes a real targeting tool — plus webhooks graduating to the free Core.
+
+### Added
+
+- **Custom fields for subscribers ([#72](https://github.com/arkhe-systems/senddock/issues/72), Core).** Typed, project-scoped attributes on top of the existing `subscribers.metadata` column: `string`, `number`, `date`, `boolean`, `enum`. Define them under **Settings → Custom Fields**; values are validated on write (unknown keys rejected), render in templates as <span v-pre>`{{custom.KEY}}`</span>, show as columns and per-type inputs in the subscribers table, and map from extra CSV columns on import. New endpoints under `/api/v1/projects/{id}/fields`.
+- **Tags + segments ([#40](https://github.com/arkhe-systems/senddock/issues/40), Core).** Subscribers carry free-form tags (single, bulk, and inline-on-import). Segments are saved filters — a match-all/any predicate over `status`, `tags` and `custom.*` fields — with a live match count while you build. Broadcasts accept a `segment_id` to send to a subset instead of all active subscribers. New endpoints under `/api/v1/projects/{id}/segments` and `/tags`.
+- **Segment filter on Pro Analytics.** The analytics overview accepts an optional `segment_id` to scope every metric to a segment's members.
+
+### Changed
+
+- **Webhooks are now free (Core).** The management UI and REST API (create/list/pause/delete, delivery history) moved out of the Pro tier — webhooks are developer table stakes. The dispatcher, HMAC signing and retries were already in Core; now nothing about webhooks requires a `SENDDOCK_LICENSE_KEY`. The paid tier is now Analytics + Audit log + Team.
+
+## [0.6.8] — 2026-06-22
+
+Two new features and a chunky bag of UI fixes. Headline is the **community starter template library**: every SendDock instance — Cloud and self-hosted — now ships a "★ Browse library" modal on the Templates page that pulls templates from a separate community-maintained repo, clones one into your project on click, and opens it in the editor. Second headline is **Arch Linux support in the one-line installer** — `curl senddock.dev/install.sh | sudo bash` now works on Arch and its derivatives (Manjaro, EndeavourOS, CachyOS, Garuda) the same way it works on Ubuntu. Plus a fix for the long-standing "buttons stop responding after login" bug that turned out to be password-manager autofill extensions crashing on Vue Teleport. Drop-in upgrade — no migrations.
+
+### Added
+
+- **Community template library** ([#73](https://github.com/Arkhe-Systems/senddock/issues/73)). New "★ Browse library" button on the Templates page opens a modal with a categorized grid of starter templates (welcome flows, monthly digests, single-story newsletters, product launches, changelogs, weekly link roundups, password resets, email verifications, transactional receipts). Click a template, get a clone in your project, ready to edit. Library content lives in the public [`Arkhe-Systems/senddock-templates`](https://github.com/Arkhe-Systems/senddock-templates) repo — community PRs welcome, MIT-licensed. New backend service caches the manifest in Redis for 1 hour; per-template HTML is fetched on demand. Override the source with `TEMPLATE_LIBRARY_URL` to point at a private fork or curated internal gallery.
+- **Arch Linux family support in the one-line installer** ([#81](https://github.com/Arkhe-Systems/senddock/issues/81)). `scripts/setup.sh` now branches on `/etc/os-release` and runs the pacman-based Docker install path on Arch, Manjaro, EndeavourOS, CachyOS, Garuda, or anything with `ID_LIKE=arch`. Ubuntu path unchanged. Tracked under the broader multi-distro umbrella ([#79](https://github.com/Arkhe-Systems/senddock/issues/79)); Debian, Fedora, RHEL and openSUSE remain TODO. macOS support tracked separately under [#82](https://github.com/Arkhe-Systems/senddock/issues/82).
+
+### Changed
+
+- **README hero replaced with the branded title card image.** New screenshot set (`docs/public/screenshots/`) added for hero + projects dashboard + template editor + campaigns list + analytics dashboard.
+
+### Fixed
+
+- **"Buttons stop responding after login" — password-manager autofill overlay crash** ([#80](https://github.com/Arkhe-Systems/senddock/issues/80)). Bitwarden / 1Password / LastPass inject overlay nodes adjacent to input fields. When a modal opened via `<Teleport to="body">` moved those inputs, the extension's stored reference became orphaned and the next overlay update threw `insertBefore on Node`, intercepting subsequent clicks until a full reload. Fixed by dropping `<Teleport>` from `AppModal` and adding defensive opt-out attributes on `AppInput` for all four major password managers.
+- **"Send Email" button felt dead while it actually worked.** `openSendModal` fetched templates async before opening the modal with no visual feedback. Now the button shows "Loading…" and is disabled during the fetch, with an early-return guard against stacked clicks.
+- **`fetch()` calls never timed out, leaving components stuck in loading state forever.** Added a 30s default timeout via `AbortController` in the API client, overridable per call via `timeoutMs`.
+- **`AppModal` could leave `body.overflow: hidden` after unmount.** `onUnmounted` now resets the style as a safety net.
 
 ## [0.6.7] — 2026-06-18
 

@@ -118,7 +118,7 @@ A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tr
     <path d="M 380 70 L 380 110 L 610 110 L 610 218" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
     <text x="498" y="100" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor" fill-opacity="0.75">valid Team key</text>
     <g transform="translate(60,224)"><rect x="0" y="0" width="180" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.4" stroke-dasharray="5 4"/><text x="90" y="26" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor" fill-opacity="0.85">Community</text><text x="90" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">core only</text><text x="90" y="58" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.5">Pro · Team locked</text></g>
-    <g transform="translate(290,224)"><rect x="0" y="0" width="180" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="26" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Pro tier</text><text x="90" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">analytics · webhooks · audit</text><text x="90" y="58" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.55">Team locked</text></g>
+    <g transform="translate(290,224)"><rect x="0" y="0" width="180" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="26" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Pro tier</text><text x="90" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">analytics · audit log</text><text x="90" y="58" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.55">Team locked</text></g>
     <g transform="translate(520,224)"><rect x="0" y="0" width="180" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="26" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Team tier</text><text x="90" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">members · roles · admin</text><text x="90" y="58" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.55">Pro + Team unlocked</text></g>
     <text x="380" y="308" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.55">Tier classification by Lemon Squeezy variant_id · re-validated periodically · DEPLOYMENT_MODE does not change gating</text>
   </g>
@@ -127,7 +127,7 @@ A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tr
 | `SENDDOCK_LICENSE_KEY` | What unlocks |
 |---|---|
 | empty | **Community** — Pro features locked, Team features locked. |
-| valid Pro key | Pro features unlocked (Analytics, Webhooks, Audit log). Team features stay locked. |
+| valid Pro key | Pro features unlocked (Analytics, Audit log). Team features stay locked. |
 | valid Team key | Pro and Team features unlocked. |
 | invalid / revoked | Locked after the next validation tick (24h grace from the last successful check). |
 

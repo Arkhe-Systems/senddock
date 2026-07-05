@@ -26,17 +26,18 @@ SendDock is an open-source, self-hostable email marketing and transactional emai
 | BYO SMTP per project | ✓ | ✓ | ✓ |
 | HTML templates with variables | ✓ | ✓ | ✓ |
 | CSV/JSON import with email validation | ✓ | ✓ | ✓ |
+| [Custom fields](./subscribers#custom-fields) + [tags](./subscribers#tags) | ✓ | ✓ | ✓ |
+| [Segments](./segments) (saved filters, broadcast targeting) | ✓ | ✓ | ✓ |
 | Per-project [suppression list](./suppressions) | ✓ | ✓ | ✓ |
 | [Bounce ingestion](./bounces) (5xx + webhook + IMAP) | ✓ | ✓ | ✓ |
 | API keys with per-key rate limits | ✓ | ✓ | ✓ |
 | Open + click tracking | ✓ | ✓ | ✓ |
 | One-click unsubscribe (RFC 8058) | ✓ | ✓ | ✓ |
-| Webhook dispatcher (HMAC-signed, retried) | ✓ | ✓ | ✓ |
+| [Webhooks](./webhooks) — dispatcher + management UI & API | ✓ | ✓ | ✓ |
 | Scheduled campaigns | ✓ | ✓ | ✓ |
 | Single-user workspace | ✓ | ✓ | ✓ |
 | Basic stats endpoint | ✓ | ✓ | ✓ |
-| [Webhook management UI + API](./webhooks) | — | ✓ | ✓ |
-| [Pro Analytics dashboard](./analytics) (funnel, opens-over-time, top templates, top links, trend pills) | — | ✓ | ✓ |
+| [Pro Analytics dashboard](./analytics) (funnel, opens-over-time, top templates, top links, trend pills, segment filter) | — | ✓ | ✓ |
 | [Audit log](./audit-log) | — | ✓ | ✓ |
 | [Multi-member workspaces](./workspaces) | — | — | ✓ |
 | Roles: `owner`, `admin`, `developer`, `viewer` | — | — | ✓ |

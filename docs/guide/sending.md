@@ -2,6 +2,10 @@
 
 SendDock has two endpoints for sending emails. All require SMTP to be configured.
 
+From the dashboard, **Project → Overview → Send Email** opens a composer that picks a template, fills its variables, and sends to a specific address or your whole list:
+
+![The Send Email composer with template, variables and recipient options](/screenshots/send-modal.png)
+
 ## Send (`/send`)
 
 One endpoint for all individual sends. What it does depends on the fields you provide.
@@ -235,6 +239,8 @@ SendDock automatically inlines CSS styles before sending. If your template uses 
 ## Email Logs
 
 Every email SendDock attempts to send is recorded as one row in the `email_logs` table. View them in the dashboard under **Project → Logs**, or read them via API.
+
+![The email logs view with per-message status](/screenshots/logs.png)
 
 ### In the dashboard
 

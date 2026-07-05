@@ -7,15 +7,16 @@ Returns `402 Payment Required` in cloud mode without a valid `SENDDOCK_LICENSE_K
 ## Overview
 
 ```
-GET /api/v1/projects/{id}/analytics/overview?from=...&to=...
+GET /api/v1/projects/{id}/analytics/overview?from=...&to=...&segment_id=...
 ```
 
 | Query | Required | Format | Description |
 |---|---|---|---|
 | `from` | yes | RFC 3339 | Start of the window (UTC). |
 | `to` | yes | RFC 3339 | End of the window (UTC). |
+| `segment_id` | no | UUID | Restrict every metric to subscribers matching this [segment](/api/segments). Omit for all subscribers. Returns `404` if the segment doesn't exist in the project. |
 
-The bucket granularity (`hour` / `day` / `week` / `month`) is decided server-side from the range length — clients don't pick it. The `previous` block in the response covers the same-length window immediately before `from`, used for trend comparisons.
+The bucket granularity (`hour` / `day` / `week` / `month`) is decided server-side from the range length — clients don't pick it. The `previous` block in the response covers the same-length window immediately before `from`, used for trend comparisons. When `segment_id` is set it is echoed back in the response and applied to every metric except *broadcasts in flight* (which is not per-subscriber).
 
 **Response**
 

@@ -2,6 +2,8 @@
 
 Each project has its own **suppression list** — a list of email addresses that should never receive sends from that project, even if you ask SendDock to send to them. It's the single source of truth that `/send`, `/send/batch` and `/broadcast` consult before every send.
 
+![The suppression list showing addresses with their reason and source](/screenshots/suppressions.png)
+
 ## How it works
 
 When you send to an address, SendDock first checks the suppression list. If the address is on it:

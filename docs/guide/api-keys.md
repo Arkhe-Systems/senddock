@@ -2,6 +2,8 @@
 
 API keys allow external applications to authenticate with SendDock's API. Each key is scoped to a single project.
 
+![The API Keys section in project Settings](/screenshots/api-keys.png)
+
 ## Creating a Key
 
 Go to **Settings** in the project sidebar, find the **API Keys** section, and click **+ Create Key**. Give it a descriptive name.

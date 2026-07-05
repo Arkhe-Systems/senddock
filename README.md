@@ -128,7 +128,7 @@ Both modes use the same BYO-SMTP model — Cloud removes the infrastructure work
 | You upgrade the app | `docker compose pull` or one-click in UI | Automatic |
 | Backups, monitoring, uptime | Your responsibility | Handled |
 | Data location | Your server, your jurisdiction | EU (Frankfurt) |
-| Pro features (Analytics, Webhooks UI, Audit log) | Pro license required | Bundled from Starter tier upward |
+| Pro features (Analytics, Audit log) | Pro license required | Bundled from Starter tier upward |
 | Team features (multi-user, roles) | Team license required | Bundled from Growth tier upward |
 
 ---
@@ -169,14 +169,15 @@ SendDock is **open-core**. The free Core binary in this repo is a complete, prod
 **Core** (AGPL-3.0, free, in this repo)
 - Projects, subscribers, templates, API keys, campaigns, SMTP management
 - Transactional sends, broadcasts, batch sends, scheduled campaigns
+- Custom fields, tags, and segments for subscriber targeting
 - Open & click tracking, one-click unsubscribe (RFC 8058)
-- Webhook **dispatcher** with HMAC signing and retries — webhooks created on a Pro instance keep firing here
+- Webhooks — full management UI and REST API (CRUD, pause/resume, delivery history) with HMAC signing and retries
 - Per-project rate limits, encrypted SMTP credentials, JWT auth
 - One-click updates via bundled Watchtower
 
 **Pro** (license-gated, included in cloud)
-- Analytics dashboard — funnel, opens-over-time, top templates, top clicked links, trend pills
-- Webhooks management UI and REST API (CRUD, pause/resume, delivery history)
+- Analytics dashboard — funnel, opens-over-time, top templates, top clicked links, trend pills, segment filter
+- Audit log — who did what, when, from where
 - Roadmap: team members & roles, SMTP failover, SSO/LDAP, white-label
 
 A license key (Lemon Squeezy) is available at [senddock.dev/pricing](https://senddock.dev/pricing). An empty `SENDDOCK_LICENSE_KEY` keeps the deployment on Core — fully functional, free forever.
