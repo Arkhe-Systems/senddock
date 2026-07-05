@@ -284,10 +284,16 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 		return err
 	}
 
-	return s.queries.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
+	if err := s.queries.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
 		ID:           userID,
 		PasswordHash: sql.NullString{String: string(hash), Valid: true},
-	})
+	}); err != nil {
+		return err
+	}
+
+	// Revoke every outstanding refresh token so a password change logs out all
+	// other sessions (a stolen/rolling refresh token stops working immediately).
+	return s.queries.DeleteUserRefreshTokens(ctx, userID)
 }
 
 func (s *AuthService) generateTokens(ctx context.Context, userID uuid.UUID) (AuthTokens, error) {
