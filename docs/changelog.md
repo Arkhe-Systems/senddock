@@ -16,6 +16,10 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 ## [Unreleased]
 
+_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+
+## [0.7.0] — 2026-07-05
+
 The "Marketing-ready" milestone — SendDock stops being send-to-everyone and becomes a real targeting tool — plus webhooks graduating to the free Core.
 
 ### Added
@@ -27,6 +31,10 @@ The "Marketing-ready" milestone — SendDock stops being send-to-everyone and be
 ### Changed
 
 - **Webhooks are now free (Core).** The management UI and REST API (create/list/pause/delete, delivery history) moved out of the Pro tier — webhooks are developer table stakes. The dispatcher, HMAC signing and retries were already in Core; now nothing about webhooks requires a `SENDDOCK_LICENSE_KEY`. The paid tier is now Analytics + Audit log + Team.
+
+### Security
+
+- **Authentication hardening.** Per-account throttling on login and two-factor verification, all sessions revoked on password change, API keys constrained to their intended capabilities, and a safer default workspace role.
 
 ## [0.6.8] — 2026-06-22
 

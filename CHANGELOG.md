@@ -11,6 +11,24 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.7.0] — 2026-07-05
+
+The "Marketing-ready" milestone — SendDock stops being send-to-everyone and becomes a real targeting tool — plus webhooks graduating to the free Core.
+
+### Added
+
+- **Custom fields for subscribers ([#72](https://github.com/arkhe-systems/senddock/issues/72), Core).** Typed, project-scoped attributes on top of the existing `subscribers.metadata` column: `string`, `number`, `date`, `boolean`, `enum`. Define them under **Settings → Custom Fields**; values are validated on write (unknown keys rejected), render in templates as `{{custom.KEY}}`, show as columns and per-type inputs in the subscribers table, and map from extra CSV columns on import. New endpoints under `/api/v1/projects/{id}/fields`.
+- **Tags + segments ([#40](https://github.com/arkhe-systems/senddock/issues/40), Core).** Subscribers carry free-form tags (single, bulk, and inline-on-import). Segments are saved filters — a match-all/any predicate over `status`, `tags` and `custom.*` fields — with a live match count while you build. Broadcasts accept a `segment_id` to send to a subset instead of all active subscribers. New endpoints under `/api/v1/projects/{id}/segments` and `/tags`.
+- **Segment filter on Pro Analytics.** The analytics overview accepts an optional `segment_id` to scope every metric to a segment's members.
+
+### Changed
+
+- **Webhooks are now free (Core).** The management UI and REST API (create/list/pause/delete, delivery history) moved out of the Pro tier — webhooks are developer table stakes. The dispatcher, HMAC signing and retries were already in Core; now nothing about webhooks requires a `SENDDOCK_LICENSE_KEY`. The paid tier is now Analytics + Audit log + Team.
+
+### Security
+
+- **Authentication hardening.** Per-account throttling on login and two-factor verification, all sessions revoked on password change, API keys constrained to their intended capabilities, and a safer default workspace role.
+
 ## [0.6.8] — 2026-06-22
 
 Two new features and a chunky bag of UI fixes. Headline is the **community starter template library**: every SendDock instance — Cloud and self-hosted — now ships a "★ Browse library" modal on the Templates page that pulls templates from a separate community-maintained repo, clones one into your project on click, and opens it in the editor. The library is open to PRs (the only SendDock repo that accepts them by design). Second headline is **Arch Linux support in the one-line installer** — `curl senddock.dev/install.sh | sudo bash` now works on Arch and its derivatives (Manjaro, EndeavourOS, CachyOS, Garuda) the same way it works on Ubuntu. Plus a fix for the long-standing "buttons stop responding after login" bug that turned out to be password-manager autofill extensions crashing on Vue Teleport. Drop-in upgrade — no migrations.
