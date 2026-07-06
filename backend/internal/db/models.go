@@ -139,6 +139,15 @@ type RefreshToken struct {
 	CreatedAt time.Time
 }
 
+type Segment struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Name      string
+	Predicate json.RawMessage
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type Subscriber struct {
 	ID             uuid.UUID
 	ProjectID      uuid.UUID
@@ -150,6 +159,18 @@ type Subscriber struct {
 	UnsubscribedAt sql.NullTime
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	Tags           []string
+}
+
+type SubscriberFieldDefinition struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Key       string
+	Label     string
+	FieldType string
+	Options   pqtype.NullRawMessage
+	Required  bool
+	CreatedAt time.Time
 }
 
 type Suppression struct {

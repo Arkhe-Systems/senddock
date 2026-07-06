@@ -4,6 +4,7 @@ import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import { useLicenseStore } from '@/stores/license'
+import { useSegmentStore } from '@/stores/segments'
 
 const licenseStore = useLicenseStore()
 
@@ -53,6 +54,10 @@ interface Overview {
 }
 
 const props = defineProps<{ project: Project }>()
+
+const segmentStore = useSegmentStore()
+const segments = computed(() => segmentStore.segments(props.project.id))
+const selectedSegment = ref('')
 
 const overview = ref<Overview | null>(null)
 const loading = ref(true)
@@ -302,6 +307,7 @@ async function load() {
     }
     try {
         const params = new URLSearchParams({ from: fromISO.value, to: toISO.value })
+        if (selectedSegment.value) params.set('segment_id', selectedSegment.value)
         const url = `/projects/${props.project.id}/analytics/overview?${params.toString()}`
         overview.value = await api<Overview>(url)
         startPollingIfNeeded()
@@ -370,7 +376,10 @@ function rangeLabel() {
     return `vs previous ${preset.value === 'custom' ? 'period' : preset.value}`
 }
 
-onMounted(() => applyPreset(preset.value))
+onMounted(() => {
+    segmentStore.fetchSegments(props.project.id)
+    applyPreset(preset.value)
+})
 </script>
 
 <template>
@@ -383,7 +392,12 @@ onMounted(() => applyPreset(preset.value))
                 </div>
                 <p class="text-sm text-zinc-500 mt-1">Send performance and engagement trends</p>
             </div>
-            <div class="relative">
+            <div class="relative flex flex-wrap items-center gap-2">
+                <select v-if="segments.length > 0" v-model="selectedSegment" @change="load()"
+                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-zinc-500 transition cursor-pointer">
+                    <option value="">All subscribers</option>
+                    <option v-for="segment in segments" :key="segment.id" :value="segment.id">{{ segment.name }}</option>
+                </select>
                 <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
                     <button v-for="p in PRESETS" :key="p.value" @click="applyPreset(p.value)" :class="[
                         'px-3 py-1 text-sm rounded-md transition cursor-pointer',

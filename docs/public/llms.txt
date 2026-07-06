@@ -18,31 +18,33 @@ SendDock lets developers send transactional emails and run broadcast campaigns f
 - [Code examples](https://docs.senddock.dev/api/code-examples): curl, Go, Node, Python, PHP snippets for the common flows.
 - [Workspaces API](https://docs.senddock.dev/api/workspaces): CRUD for workspaces, members, role management (Team plan).
 - [Projects API](https://docs.senddock.dev/api/projects): Create/update/delete projects, configure SMTP, bounce settings.
-- [Subscribers API](https://docs.senddock.dev/api/subscribers): List, create, update, import (CSV/JSON with email validation), unsubscribe, suppression list.
-- [Templates API](https://docs.senddock.dev/api/templates): HTML/text templates with `{{ variable }}` interpolation.
+- [Subscribers API](https://docs.senddock.dev/api/subscribers): List, create, update, import (CSV/JSON with email validation), unsubscribe, suppression list. Typed custom fields (string/number/date/boolean/enum) and free-form tags, with bulk tag actions.
+- [Segments API](https://docs.senddock.dev/api/segments): Saved subscriber filters (predicate: match all/any over status, tags, custom.* fields), live preview count, target broadcasts by `segment_id`.
+- [Templates API](https://docs.senddock.dev/api/templates): HTML/text templates with `{{ variable }}` interpolation, including `{{custom.<key>}}` custom fields.
 - [Email Sending API](https://docs.senddock.dev/api/sending): `POST /send`, `POST /send/batch`, `POST /broadcast`. Per-project rate limits, suppression-list handling, bounce classification.
 - [Campaigns API](https://docs.senddock.dev/api/campaigns): Schedule and run campaigns over a subscriber list.
 - [Suppressions API](https://docs.senddock.dev/api/suppressions): List, add and remove per-project suppressed addresses; what `/send` and `/broadcast` consult before every send.
 - [Bounces API](https://docs.senddock.dev/api/bounces): Configure IMAP poller, webhook ingest URL and rotate the bounce token. Includes the public ingest endpoint shape (generic JSON + Mailgun).
 - [API Keys API](https://docs.senddock.dev/api/api-keys): Create, list, revoke. Hashed at rest, shown once on creation.
-- [Analytics API (Pro)](https://docs.senddock.dev/api/analytics): Funnel, opens-over-time, top templates, top clicked links, trend pills.
-- [Webhooks API (Pro)](https://docs.senddock.dev/api/webhooks): Seven event types (`email.sent`, `email.failed`, `email.bounced`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`), HMAC-SHA256 signing, exponential-backoff retries.
+- [Webhooks API](https://docs.senddock.dev/api/webhooks): Full CRUD + delivery history (Core, no license). Seven event types (`email.sent`, `email.failed`, `email.bounced`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`), HMAC-SHA256 signing, exponential-backoff retries.
+- [Analytics API (Pro)](https://docs.senddock.dev/api/analytics): Funnel, opens-over-time, top templates, top clicked links, trend pills, optional `segment_id` filter.
 - [Audit log API (Pro)](https://docs.senddock.dev/api/audit-log): Read every sensitive action with actor, IP, metadata. Cookie-only.
 
 ## Feature guides
 
 - [Workspaces](https://docs.senddock.dev/guide/workspaces): Multi-user collaboration. Roles: `owner`, `admin`, `developer` (transactional only), `viewer` (read-only). Team plan.
 - [Projects](https://docs.senddock.dev/guide/projects): Project as the unit of isolation — own SMTP, own subscribers, own keys.
-- [Subscribers](https://docs.senddock.dev/guide/subscribers): Manage lists, import CSV/JSON with email validation (syntax + MX + disposable-domain block-list), waitlist endpoint.
-- [Templates](https://docs.senddock.dev/guide/templates): Reusable HTML/text bodies with variable substitution.
+- [Subscribers](https://docs.senddock.dev/guide/subscribers): Manage lists, import CSV/JSON with email validation (syntax + MX + disposable-domain block-list), waitlist endpoint. Custom fields (typed, project-scoped) and tags.
+- [Segments](https://docs.senddock.dev/guide/segments): Saved filters over status, tags and custom fields (match all/any) with a live match count; target broadcasts (and Pro analytics) at a subset.
+- [Templates](https://docs.senddock.dev/guide/templates): Reusable HTML/text bodies with variable substitution, including `{{custom.<key>}}`.
 - [Email Sending](https://docs.senddock.dev/guide/sending): Transactional vs broadcast, batch sends, suppression, bounce handling.
 - [Campaigns](https://docs.senddock.dev/guide/campaigns): Scheduled broadcasts with tracking and per-recipient unsubscribe URLs.
 - [Suppressions](https://docs.senddock.dev/guide/suppressions): Per-project list of addresses that never receive sends. Sources: hard bounce, unsubscribe, manual, bulk import.
 - [Bounces](https://docs.senddock.dev/guide/bounces): Three detection sources — in-session 5xx, public webhook ingest, and IMAP poller. Hard bounces auto-suppress.
 - [API Keys](https://docs.senddock.dev/guide/api-keys): When to use cookies vs keys; per-key rate limits.
 - [SMTP Setup](https://docs.senddock.dev/guide/smtp): BYO SMTP — Mailgun/SES/Postmark/Resend/custom. Encrypted password storage. Test endpoint with bounded timeouts.
-- [Analytics (Pro)](https://docs.senddock.dev/guide/analytics): Dashboard usage, date presets, custom ranges, comparison windows.
-- [Webhooks (Pro)](https://docs.senddock.dev/guide/webhooks): Configuring endpoints, verifying signatures, retry behavior.
+- [Webhooks](https://docs.senddock.dev/guide/webhooks): Configuring endpoints, verifying signatures, retry behavior. Core — free, no license.
+- [Analytics (Pro)](https://docs.senddock.dev/guide/analytics): Dashboard usage, date presets, custom ranges, comparison windows, segment filter.
 - [Audit log (Pro)](https://docs.senddock.dev/guide/audit-log): Append-only record of project, SMTP, API key, webhook, suppression and workspace changes. Per-entry actor, IP, metadata.
 
 ## Operations

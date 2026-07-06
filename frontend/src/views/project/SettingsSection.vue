@@ -9,6 +9,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import CustomFieldsSettings from '@/views/project/CustomFieldsSettings.vue'
 
 interface APIKey {
     id: string
@@ -367,6 +368,8 @@ async function handleDelete() {
                 </AppButton>
             </form>
         </div>
+
+        <CustomFieldsSettings :project="project" />
 
         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg opacity-60">
             <div class="flex items-center gap-2 mb-2">

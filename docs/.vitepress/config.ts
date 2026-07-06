@@ -11,6 +11,23 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
   ],
+  markdown: {
+    // Inline code containing `{{ ... }}` (e.g. template merge tags like
+    // `{{name}}`) would otherwise be parsed by Vue as an interpolation and
+    // render empty. Emit those spans with `v-pre` so they render literally.
+    config(md) {
+      const original = md.renderer.rules.code_inline
+      md.renderer.rules.code_inline = (tokens, idx, options, env, self) => {
+        const token = tokens[idx]
+        if (token.content.includes('{{') || token.content.includes('}}')) {
+          return `<code v-pre>${md.utils.escapeHtml(token.content)}</code>`
+        }
+        return original
+          ? original(tokens, idx, options, env, self)
+          : self.renderToken(tokens, idx, options)
+      }
+    },
+  },
   themeConfig: {
     logo: '/favicon.svg',
     nav: [
@@ -51,11 +68,13 @@ export default defineConfig({
           items: [
             { text: 'Projects', link: '/guide/projects' },
             { text: 'Subscribers', link: '/guide/subscribers' },
+            { text: 'Segments', link: '/guide/segments' },
             { text: 'Templates', link: '/guide/templates' },
             { text: 'Email Sending', link: '/guide/sending' },
             { text: 'Campaigns', link: '/guide/campaigns' },
             { text: 'Suppressions', link: '/guide/suppressions' },
             { text: 'Bounces', link: '/guide/bounces' },
+            { text: 'Webhooks', link: '/guide/webhooks' },
             { text: 'API Keys', link: '/guide/api-keys' },
           ],
         },
@@ -63,7 +82,6 @@ export default defineConfig({
           text: 'Pro Features',
           items: [
             { text: 'Analytics', link: '/guide/analytics' },
-            { text: 'Webhooks', link: '/guide/webhooks' },
             { text: 'Audit Log', link: '/guide/audit-log' },
           ],
         },
@@ -84,11 +102,13 @@ export default defineConfig({
             { text: 'Workspaces', link: '/api/workspaces' },
             { text: 'Projects', link: '/api/projects' },
             { text: 'Subscribers', link: '/api/subscribers' },
+            { text: 'Segments', link: '/api/segments' },
             { text: 'Templates', link: '/api/templates' },
             { text: 'Email Sending', link: '/api/sending' },
             { text: 'Campaigns', link: '/api/campaigns' },
             { text: 'Suppressions', link: '/api/suppressions' },
             { text: 'Bounces', link: '/api/bounces' },
+            { text: 'Webhooks', link: '/api/webhooks' },
             { text: 'API Keys', link: '/api/api-keys' },
           ],
         },
@@ -96,7 +116,6 @@ export default defineConfig({
           text: 'Pro API',
           items: [
             { text: 'Analytics', link: '/api/analytics' },
-            { text: 'Webhooks', link: '/api/webhooks' },
             { text: 'Audit Log', link: '/api/audit-log' },
           ],
         },

@@ -2,6 +2,8 @@
 
 Each project requires SMTP configuration to send emails. SendDock connects to your SMTP server directly.
 
+![The per-project SMTP settings form](/screenshots/smtp.png)
+
 ## Configuration
 
 Go to **SMTP Settings** in the project sidebar and fill in:

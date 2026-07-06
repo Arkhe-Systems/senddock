@@ -14,7 +14,7 @@ All configuration is done via environment variables. For self-hosting deployment
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | HTTP port the binary listens on inside the container. Not the same as `SENDDOCK_PORT`, which the compose file uses to map the host port. Leave at `8080` unless you know why you're changing it. | `8080` |
-| `REDIS_URL` | Redis connection string. Required for rate-limit enforcement on `/send`, `/send/batch`, `/broadcast` **and** the global per-IP limiter. Leaving it blank silently disables all rate limiting. | — |
+| `REDIS_URL` | Redis connection string. Rate limiting is backed by Redis, so **always configure it in production / any internet-facing deployment**. Only omit it in ephemeral local/test environments. | — |
 | `FRONTEND_URL` | Frontend origin for CORS headers. When it starts with `https://`, auth cookies are issued with `Secure: true`. | `http://localhost:5173` |
 | `PUBLIC_URL` | Public URL of this instance, used to build unsubscribe and tracking links inside outgoing emails. Trailing slashes are stripped automatically. Leave blank in single-binary deploys to fall back to `FRONTEND_URL`. | _falls back to `FRONTEND_URL`_ |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |

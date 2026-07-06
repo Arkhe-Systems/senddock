@@ -23,15 +23,53 @@ type Project struct {
 }
 
 type Subscriber struct {
-	ID             string  `json:"id"`
-	ProjectID      string  `json:"project_id"`
-	Email          string  `json:"email"`
-	Name           string  `json:"name"`
-	Status         string  `json:"status"`
-	SubscribedAt   string  `json:"subscribed_at"`
-	UnsubscribedAt *string `json:"unsubscribed_at"`
-	CreatedAt      string  `json:"created_at"`
-	UpdatedAt      string  `json:"updated_at"`
+	ID             string         `json:"id"`
+	ProjectID      string         `json:"project_id"`
+	Email          string         `json:"email"`
+	Name           string         `json:"name"`
+	Status         string         `json:"status"`
+	Fields         map[string]any `json:"fields"`
+	Tags           []string       `json:"tags"`
+	SubscribedAt   string         `json:"subscribed_at"`
+	UnsubscribedAt *string        `json:"unsubscribed_at"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
+}
+
+type FieldDefinition struct {
+	ID        string   `json:"id"`
+	ProjectID string   `json:"project_id"`
+	Key       string   `json:"key"`
+	Label     string   `json:"label"`
+	FieldType string   `json:"field_type"`
+	Options   []string `json:"options"`
+	Required  bool     `json:"required"`
+	CreatedAt string   `json:"created_at"`
+}
+
+func FromFieldDefinition(f db.SubscriberFieldDefinition) FieldDefinition {
+	options := []string{}
+	if f.Options.Valid && len(f.Options.RawMessage) > 0 {
+		_ = json.Unmarshal(f.Options.RawMessage, &options)
+	}
+	return FieldDefinition{
+		ID:        f.ID.String(),
+		ProjectID: f.ProjectID.String(),
+		Key:       f.Key,
+		Label:     f.Label,
+		FieldType: f.FieldType,
+		Options:   options,
+		Required:  f.Required,
+		CreatedAt: f.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+func FromFieldDefinitions(defs []db.SubscriberFieldDefinition) []FieldDefinition {
+	result := make([]FieldDefinition, len(defs))
+	for i, f := range defs {
+		result[i] = FromFieldDefinition(f)
+	}
+	return result
 }
 
 type Template struct {
@@ -99,18 +137,136 @@ func FromProjects(projects []db.Project) []Project {
 	return result
 }
 
+func subscriberFields(raw json.RawMessage) map[string]any {
+	fields := map[string]any{}
+	if len(raw) == 0 {
+		return fields
+	}
+	_ = json.Unmarshal(raw, &fields)
+	return fields
+}
+
 func FromSubscriber(s db.Subscriber) Subscriber {
+	tags := s.Tags
+	if tags == nil {
+		tags = []string{}
+	}
 	return Subscriber{
 		ID:             s.ID.String(),
 		ProjectID:      s.ProjectID.String(),
 		Email:          s.Email,
 		Name:           s.Name,
 		Status:         s.Status,
+		Fields:         subscriberFields(s.Metadata),
+		Tags:           tags,
 		SubscribedAt:   s.SubscribedAt.Format(time.RFC3339),
 		UnsubscribedAt: nullTime(s.UnsubscribedAt),
 		CreatedAt:      s.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      s.UpdatedAt.Format(time.RFC3339),
 	}
+}
+
+type Webhook struct {
+	ID        string   `json:"id"`
+	URL       string   `json:"url"`
+	Secret    string   `json:"secret"`
+	Events    []string `json:"events"`
+	Active    bool     `json:"active"`
+	CreatedAt string   `json:"created_at"`
+}
+
+func FromWebhook(w db.Webhook) Webhook {
+	events := w.Events
+	if events == nil {
+		events = []string{}
+	}
+	return Webhook{
+		ID:        w.ID.String(),
+		URL:       w.Url,
+		Secret:    w.Secret,
+		Events:    events,
+		Active:    w.Active,
+		CreatedAt: w.CreatedAt.UTC().Format(time.RFC3339),
+	}
+}
+
+func FromWebhooks(hooks []db.Webhook) []Webhook {
+	result := make([]Webhook, len(hooks))
+	for i, w := range hooks {
+		result[i] = FromWebhook(w)
+	}
+	return result
+}
+
+type WebhookDelivery struct {
+	ID             string `json:"id"`
+	EventType      string `json:"event_type"`
+	Status         string `json:"status"`
+	Attempts       int32  `json:"attempts"`
+	LastStatusCode int32  `json:"last_status_code,omitempty"`
+	LastError      string `json:"last_error,omitempty"`
+	NextAttemptAt  string `json:"next_attempt_at,omitempty"`
+	DeliveredAt    string `json:"delivered_at,omitempty"`
+	CreatedAt      string `json:"created_at"`
+}
+
+func FromWebhookDelivery(d db.WebhookDelivery) WebhookDelivery {
+	out := WebhookDelivery{
+		ID:        d.ID.String(),
+		EventType: d.EventType,
+		Status:    d.Status,
+		Attempts:  d.Attempts,
+		CreatedAt: d.CreatedAt.UTC().Format(time.RFC3339),
+	}
+	if d.LastStatusCode.Valid {
+		out.LastStatusCode = d.LastStatusCode.Int32
+	}
+	if d.LastError.Valid {
+		out.LastError = d.LastError.String
+	}
+	if !d.NextAttemptAt.IsZero() && d.Status == "pending" {
+		out.NextAttemptAt = d.NextAttemptAt.UTC().Format(time.RFC3339)
+	}
+	if d.DeliveredAt.Valid {
+		out.DeliveredAt = d.DeliveredAt.Time.UTC().Format(time.RFC3339)
+	}
+	return out
+}
+
+func FromWebhookDeliveries(deliveries []db.WebhookDelivery) []WebhookDelivery {
+	result := make([]WebhookDelivery, len(deliveries))
+	for i, d := range deliveries {
+		result[i] = FromWebhookDelivery(d)
+	}
+	return result
+}
+
+type Segment struct {
+	ID        string          `json:"id"`
+	ProjectID string          `json:"project_id"`
+	Name      string          `json:"name"`
+	Predicate json.RawMessage `json:"predicate"`
+	CreatedAt string          `json:"created_at"`
+	UpdatedAt string          `json:"updated_at"`
+}
+
+func FromSegment(s db.Segment) Segment {
+	return Segment{
+		ID:        s.ID.String(),
+		ProjectID: s.ProjectID.String(),
+		Name:      s.Name,
+		Predicate: s.Predicate,
+		CreatedAt: s.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: s.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func FromSegments(segments []db.Segment) []Segment {
+	result := make([]Segment, len(segments))
+	for i, s := range segments {
+		result[i] = FromSegment(s)
+	}
+	return result
 }
 
 func FromSubscribers(subs []db.Subscriber) []Subscriber {

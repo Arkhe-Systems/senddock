@@ -74,6 +74,7 @@ func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campai
 		campaign.TemplateID.String(),
 		campaign.Subject,
 		campaign.Variables,
+		"",
 	)
 
 	if runErr != nil {

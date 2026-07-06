@@ -31,18 +31,19 @@ async function loadProject() {
 const navItems = [
     { name: 'Overview', route: 'project-overview' },
     { name: 'Subscribers', route: 'project-subscribers' },
+    { name: 'Segments', route: 'project-segments' },
     { name: 'Suppressions', route: 'project-suppressions' },
     { name: 'Templates', route: 'project-templates' },
     { name: 'Logs', route: 'project-logs' },
     { name: 'SMTP Settings', route: 'project-smtp' },
     { name: 'Newsletters', route: 'project-campaigns' },
     { name: 'Broadcasts', route: 'project-broadcasts' },
+    { name: 'Webhooks', route: 'project-webhooks' },
     { name: 'Settings', route: 'project-settings' },
 ]
 
 const proItems = [
     { name: 'Analytics', route: 'project-analytics' },
-    { name: 'Webhooks', route: 'project-webhooks' },
     { name: 'Audit log', route: 'project-audit-log' },
 ]
 

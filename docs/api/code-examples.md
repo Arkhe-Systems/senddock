@@ -538,7 +538,7 @@ while (true) {
 
 The endpoint returns `{ "subscribers": [...], "total": N }`. Use `total` (not the page size) to decide when to stop — the last page may be smaller than `limit`.
 
-## Verify webhook signatures <Badge type="warning" text="Pro" />
+## Verify webhook signatures
 
 Every webhook delivery includes an `X-SendDock-Signature: t=<unix>,v1=<hex>` header. Recompute the HMAC over `<t>.<raw_body>` with your webhook's secret and compare in constant time. Reject anything older than ~5 minutes for replay protection.
 

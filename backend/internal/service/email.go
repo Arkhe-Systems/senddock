@@ -68,6 +68,11 @@ type EmailService struct {
 	cache        *cache.Redis
 	hooks        WebhookDispatcher
 	suppressions *SuppressionService
+	segments     *SegmentService
+}
+
+func (s *EmailService) SetSegmentService(seg *SegmentService) {
+	s.segments = seg
 }
 
 func NewEmailService(queries *db.Queries, publicURL, encSecret string, redis *cache.Redis, hooks WebhookDispatcher, suppressions *SuppressionService) *EmailService {
@@ -194,7 +199,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	return SendResult{Sent: 1}, nil
 }
 
-func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage) (SendResult, error) {
+func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage, segmentID string) (SendResult, error) {
 	if err := requireAuthorizedProject(ctx, projectID); err != nil {
 		return SendResult{}, err
 	}
@@ -226,16 +231,31 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		return SendResult{}, errors.New("template not found")
 	}
 
-	subscribers, err := s.queries.ListActiveSubscribersByProject(ctx, pid)
-	if err != nil {
-		return SendResult{}, err
+	recipients := make([]SubscriberRef, 0)
+	if segmentID != "" {
+		if s.segments == nil {
+			return SendResult{}, errors.New("segments not available")
+		}
+		refs, err := s.segments.RecipientsByID(ctx, projectID, segmentID, true)
+		if err != nil {
+			return SendResult{}, err
+		}
+		recipients = refs
+	} else {
+		subscribers, err := s.queries.ListActiveSubscribersByProject(ctx, pid)
+		if err != nil {
+			return SendResult{}, err
+		}
+		for _, sub := range subscribers {
+			recipients = append(recipients, SubscriberRef{ID: sub.ID, Email: sub.Email})
+		}
 	}
 
-	if len(subscribers) == 0 {
+	if len(recipients) == 0 {
 		return SendResult{}, errors.New("no active subscribers")
 	}
 
-	total := len(subscribers)
+	total := len(recipients)
 
 	baseSubject := template.Subject
 	if subjectOverride != "" {
@@ -263,8 +283,8 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		RecipientEmail string    `json:"recipient_email"`
 	}
 	jobs := make([]jobRow, 0, total)
-	for _, sub := range subscribers {
-		jobs = append(jobs, jobRow{SubscriberID: sub.ID, RecipientEmail: sub.Email})
+	for _, ref := range recipients {
+		jobs = append(jobs, jobRow{SubscriberID: ref.ID, RecipientEmail: ref.Email})
 	}
 	jobsJSON, err := json.Marshal(jobs)
 	if err != nil {
@@ -332,6 +352,9 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 		body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
 		subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
 	}
+
+	body = replaceCustomVariables(body, sub, true)
+	subject = replaceCustomVariables(subject, sub, false)
 
 	body = replaceVariables(body, sub)
 	subject = replaceVariablesSimple(subject, sub)
@@ -448,10 +471,14 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	}
 
 	var unsubscribeURL string
-	if strings.Contains(body, "{{unsubscribe_url}}") {
+	needsSubscriber := strings.Contains(body, "{{unsubscribe_url}}") ||
+		strings.Contains(body, "{{custom.") || strings.Contains(subject, "{{custom.")
+	if needsSubscriber {
 		sub, err := s.queries.GetSubscriberByEmail(ctx, db.GetSubscriberByEmailParams{Email: to, ProjectID: pid})
 		if err == nil {
 			unsubscribeURL = s.unsubURL(pid.String(), sub.ID.String())
+			body = replaceCustomVariables(body, sub, true)
+			subject = replaceCustomVariables(subject, sub, false)
 			body = strings.ReplaceAll(body, "{{name}}", html.EscapeString(sub.Name))
 			body = strings.ReplaceAll(body, "{{email}}", html.EscapeString(sub.Email))
 			body = strings.ReplaceAll(body, "{{subscriber_id}}", sub.ID.String())
@@ -1044,6 +1071,24 @@ func replaceVariablesSimple(text string, sub db.Subscriber) string {
 		"{{email}}", sub.Email,
 	)
 	return r.Replace(text)
+}
+
+func replaceCustomVariables(text string, sub db.Subscriber, escape bool) string {
+	if len(sub.Metadata) == 0 || !strings.Contains(text, "{{custom.") {
+		return text
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(sub.Metadata, &fields); err != nil {
+		return text
+	}
+	for key, value := range fields {
+		rendered := fmt.Sprintf("%v", value)
+		if escape {
+			rendered = html.EscapeString(rendered)
+		}
+		text = strings.ReplaceAll(text, "{{custom."+key+"}}", rendered)
+	}
+	return text
 }
 
 func inlineCSS(html string) string {

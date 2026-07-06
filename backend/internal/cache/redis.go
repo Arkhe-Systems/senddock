@@ -78,6 +78,19 @@ func (r *Redis) Increment(ctx context.Context, key string, ttl time.Duration) (i
 	return incrementWithTTLScript.Run(ctx, r.client, []string{key}, int(ttl.Seconds())).Int64()
 }
 
+// Count returns the current integer value stored at key (0 if absent). Used to
+// peek at counters (e.g. failed-login attempts) without incrementing them.
+func (r *Redis) Count(ctx context.Context, key string) int64 {
+	if r == nil {
+		return 0
+	}
+	n, err := r.client.Get(ctx, key).Int64()
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 func (r *Redis) Close() {
 	if r == nil {
 		return

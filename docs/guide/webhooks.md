@@ -1,8 +1,10 @@
-# Webhooks <Badge type="warning" text="Pro" />
+# Webhooks
 
 Webhooks let SendDock call your own HTTP endpoint every time something interesting happens in a project — an email is sent, a recipient opens it, a subscriber unsubscribes, and so on. They are the right way to keep a CRM, a usage table, or a Slack channel in sync without polling the API.
 
-Webhook delivery, signing and retries ship in the open-source Core; the **management UI and API endpoints** (creating, listing, pausing, deleting webhooks) live in Pro and require a license in cloud mode.
+Webhooks are part of the open-source Core — delivery, HMAC signing, retries, **and** the management UI and API (creating, listing, pausing, deleting webhooks, inspecting deliveries) are all free, no license required.
+
+![Webhooks management under a project, with per-endpoint events, deliveries and pause/delete controls](/screenshots/webhooks.png)
 
 ## How a delivery works
 
@@ -246,6 +248,4 @@ If you want to inspect what SendDock is sending without writing a handler, point
 
 ## Licensing
 
-Webhook **management** (CRUD endpoints, the UI section) is gated by `SENDDOCK_LICENSE_KEY` in cloud mode. The **dispatcher** runs in Core regardless of license — webhooks created before a license expires keep firing — but new webhooks cannot be created without a valid key.
-
-An empty `SENDDOCK_LICENSE_KEY` keeps the management UI / API locked regardless of deployment mode — but the Core dispatcher keeps running, so any webhooks created earlier (from a Pro-licensed snapshot) continue firing. See [Configuration → Pro license](/self-hosting/configuration#plans-and-licensing).
+Webhooks are entirely part of Core — the management UI, the CRUD API, the dispatcher, signing and retries are all available for free with no `SENDDOCK_LICENSE_KEY`, on both self-hosted and cloud deployments. There is nothing to unlock.

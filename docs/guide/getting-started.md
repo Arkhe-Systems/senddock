@@ -12,6 +12,10 @@ On first launch, SendDock detects there are no users and shows the setup screen.
 2. Give it a name and optional description
 3. Click **Create Project**
 
+Once a project has sent some email, its **Overview** gives you an at-a-glance dashboard — totals, recent activity and a one-click composer:
+
+![A project Overview with send totals and recent activity](/screenshots/project-overview.png)
+
 ## Configuring SMTP
 
 Before you can send emails, configure your SMTP server:

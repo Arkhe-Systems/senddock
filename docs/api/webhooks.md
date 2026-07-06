@@ -1,8 +1,6 @@
-# Webhooks API <Badge type="warning" text="Pro" />
+# Webhooks API
 
-Manage webhook endpoints and inspect their delivery history. Cookie auth required.
-
-Every endpoint on this page returns `402 Payment Required` (`{"error":"license required for webhooks"}`) when the deployment has no valid `SENDDOCK_LICENSE_KEY`. This applies the same way to self-hosted and cloud — see [Configuration → Pro license](/self-hosting/configuration#plans-and-licensing).
+Manage webhook endpoints and inspect their delivery history. Cookie auth required. Part of the free Core — no license needed.
 
 For payload format, signature verification, retry policy and event reference, see the [Webhooks guide](/guide/webhooks).
 
@@ -171,8 +169,7 @@ The `attempts` counter increments on every retry; combined with the [retry sched
 | Code | When |
 |---|---|
 | `400` | Body fails validation — invalid URL, unknown event type, missing required field. |
-| `402` | License required (cloud mode without a valid `SENDDOCK_LICENSE_KEY`). |
-| `403` | Authenticated user does not own this project. |
+| `403` | Authenticated user does not own this project, or the role lacks `webhooks:write`. |
 | `404` | Project or webhook not found. |
 | `500` | Server error. |
 

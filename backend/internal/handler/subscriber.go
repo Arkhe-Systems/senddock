@@ -2,12 +2,14 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
-	"github.com/arkhe-systems/senddock/pkg/auth"
+	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
+	"github.com/arkhe-systems/senddock/pkg/auth"
 )
 
 type SubscriberHandler struct {
@@ -24,13 +26,16 @@ func NewSubscriberHandler(subscriberService *service.SubscriberService, projectS
 }
 
 type createSubscriberRequest struct {
-	Email  string `json:"email"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	Email  string         `json:"email"`
+	Name   string         `json:"name"`
+	Status string         `json:"status"`
+	Fields map[string]any `json:"fields"`
+	Tags   []string       `json:"tags"`
 }
 
-type updateStatusRequest struct {
-	Status string `json:"status"`
+type updateSubscriberRequest struct {
+	Status *string        `json:"status"`
+	Fields map[string]any `json:"fields"`
 }
 
 func (h *SubscriberHandler) verifyProjectOwner(r *http.Request) (string, string, error) {
@@ -100,9 +105,14 @@ func (h *SubscriberHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subscriber, err := h.subscriberService.Create(r.Context(), projectID, req.Email, req.Name, req.Status)
+	subscriber, err := h.subscriberService.Create(r.Context(), projectID, req.Email, req.Name, req.Status, req.Fields, req.Tags)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
+		if errors.Is(err, service.ErrFieldValidation) {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+			return
+		}
 		w.WriteHeader(http.StatusConflict)
 		json.NewEncoder(w).Encode(errorResponse{Error: "subscriber already exists"})
 		return
@@ -164,7 +174,7 @@ func (h *SubscriberHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 
 	subscriberID := r.PathValue("subscriberId")
 
-	var req updateStatusRequest
+	var req updateSubscriberRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -172,19 +182,45 @@ func (h *SubscriberHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if req.Status != "active" && req.Status != "unsubscribed" && req.Status != "pending" {
+	if req.Status == nil && req.Fields == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{Error: "status must be active, pending, or unsubscribed"})
+		json.NewEncoder(w).Encode(errorResponse{Error: "nothing to update"})
 		return
 	}
 
-	subscriber, err := h.subscriberService.UpdateStatus(r.Context(), subscriberID, projectID, req.Status)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(errorResponse{Error: "subscriber not found"})
-		return
+	var subscriber db.Subscriber
+	var err error
+
+	if req.Fields != nil {
+		subscriber, err = h.subscriberService.UpdateFields(r.Context(), subscriberID, projectID, req.Fields)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			if errors.Is(err, service.ErrFieldValidation) {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(errorResponse{Error: "subscriber not found"})
+			return
+		}
+	}
+
+	if req.Status != nil {
+		if *req.Status != "active" && *req.Status != "unsubscribed" && *req.Status != "pending" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: "status must be active, pending, or unsubscribed"})
+			return
+		}
+		subscriber, err = h.subscriberService.UpdateStatus(r.Context(), subscriberID, projectID, *req.Status)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(errorResponse{Error: "subscriber not found"})
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -213,7 +249,61 @@ func (h *SubscriberHandler) Delete(w http.ResponseWriter, r *http.Request) {
 type bulkActionRequest struct {
 	Action        string   `json:"action"`
 	Status        string   `json:"status,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
 	SubscriberIDs []string `json:"subscriber_ids"`
+}
+
+type setTagsRequest struct {
+	Tags []string `json:"tags"`
+}
+
+func (h *SubscriberHandler) SetTags(w http.ResponseWriter, r *http.Request) {
+	projectID, _, ok := requireCap(w, r, h.projectService, service.CapSubscribersWrite)
+	if !ok {
+		return
+	}
+
+	subscriberID := r.PathValue("subscriberId")
+
+	var req setTagsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
+		return
+	}
+
+	subscriber, err := h.subscriberService.SetTags(r.Context(), subscriberID, projectID, req.Tags)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "subscriber not found"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response.FromSubscriber(subscriber))
+}
+
+func (h *SubscriberHandler) ListTags(w http.ResponseWriter, r *http.Request) {
+	projectID, _, err := h.verifyProjectOwner(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(errorResponse{Error: "project not found"})
+		return
+	}
+
+	tags, err := h.subscriberService.ListTags(r.Context(), projectID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tags)
 }
 
 func (h *SubscriberHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
@@ -249,6 +339,22 @@ func (h *SubscriberHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = h.subscriberService.BulkUpdateStatus(r.Context(), projectID, req.SubscriberIDs, req.Status)
+	case "add_tags":
+		if len(req.Tags) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: "tags cannot be empty"})
+			return
+		}
+		err = h.subscriberService.BulkAddTags(r.Context(), projectID, req.SubscriberIDs, req.Tags)
+	case "remove_tags":
+		if len(req.Tags) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: "tags cannot be empty"})
+			return
+		}
+		err = h.subscriberService.BulkRemoveTags(r.Context(), projectID, req.SubscriberIDs, req.Tags)
 	default:
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)

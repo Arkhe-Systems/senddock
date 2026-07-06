@@ -7,10 +7,29 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
+
+const bulkAddSubscriberTags = `-- name: BulkAddSubscriberTags :exec
+UPDATE subscribers SET
+    tags = ARRAY(SELECT DISTINCT unnest(tags || $3::text[])),
+    updated_at = NOW()
+WHERE project_id = $1 AND id = ANY($2::uuid[])
+`
+
+type BulkAddSubscriberTagsParams struct {
+	ProjectID uuid.UUID
+	Column2   []uuid.UUID
+	Column3   []string
+}
+
+func (q *Queries) BulkAddSubscriberTags(ctx context.Context, arg BulkAddSubscriberTagsParams) error {
+	_, err := q.db.ExecContext(ctx, bulkAddSubscriberTags, arg.ProjectID, pq.Array(arg.Column2), pq.Array(arg.Column3))
+	return err
+}
 
 const bulkDeleteSubscribers = `-- name: BulkDeleteSubscribers :exec
 DELETE FROM subscribers 
@@ -24,6 +43,24 @@ type BulkDeleteSubscribersParams struct {
 
 func (q *Queries) BulkDeleteSubscribers(ctx context.Context, arg BulkDeleteSubscribersParams) error {
 	_, err := q.db.ExecContext(ctx, bulkDeleteSubscribers, arg.ProjectID, pq.Array(arg.Column2))
+	return err
+}
+
+const bulkRemoveSubscriberTags = `-- name: BulkRemoveSubscriberTags :exec
+UPDATE subscribers SET
+    tags = ARRAY(SELECT unnest(tags) EXCEPT SELECT unnest($3::text[])),
+    updated_at = NOW()
+WHERE project_id = $1 AND id = ANY($2::uuid[])
+`
+
+type BulkRemoveSubscriberTagsParams struct {
+	ProjectID uuid.UUID
+	Column2   []uuid.UUID
+	Column3   []string
+}
+
+func (q *Queries) BulkRemoveSubscriberTags(ctx context.Context, arg BulkRemoveSubscriberTagsParams) error {
+	_, err := q.db.ExecContext(ctx, bulkRemoveSubscriberTags, arg.ProjectID, pq.Array(arg.Column2), pq.Array(arg.Column3))
 	return err
 }
 
@@ -70,9 +107,9 @@ func (q *Queries) CountSubscribersByProject(ctx context.Context, projectID uuid.
 }
 
 const createSubscriber = `-- name: CreateSubscriber :one
-INSERT INTO subscribers (project_id, email, name, status)
-VALUES ($1, $2, $3, $4)
-RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at
+INSERT INTO subscribers (project_id, email, name, status, metadata, tags)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags
 `
 
 type CreateSubscriberParams struct {
@@ -80,6 +117,8 @@ type CreateSubscriberParams struct {
 	Email     string
 	Name      string
 	Status    string
+	Metadata  json.RawMessage
+	Tags      []string
 }
 
 func (q *Queries) CreateSubscriber(ctx context.Context, arg CreateSubscriberParams) (Subscriber, error) {
@@ -88,6 +127,8 @@ func (q *Queries) CreateSubscriber(ctx context.Context, arg CreateSubscriberPara
 		arg.Email,
 		arg.Name,
 		arg.Status,
+		arg.Metadata,
+		pq.Array(arg.Tags),
 	)
 	var i Subscriber
 	err := row.Scan(
@@ -101,6 +142,7 @@ func (q *Queries) CreateSubscriber(ctx context.Context, arg CreateSubscriberPara
 		&i.UnsubscribedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		pq.Array(&i.Tags),
 	)
 	return i, err
 }
@@ -120,7 +162,7 @@ func (q *Queries) DeleteSubscriber(ctx context.Context, arg DeleteSubscriberPara
 }
 
 const getSubscriberByEmail = `-- name: GetSubscriberByEmail :one
-SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at FROM subscribers WHERE email = $1 AND project_id = $2
+SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags FROM subscribers WHERE email = $1 AND project_id = $2
 `
 
 type GetSubscriberByEmailParams struct {
@@ -142,12 +184,13 @@ func (q *Queries) GetSubscriberByEmail(ctx context.Context, arg GetSubscriberByE
 		&i.UnsubscribedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		pq.Array(&i.Tags),
 	)
 	return i, err
 }
 
 const getSubscriberByID = `-- name: GetSubscriberByID :one
-SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at FROM subscribers WHERE id = $1 AND project_id = $2
+SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags FROM subscribers WHERE id = $1 AND project_id = $2
 `
 
 type GetSubscriberByIDParams struct {
@@ -169,12 +212,13 @@ func (q *Queries) GetSubscriberByID(ctx context.Context, arg GetSubscriberByIDPa
 		&i.UnsubscribedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		pq.Array(&i.Tags),
 	)
 	return i, err
 }
 
 const listActiveSubscribersByProject = `-- name: ListActiveSubscribersByProject :many
-SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at FROM subscribers
+SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags FROM subscribers
 WHERE project_id = $1 AND status = 'active'
 ORDER BY created_at DESC
 `
@@ -199,6 +243,7 @@ func (q *Queries) ListActiveSubscribersByProject(ctx context.Context, projectID 
 			&i.UnsubscribedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			pq.Array(&i.Tags),
 		); err != nil {
 			return nil, err
 		}
@@ -213,8 +258,38 @@ func (q *Queries) ListActiveSubscribersByProject(ctx context.Context, projectID 
 	return items, nil
 }
 
+const listDistinctTagsByProject = `-- name: ListDistinctTagsByProject :many
+SELECT DISTINCT unnest(tags)::text AS tag
+FROM subscribers
+WHERE project_id = $1
+ORDER BY tag
+`
+
+func (q *Queries) ListDistinctTagsByProject(ctx context.Context, projectID uuid.UUID) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listDistinctTagsByProject, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return nil, err
+		}
+		items = append(items, tag)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSubscribersByProject = `-- name: ListSubscribersByProject :many
-SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at FROM subscribers
+SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags FROM subscribers
 WHERE project_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -246,6 +321,7 @@ func (q *Queries) ListSubscribersByProject(ctx context.Context, arg ListSubscrib
 			&i.UnsubscribedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			pq.Array(&i.Tags),
 		); err != nil {
 			return nil, err
 		}
@@ -260,13 +336,46 @@ func (q *Queries) ListSubscribersByProject(ctx context.Context, arg ListSubscrib
 	return items, nil
 }
 
+const setSubscriberTags = `-- name: SetSubscriberTags :one
+UPDATE subscribers SET
+    tags = $3,
+    updated_at = NOW()
+WHERE id = $1 AND project_id = $2
+RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags
+`
+
+type SetSubscriberTagsParams struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Tags      []string
+}
+
+func (q *Queries) SetSubscriberTags(ctx context.Context, arg SetSubscriberTagsParams) (Subscriber, error) {
+	row := q.db.QueryRowContext(ctx, setSubscriberTags, arg.ID, arg.ProjectID, pq.Array(arg.Tags))
+	var i Subscriber
+	err := row.Scan(
+		&i.ID,
+		&i.ProjectID,
+		&i.Email,
+		&i.Name,
+		&i.Status,
+		&i.Metadata,
+		&i.SubscribedAt,
+		&i.UnsubscribedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		pq.Array(&i.Tags),
+	)
+	return i, err
+}
+
 const updateSubscriber = `-- name: UpdateSubscriber :one
 UPDATE subscribers SET
     name = $3,
     email = $4,
     updated_at = NOW()
 WHERE id = $1 AND project_id = $2
-RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at
+RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags
 `
 
 type UpdateSubscriberParams struct {
@@ -295,6 +404,40 @@ func (q *Queries) UpdateSubscriber(ctx context.Context, arg UpdateSubscriberPara
 		&i.UnsubscribedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		pq.Array(&i.Tags),
+	)
+	return i, err
+}
+
+const updateSubscriberMetadata = `-- name: UpdateSubscriberMetadata :one
+UPDATE subscribers SET
+    metadata = $3,
+    updated_at = NOW()
+WHERE id = $1 AND project_id = $2
+RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags
+`
+
+type UpdateSubscriberMetadataParams struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Metadata  json.RawMessage
+}
+
+func (q *Queries) UpdateSubscriberMetadata(ctx context.Context, arg UpdateSubscriberMetadataParams) (Subscriber, error) {
+	row := q.db.QueryRowContext(ctx, updateSubscriberMetadata, arg.ID, arg.ProjectID, arg.Metadata)
+	var i Subscriber
+	err := row.Scan(
+		&i.ID,
+		&i.ProjectID,
+		&i.Email,
+		&i.Name,
+		&i.Status,
+		&i.Metadata,
+		&i.SubscribedAt,
+		&i.UnsubscribedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		pq.Array(&i.Tags),
 	)
 	return i, err
 }
@@ -305,7 +448,7 @@ UPDATE subscribers SET
     unsubscribed_at = CASE WHEN $4 = 'unsubscribed' THEN NOW() ELSE unsubscribed_at END,
     updated_at = NOW()
 WHERE id = $1 AND project_id = $2
-RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at
+RETURNING id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags
 `
 
 type UpdateSubscriberStatusParams struct {
@@ -334,6 +477,7 @@ func (q *Queries) UpdateSubscriberStatus(ctx context.Context, arg UpdateSubscrib
 		&i.UnsubscribedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		pq.Array(&i.Tags),
 	)
 	return i, err
 }

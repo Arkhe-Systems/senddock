@@ -1,11 +1,15 @@
 package handler
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/arkhe-systems/senddock/internal/service"
 )
@@ -14,9 +18,24 @@ type DeviceGate interface {
 	CheckLogin(w http.ResponseWriter, r *http.Request, userID, email string) (bool, error)
 }
 
+// LoginLimiter throttles brute-force attempts per account (independent of the
+// per-IP rate limiter, which can be evaded by spoofing X-Forwarded-For).
+type LoginLimiter interface {
+	Count(ctx context.Context, key string) int64
+	Increment(ctx context.Context, key string, ttl time.Duration) (int64, error)
+	Delete(ctx context.Context, keys ...string)
+}
+
+const (
+	maxLoginAttempts = 10
+	max2FAAttempts   = 10
+	lockoutWindow    = 15 * time.Minute
+)
+
 type AuthHandler struct {
 	authService *service.AuthService
 	deviceGate  DeviceGate
+	limiter     LoginLimiter
 }
 
 func NewAuthHandler(authService *service.AuthService) *AuthHandler {
@@ -25,6 +44,31 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 
 func (h *AuthHandler) SetDeviceGate(g DeviceGate) {
 	h.deviceGate = g
+}
+
+func (h *AuthHandler) SetLoginLimiter(l LoginLimiter) {
+	h.limiter = l
+}
+
+func (h *AuthHandler) locked(ctx context.Context, key string, max int64) bool {
+	return h.limiter != nil && h.limiter.Count(ctx, key) >= max
+}
+
+func (h *AuthHandler) recordFailure(ctx context.Context, key string) {
+	if h.limiter != nil {
+		h.limiter.Increment(ctx, key, lockoutWindow)
+	}
+}
+
+func (h *AuthHandler) clearFailures(ctx context.Context, key string) {
+	if h.limiter != nil {
+		h.limiter.Delete(ctx, key)
+	}
+}
+
+func lockoutKey(prefix, id string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(id))))
+	return prefix + hex.EncodeToString(sum[:8])
 }
 
 type registerRequest struct {
@@ -129,6 +173,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	failKey := lockoutKey("login_fail:", req.Email)
+	if h.locked(r.Context(), failKey, maxLoginAttempts) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(errorResponse{Error: "too many failed attempts, try again later"})
+		return
+	}
+
 	result, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -137,10 +189,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(map[string]string{"error": "email not verified", "code": "email_not_verified"})
 			return
 		}
+		h.recordFailure(r.Context(), failKey)
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return
 	}
+
+	h.clearFailures(r.Context(), failKey)
 
 	w.Header().Set("Content-Type", "application/json")
 	if result.Requires2FA {
@@ -190,13 +245,22 @@ func (h *AuthHandler) VerifyTwoFactor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	failKey := lockoutKey("2fa_fail:", req.TwoFactorToken)
+	if h.locked(r.Context(), failKey, max2FAAttempts) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(errorResponse{Error: "too many failed attempts, sign in again"})
+		return
+	}
+
 	tokens, err := h.authService.VerifyTwoFactor(r.Context(), req.TwoFactorToken, req.Code)
 	if err != nil {
+		h.recordFailure(r.Context(), failKey)
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
 		return
 	}
 
+	h.clearFailures(r.Context(), failKey)
 	setAuthCookies(w, tokens)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "logged in"})

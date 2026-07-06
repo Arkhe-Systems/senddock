@@ -2,6 +2,8 @@
 
 Campaigns let you schedule email broadcasts for a future time. Instead of sending immediately, you create a campaign that pairs a template with a scheduled delivery time. When the time arrives, SendDock broadcasts the template to all active subscribers in the project.
 
+![The Newsletters view listing scheduled campaigns](/screenshots/campaigns.png)
+
 ## How Campaigns Work
 
 1. You create a campaign with a template, a name, and a scheduled time

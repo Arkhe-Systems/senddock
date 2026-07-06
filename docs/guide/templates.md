@@ -2,6 +2,8 @@
 
 Templates define the content and structure of your emails. Each template belongs to a project.
 
+![The templates list for a project](/screenshots/templates-list.png)
+
 ## Creating a Template
 
 Two ways to start:
@@ -16,6 +18,8 @@ Either way, the template lives in your project and is fully editable from there.
 ### Code Editor
 
 Write HTML directly with syntax highlighting powered by CodeMirror. A live preview panel shows the rendered output in real time.
+
+![The template editor: code on the left, live preview on the right, detected variables below](/screenshots/template-editor.png)
 
 ### Visual Editor
 
@@ -61,8 +65,11 @@ Use double curly braces to insert dynamic content:
 | `{{email}}` | Subscriber's email |
 | `{{subscriber_id}}` | Subscriber's UUID |
 | `{{unsubscribe_url}}` | Per-recipient unsubscribe link, signed with HMAC |
+| <span v-pre>`{{custom.KEY}}`</span> | A [custom field](/guide/subscribers#custom-fields) value for that subscriber, e.g. <span v-pre>`{{custom.plan_tier}}`</span> |
 
 Plus any custom keys you pass in the `data` map of `/send`, `/send/batch` or in a campaign's `variables` field — those are substituted by the same engine using the exact same `{{your_key}}` syntax.
+
+The template editor lists the project's custom fields as clickable chips below the editor, so you can insert the right <span v-pre>`{{custom.KEY}}`</span> token without remembering the exact key.
 
 Variables are replaced per recipient at send time.
 
@@ -73,6 +80,7 @@ When SendDock substitutes a variable inside the template body, the value runs th
 This applies to:
 
 - The four built-in variables (`{{name}}`, `{{email}}`, `{{subscriber_id}}`, `{{unsubscribe_url}}`).
+- Custom field values (<span v-pre>`{{custom.KEY}}`</span>).
 - Every key in the `data` / `variables` map you pass to a send or campaign.
 
 The trade-off: you cannot inject HTML through a variable. If you genuinely need a dynamic chunk of HTML in your email (e.g. a different banner image per segment), build the HTML directly into the template body or split it into multiple templates rather than passing it as a variable.

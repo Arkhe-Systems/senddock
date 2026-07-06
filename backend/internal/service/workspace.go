@@ -373,9 +373,12 @@ func normalizeRole(role string) string {
 		return WorkspaceRoleDeveloper
 	case WorkspaceRoleViewer:
 		return WorkspaceRoleViewer
-	case "", WorkspaceRoleMember:
+	case WorkspaceRoleMember:
 		return WorkspaceRoleMember
 	default:
+		// Empty or unrecognized roles fall through to "" so callers reject them
+		// with ErrInvalidRole, instead of silently defaulting to the
+		// near-admin "member" role.
 		return ""
 	}
 }

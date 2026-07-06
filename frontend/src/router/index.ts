@@ -73,6 +73,11 @@ const router = createRouter({
           component: () => import('@/views/project/SubscribersSection.vue'),
         },
         {
+          path: 'segments',
+          name: 'project-segments',
+          component: () => import('@/views/project/SegmentsSection.vue'),
+        },
+        {
           path: 'suppressions',
           name: 'project-suppressions',
           component: () => import('@/views/project/SuppressionsSection.vue'),

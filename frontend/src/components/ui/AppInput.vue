@@ -9,6 +9,7 @@ const props = defineProps<{
     id?: string,
     large?: boolean,
     autocomplete?: string,
+    error?: string,
 }>()
 
 const ignoreAttrs = {
@@ -47,7 +48,12 @@ const passwordManagerAttrs = props.autocomplete ? {} : ignoreAttrs
             :required="required"
             :autocomplete="autocomplete ?? 'off'"
             v-bind="passwordManagerAttrs"
-            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent transition"
+            :class="[
+                'w-full px-3 py-2 bg-zinc-900 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:border-transparent transition',
+                error ? 'border-red-500/50 focus:ring-red-500/50' : 'border-zinc-800 focus:ring-zinc-500',
+            ]"
         />
+
+        <p v-if="error" class="mt-1 text-xs text-red-400">{{ error }}</p>
     </div>
 </template>
