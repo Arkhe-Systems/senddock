@@ -5,24 +5,18 @@
 # generates a .env with random secrets, and starts the stack
 # (senddock + postgres + redis).
 #
-# Quick install (interactive):
-#   curl -fsSL https://raw.githubusercontent.com/Arkhe-Systems/senddock/main/scripts/setup.sh -o setup.sh
-#   sudo bash setup.sh
+# Install:
+#   curl -fsSL https://raw.githubusercontent.com/Arkhe-Systems/senddock/main/scripts/setup.sh | sudo bash
 #
-# Non-interactive (CI / one-shot):
-#   curl -fsSL https://raw.githubusercontent.com/Arkhe-Systems/senddock/main/scripts/setup.sh \
-#     | sudo SENDDOCK_PUBLIC_URL=https://email.example.com bash
+# The installer asks nothing. Your public URL, SMTP and license key are
+# configured from the dashboard the first time you open SendDock.
 #
 # Environment overrides:
 #   INSTALL_DIR                install directory (default: /opt/senddock)
-#   SENDDOCK_PUBLIC_URL        public URL (skips prompt when set; wins over
-#                              existing .env value, so this is how you fix a
-#                              .env that was generated with the wrong URL —
-#                              just re-run with SENDDOCK_PUBLIC_URL=... set)
 #   SENDDOCK_PORT              host port to expose (default: 8080)
-#   SENDDOCK_ALLOW_LOCALHOST   set to "yes" to allow PUBLIC_URL=localhost
-#                              (non-interactive escape hatch for local tests —
-#                              newsletters / unsubscribe won't work in this mode)
+#   SENDDOCK_PUBLIC_URL        deprecated — seeds PUBLIC_URL in .env for
+#                              scripted installs. Removed in v0.9; set the
+#                              public URL from the dashboard instead.
 
 set -euo pipefail
 
@@ -143,130 +137,57 @@ fi
 
 # --- .env --------------------------------------------------------------------
 
-# Resolve PUBLIC_URL in this order of preference:
-#   1. SENDDOCK_PUBLIC_URL env var (highest — always wins, lets the user fix
-#      a broken .env by re-running setup.sh with the right env)
-#   2. PUBLIC_URL line already in .env (if it's a valid public URL — keeps
-#      re-runs idempotent for installs that are already correct)
-#   3. Interactive prompt with retries until non-empty
-#   4. Hard error if non-interactive and nothing supplied
-
-PUBLIC_URL_INPUT="${SENDDOCK_PUBLIC_URL:-}"
-
-if [[ -z "$PUBLIC_URL_INPUT" && -f .env ]]; then
-  existing_url="$(grep -E '^PUBLIC_URL=' .env | head -1 | cut -d= -f2- || true)"
-  if [[ -n "$existing_url" && "$existing_url" != *localhost* && "$existing_url" != *127.0.0.1* ]]; then
-    PUBLIC_URL_INPUT="$existing_url"
-    ok "Reusing PUBLIC_URL from existing .env: ${PUBLIC_URL_INPUT}"
-  fi
-fi
-
-if [[ -z "$PUBLIC_URL_INPUT" ]]; then
-  if [[ -t 0 ]]; then
-    while true; do
-      echo ""
-      echo "${b}Public URL${n} — the address users (and your emails' tracking links) will reach this instance at."
-      echo "  Examples: ${b}https://mail.tudominio.com${n}, ${b}https://email.example.com${n}"
-      echo "  ${y}This must be a public domain.${n} Newsletters and unsubscribe links won't work with localhost."
-      read -rp "  > " PUBLIC_URL_INPUT
-      if [[ -n "$PUBLIC_URL_INPUT" ]]; then
-        break
-      fi
-      warn "Public URL is required. Try again, or Ctrl+C to abort."
-    done
-  else
-    die "Non-interactive mode requires SENDDOCK_PUBLIC_URL=https://your-domain.com. See the script header for examples."
-  fi
-fi
-
-# Auto-prefix https:// if no scheme — accepting bare domains is way friendlier
-# than silently writing them and letting SendDock parse them weirdly later.
-if [[ "$PUBLIC_URL_INPUT" != http://* && "$PUBLIC_URL_INPUT" != https://* ]]; then
-  PUBLIC_URL_INPUT="https://${PUBLIC_URL_INPUT}"
-  ok "No URL scheme provided — using ${PUBLIC_URL_INPUT}"
-fi
-
-# Refuse localhost unless explicitly opted in. This was the silent footgun:
-# previously an empty prompt → default to localhost → install completes →
-# user opens dashboard and discovers "Newsletters are disabled" without
-# knowing why.
-if [[ "$PUBLIC_URL_INPUT" == *localhost* || "$PUBLIC_URL_INPUT" == *127.0.0.1* ]]; then
-  warn "PUBLIC_URL points to localhost. Newsletters, unsubscribe links and tracking pixels in outgoing emails won't work."
-  if [[ "${SENDDOCK_ALLOW_LOCALHOST:-}" != "yes" ]]; then
-    if [[ -t 0 ]]; then
-      read -rp "  Continue anyway for a local test? Type ${b}yes${n} to confirm: " confirm
-      [[ "$confirm" == "yes" ]] || die "Aborted. Re-run with a public URL like https://mail.tudominio.com, or pass SENDDOCK_ALLOW_LOCALHOST=yes for an intentional local test."
-    else
-      die "Refusing to set localhost as PUBLIC_URL in non-interactive mode. Pass SENDDOCK_ALLOW_LOCALHOST=yes to allow it."
-    fi
-  fi
-fi
-
-PUBLIC_URL_FINAL="$PUBLIC_URL_INPUT"
-ok "PUBLIC_URL = ${PUBLIC_URL_FINAL}"
-
-# --- write/update .env -------------------------------------------------------
-
 if [[ -f .env ]]; then
-  # .env exists — preserve secrets, only patch PUBLIC_URL if it differs.
-  existing_url="$(grep -E '^PUBLIC_URL=' .env | head -1 | cut -d= -f2- || true)"
-  if [[ "$existing_url" == "$PUBLIC_URL_FINAL" ]]; then
-    ok ".env already has the correct PUBLIC_URL — leaving secrets intact."
-  else
-    say "Updating PUBLIC_URL in existing .env (was: ${existing_url:-<unset>})…"
-    if grep -qE '^PUBLIC_URL=' .env; then
-      sed -i "s|^PUBLIC_URL=.*|PUBLIC_URL=${PUBLIC_URL_FINAL}|" .env
-    else
-      echo "PUBLIC_URL=${PUBLIC_URL_FINAL}" >> .env
-    fi
-    ok "PUBLIC_URL updated. Other secrets preserved."
-  fi
+  ok ".env already exists — leaving it untouched (secrets preserved)."
 else
   say "Generating .env with random secrets…"
   JWT_SECRET="$(openssl rand -hex 32)"
   POSTGRES_PASSWORD="$(openssl rand -hex 24)"
   SENDDOCK_WATCHTOWER_TOKEN="$(openssl rand -hex 32)"
 
+  (
   umask 077
   cat > .env <<EOF
 # Generated by setup.sh on $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+# Secrets and host wiring. Everything else is configured from the dashboard.
 
-# === REQUIRED ===
-
-# Public URL where this instance is reachable from the internet.
-# Used to build unsubscribe + tracking links inside outgoing emails.
-PUBLIC_URL=${PUBLIC_URL_INPUT}
-
-# Postgres password (regenerate with: openssl rand -hex 24).
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-
-# JWT signing secret (regenerate with: openssl rand -hex 32).
 JWT_SECRET=${JWT_SECRET}
 
-# === ONE-CLICK UPDATES (Watchtower) ===
-# Wired up by setup.sh so the dashboard's "Update now" button works.
-# Watchtower runs in HTTP-API-only mode (no auto-polling); updates only
-# fire when you explicitly click the button.
 SENDDOCK_WATCHTOWER_URL=http://watchtower:8080
 SENDDOCK_WATCHTOWER_TOKEN=${SENDDOCK_WATCHTOWER_TOKEN}
 
-# === OPTIONAL ===
-
-# Host port to expose. The container always listens on 8080 internally.
 SENDDOCK_PORT=${SENDDOCK_PORT}
 
 # Pro / Team license key from senddock.dev. Empty = Community tier (free).
+# Paste your key here and run: docker compose up -d
 SENDDOCK_LICENSE_KEY=
-
-# Per-IP request cap, rolling 60s window. Default 600. Only enforced with Redis.
-# RATE_LIMIT_PER_MINUTE=600
-
-# Manifest URL for the starter template library. Defaults to the public
-# Arkhe-Systems/senddock-templates repo. Uncomment to point at your own fork.
-# TEMPLATE_LIBRARY_URL=https://raw.githubusercontent.com/Arkhe-Systems/senddock-templates/main/index.json
 EOF
+  )
   chmod 600 .env
   ok ".env written (mode 600)."
+fi
+
+ensure_env_var() {
+  local key="$1" value="$2"
+  if grep -qE "^${key}=" .env; then
+    return 0
+  fi
+  printf '%s=%s\n' "$key" "$value" >> .env
+  ok "Added missing ${key} to .env"
+}
+
+ensure_env_var SENDDOCK_WATCHTOWER_URL "http://watchtower:8080"
+ensure_env_var SENDDOCK_WATCHTOWER_TOKEN "$(openssl rand -hex 32)"
+
+if [[ -n "${SENDDOCK_PUBLIC_URL:-}" ]]; then
+  warn "SENDDOCK_PUBLIC_URL is deprecated — the public URL is now set from the dashboard and will be removed from .env in v0.9."
+  if grep -qE '^PUBLIC_URL=' .env; then
+    sed -i "s|^PUBLIC_URL=.*|PUBLIC_URL=${SENDDOCK_PUBLIC_URL}|" .env
+  else
+    echo "PUBLIC_URL=${SENDDOCK_PUBLIC_URL}" >> .env
+  fi
+  ok "Seeded PUBLIC_URL = ${SENDDOCK_PUBLIC_URL}"
 fi
 
 # --- docker-compose.override.yml (Watchtower) -------------------------------
@@ -352,6 +273,16 @@ docker compose ps
 
 # --- final ------------------------------------------------------------------
 
+host_ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+dashboard_url="${SENDDOCK_PUBLIC_URL:-}"
+if [[ -z "$dashboard_url" ]]; then
+  if [[ -n "$host_ip" ]]; then
+    dashboard_url="http://${host_ip}:${SENDDOCK_PORT}"
+  else
+    dashboard_url="http://<your-server-ip>:${SENDDOCK_PORT}"
+  fi
+fi
+
 cat <<EOF
 
 ${g}${b}SendDock is starting.${n}
@@ -366,13 +297,19 @@ ${b}Next steps${n}
        cd ${INSTALL_DIR} && docker compose ps
 
   2. Open SendDock and create your admin account on the Setup screen:
-       ${PUBLIC_URL_FINAL:-http://<your-host>:${SENDDOCK_PORT}}
+       ${dashboard_url}
+
+     The Setup screen also asks for your public URL — the address your emails'
+     unsubscribe and tracking links will point at. You can change it later
+     under Instance in the dashboard.
 
   3. For production, put a reverse proxy with HTTPS in front (Caddy / Nginx / Traefik).
      Guide: https://docs.senddock.dev/self-hosting/installation#reverse-proxy-https
 
-  4. Configure your SMTP relay and license key from the dashboard, or by editing
-     ${INSTALL_DIR}/.env and running:
+  4. Configure your SMTP relay from the dashboard (Settings → SMTP).
+
+     A Pro / Team license key is the one thing still set by hand: paste it into
+     SENDDOCK_LICENSE_KEY in ${INSTALL_DIR}/.env and run:
        cd ${INSTALL_DIR} && docker compose up -d
 
      If "Test Connection" times out, your ISP (residential connections especially)

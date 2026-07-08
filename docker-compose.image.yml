@@ -12,8 +12,8 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required (min 32 chars)}
       PORT: 8080
-      PUBLIC_URL: ${PUBLIC_URL:?PUBLIC_URL is required, e.g. https://senddock.example.com}
-      FRONTEND_URL: ${PUBLIC_URL}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      FRONTEND_URL: ${PUBLIC_URL:-}
       DEPLOYMENT_MODE: self-hosted
       SENDDOCK_LICENSE_KEY: ${SENDDOCK_LICENSE_KEY:-}
       SENDDOCK_LICENSE_ENDPOINT: ${SENDDOCK_LICENSE_ENDPOINT:-}
