@@ -61,9 +61,13 @@ type WebhookDispatcher interface {
 	Enqueue(ctx context.Context, event webhooks.Event)
 }
 
+type PublicURLProvider interface {
+	PublicURL() string
+}
+
 type EmailService struct {
 	queries      *db.Queries
-	publicURL    string
+	settings     PublicURLProvider
 	encSecret    string
 	cache        *cache.Redis
 	hooks        WebhookDispatcher
@@ -75,8 +79,12 @@ func (s *EmailService) SetSegmentService(seg *SegmentService) {
 	s.segments = seg
 }
 
-func NewEmailService(queries *db.Queries, publicURL, encSecret string, redis *cache.Redis, hooks WebhookDispatcher, suppressions *SuppressionService) *EmailService {
-	return &EmailService{queries: queries, publicURL: publicURL, encSecret: encSecret, cache: redis, hooks: hooks, suppressions: suppressions}
+func NewEmailService(queries *db.Queries, settings PublicURLProvider, encSecret string, redis *cache.Redis, hooks WebhookDispatcher, suppressions *SuppressionService) *EmailService {
+	return &EmailService{queries: queries, settings: settings, encSecret: encSecret, cache: redis, hooks: hooks, suppressions: suppressions}
+}
+
+func (s *EmailService) publicURL() string {
+	return s.settings.PublicURL()
 }
 
 func (s *EmailService) signUnsub(projectID, subscriberID string) string {
@@ -91,7 +99,7 @@ func (s *EmailService) verifyUnsubToken(projectID, subscriberID, token string) b
 }
 
 func (s *EmailService) unsubURL(projectID, subscriberID string) string {
-	return fmt.Sprintf("%s/unsubscribe/%s/%s?t=%s", s.publicURL, projectID, subscriberID, s.signUnsub(projectID, subscriberID))
+	return fmt.Sprintf("%s/unsubscribe/%s/%s?t=%s", s.publicURL(), projectID, subscriberID, s.signUnsub(projectID, subscriberID))
 }
 
 type SendResult struct {
@@ -217,8 +225,8 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		return SendResult{}, errors.New("smtp not configured")
 	}
 
-	if !IsPublicURLReachable(s.publicURL) {
-		return SendResult{}, errors.New("PUBLIC_URL is not set to a publicly reachable URL. Newsletters need a working unsubscribe link before they can be sent. Set PUBLIC_URL in your .env to your public domain and restart the server")
+	if !IsPublicURLReachable(s.publicURL()) {
+		return SendResult{}, errors.New("your public URL is not set to a publicly reachable address. Newsletters need a working unsubscribe link before they can be sent. Set it under Settings → Instance")
 	}
 
 	tid, err := uuid.Parse(templateID)
@@ -753,7 +761,7 @@ func (s *EmailService) dispatchEmail(ctx context.Context, eventType string, proj
 }
 
 func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string {
-	pixel := fmt.Sprintf(`<img src="%s/t/%s.gif" width="1" height="1" style="display:none" />`, s.publicURL, logID.String())
+	pixel := fmt.Sprintf(`<img src="%s/t/%s.gif" width="1" height="1" style="display:none" />`, s.publicURL(), logID.String())
 	if strings.Contains(body, "</body>") {
 		return strings.Replace(body, "</body>", pixel+"</body>", 1)
 	}
@@ -774,7 +782,7 @@ func (s *EmailService) verifyClickToken(logID, rawURL, token string) bool {
 func (s *EmailService) clickURL(logID uuid.UUID, rawURL string) string {
 	encoded := base64.RawURLEncoding.EncodeToString([]byte(rawURL))
 	sig := s.signClickToken(logID.String(), rawURL)
-	return fmt.Sprintf("%s/c/%s/%s.%s", s.publicURL, logID.String(), encoded, sig)
+	return fmt.Sprintf("%s/c/%s/%s.%s", s.publicURL(), logID.String(), encoded, sig)
 }
 
 func shortURLHash(rawURL string) string {
@@ -819,7 +827,7 @@ func (s *EmailService) rewriteLinksForTracking(body string, logID uuid.UUID) str
 		if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
 			return
 		}
-		if strings.HasPrefix(trimmed, s.publicURL+"/unsubscribe/") || strings.HasPrefix(trimmed, s.publicURL+"/c/") || strings.HasPrefix(trimmed, s.publicURL+"/t/") {
+		if strings.HasPrefix(trimmed, s.publicURL()+"/unsubscribe/") || strings.HasPrefix(trimmed, s.publicURL()+"/c/") || strings.HasPrefix(trimmed, s.publicURL()+"/t/") {
 			return
 		}
 		sel.SetAttr("href", s.clickURL(logID, trimmed))

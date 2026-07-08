@@ -105,6 +105,13 @@ type EmailLog struct {
 	ClickedAt    sql.NullTime
 }
 
+type InstanceSetting struct {
+	ID                        bool
+	PublicUrl                 string
+	SessionIdleTimeoutMinutes int32
+	UpdatedAt                 time.Time
+}
+
 type Project struct {
 	ID                          uuid.UUID
 	UserID                      uuid.UUID

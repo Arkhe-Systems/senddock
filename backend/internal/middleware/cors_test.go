@@ -6,9 +6,33 @@ import (
 	"testing"
 )
 
+func staticOrigin(url string) func() string {
+	return func() string { return url }
+}
+
+func TestCORS_ReadsOriginPerRequest(t *testing.T) {
+	origin := "https://old.example.com"
+	handler := CORS(func() string { return origin })(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	first := httptest.NewRecorder()
+	handler.ServeHTTP(first, httptest.NewRequest("GET", "/test", nil))
+	if got := first.Header().Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("expected %s, got %s", origin, got)
+	}
+
+	origin = "https://new.example.com"
+	second := httptest.NewRecorder()
+	handler.ServeHTTP(second, httptest.NewRequest("GET", "/test", nil))
+	if got := second.Header().Get("Access-Control-Allow-Origin"); got != origin {
+		t.Errorf("origin change must apply without rebuilding the middleware, got %s", got)
+	}
+}
+
 func TestCORS_SetsHeaders(t *testing.T) {
 	frontendURL := "http://localhost:5173"
-	handler := CORS(frontendURL)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := CORS(staticOrigin(frontendURL))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -27,7 +51,7 @@ func TestCORS_SetsHeaders(t *testing.T) {
 }
 
 func TestCORS_PreflightReturns200(t *testing.T) {
-	handler := CORS("http://localhost:5173")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := CORS(staticOrigin("http://localhost:5173"))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -42,7 +66,7 @@ func TestCORS_PreflightReturns200(t *testing.T) {
 }
 
 func TestCORS_DynamicOrigin(t *testing.T) {
-	handler := CORS("https://senddock.dev")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := CORS(staticOrigin("https://senddock.dev"))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

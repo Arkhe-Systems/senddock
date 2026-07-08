@@ -71,8 +71,12 @@ func TestEnsureUnsubscribeFooter(t *testing.T) {
 	})
 }
 
+type staticPublicURL string
+
+func (s staticPublicURL) PublicURL() string { return string(s) }
+
 func TestSignUnsubVerifyRoundTrip(t *testing.T) {
-	s := &EmailService{publicURL: "https://example.com", encSecret: "test-secret"}
+	s := &EmailService{settings: staticPublicURL("https://example.com"), encSecret: "test-secret"}
 	pid := "11111111-1111-1111-1111-111111111111"
 	sid := "22222222-2222-2222-2222-222222222222"
 
@@ -93,14 +97,14 @@ func TestSignUnsubVerifyRoundTrip(t *testing.T) {
 		t.Error("token bound to a different subscriber must not verify")
 	}
 
-	otherSecret := &EmailService{publicURL: "https://example.com", encSecret: "other-secret"}
+	otherSecret := &EmailService{settings: staticPublicURL("https://example.com"), encSecret: "other-secret"}
 	if otherSecret.verifyUnsubToken(pid, sid, token) {
 		t.Error("token signed with one secret must not verify under another")
 	}
 }
 
 func TestUnsubURLIncludesSignedToken(t *testing.T) {
-	s := &EmailService{publicURL: "https://email.example.com", encSecret: "k"}
+	s := &EmailService{settings: staticPublicURL("https://email.example.com"), encSecret: "k"}
 	pid := "abcd"
 	sid := "efgh"
 

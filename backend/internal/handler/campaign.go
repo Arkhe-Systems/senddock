@@ -15,25 +15,25 @@ type CampaignHandler struct {
 	campaignService *service.CampaignService
 	projectService  *service.ProjectService
 	worker          *service.CampaignWorker
-	publicURL       string
+	settings        service.PublicURLProvider
 }
 
-func NewCampaignHandler(campaignService *service.CampaignService, projectService *service.ProjectService, worker *service.CampaignWorker, publicURL string) *CampaignHandler {
+func NewCampaignHandler(campaignService *service.CampaignService, projectService *service.ProjectService, worker *service.CampaignWorker, settings service.PublicURLProvider) *CampaignHandler {
 	return &CampaignHandler{
 		campaignService: campaignService,
 		projectService:  projectService,
 		worker:          worker,
-		publicURL:       publicURL,
+		settings:        settings,
 	}
 }
 
 func (h *CampaignHandler) requirePublicURL(w http.ResponseWriter) bool {
-	if service.IsPublicURLReachable(h.publicURL) {
+	if service.IsPublicURLReachable(h.settings.PublicURL()) {
 		return true
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(errorResponse{Error: "PUBLIC_URL is not set to a publicly reachable URL. Newsletters need a working unsubscribe link before they can be scheduled. Set PUBLIC_URL in your .env to your public domain and restart the server"})
+	json.NewEncoder(w).Encode(errorResponse{Error: "Your public URL is not set to a publicly reachable address. Newsletters need a working unsubscribe link before they can be scheduled. Set it under Settings → Instance"})
 	return false
 }
 
