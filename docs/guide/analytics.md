@@ -55,7 +55,7 @@ Analytics is read-only. There's no setup — every email already passes through 
 
 If you don't see numbers you expect:
 
-1. Confirm `PUBLIC_URL` is set and reachable. Without it, the open-tracking pixel and click-redirect URLs in your emails point to a host the recipient cannot reach, and no events are recorded.
+1. Confirm your public URL is set and reachable (dashboard → **Instance**). Without it, the open-tracking pixel and click-redirect URLs in your emails point to a host the recipient cannot reach, and no events are recorded.
 2. Image proxies (Gmail's, Outlook's image cache) often pre-fetch the open pixel once on receipt, which inflates the open count slightly. SendDock counts only the **first** open per email, so the inflation is bounded.
 3. Click events are recorded only for links that go through the tracked redirect (`/c/{logId}/{...}`). Newsletters built in the Email Editor get this automatically; for raw HTML sends, see [Email Sending → Click tracking](/guide/sending#click-tracking).
 

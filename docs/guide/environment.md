@@ -16,7 +16,7 @@ All configuration is done via environment variables. For self-hosting deployment
 | `PORT` | HTTP port the binary listens on inside the container. Not the same as `SENDDOCK_PORT`, which the compose file uses to map the host port. Leave at `8080` unless you know why you're changing it. | `8080` |
 | `REDIS_URL` | Redis connection string. Rate limiting is backed by Redis, so **always configure it in production / any internet-facing deployment**. Only omit it in ephemeral local/test environments. | — |
 | `FRONTEND_URL` | Frontend origin for CORS headers. When it starts with `https://`, auth cookies are issued with `Secure: true`. | `http://localhost:5173` |
-| `PUBLIC_URL` | Public URL of this instance, used to build unsubscribe and tracking links inside outgoing emails. Trailing slashes are stripped automatically. Leave blank in single-binary deploys to fall back to `FRONTEND_URL`. | _falls back to `FRONTEND_URL`_ |
+| `PUBLIC_URL` | **Deprecated — set this from the dashboard instead** (Instance settings). If present it is imported into the database on first boot and support for it is removed in v0.9. | _stored in the database_ |
 | `DEPLOYMENT_MODE` | `self-hosted` or `cloud` | `self-hosted` |
 | `SENDDOCK_LICENSE_KEY` | Pro / Team license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only) regardless of `DEPLOYMENT_MODE`. See [Pro license](/self-hosting/configuration#plans-and-licensing). | — |
 | `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the **global** rate limiter (rolling 60s fixed window, applied to every HTTP endpoint except `/health`). Independent from the hard-coded per-project sending limits on `/send`, `/send/batch`, `/broadcast` (those are not configurable). Lower this on small deployments behind a single egress IP; raise it for high-traffic apps. Only enforced when `REDIS_URL` is set. | `600` |
@@ -43,13 +43,12 @@ You almost never need these — they're escape hatches for non-default deploymen
 | `FRONTEND_DIST_PATH` | Filesystem path to the built frontend SPA (`index.html` and assets). The official Docker image sets this to `/app/frontend/dist`. Override only if you serve the SPA from a custom location. | `./frontend/dist` |
 | `DISPOSABLE_DOMAINS_FILE` | Path to a newline-separated list of disposable email domains used by the import validator. Built-in list ships with the binary; setting this replaces it (does not extend). | _built-in_ |
 
-::: tip Why PUBLIC_URL?
-Outgoing emails contain links like the unsubscribe URL and the open-tracking pixel. SendDock cannot guess what URL recipients will see — it has to be told. In most single-binary deploys (Go binary serves both the API and the SPA), `PUBLIC_URL` and `FRONTEND_URL` are the same value, so you can leave `PUBLIC_URL` blank and only set `FRONTEND_URL`.
+::: tip Where is the public URL now?
+Outgoing emails contain links like the unsubscribe URL and the open-tracking pixel. SendDock cannot guess what URL recipients will see — it has to be told.
 
-Set `PUBLIC_URL` explicitly when:
-- Your backend is on a different domain/subdomain than the frontend SPA.
-- You're behind a reverse proxy that terminates TLS.
-- You want unsubscribe links to point at a different domain than the dashboard.
+Since v0.8 this lives in the database, not in the environment. You set it on the Setup screen the first time you open SendDock, and change it any time under **Instance** in the dashboard. Changes apply immediately, with no restart.
+
+Existing installations that still have `PUBLIC_URL` in their environment keep working: the value is imported into the database on first boot and a deprecation warning is logged. The variable is removed in v0.9.
 :::
 
 ## Deployment Modes
@@ -72,7 +71,6 @@ JWT_SECRET=change-this-to-a-random-secret
 PORT=8080
 REDIS_URL=redis://localhost:6380
 FRONTEND_URL=https://email.mycompany.com
-PUBLIC_URL=https://email.mycompany.com
 DEPLOYMENT_MODE=self-hosted
 SENDDOCK_LICENSE_KEY=
 ```

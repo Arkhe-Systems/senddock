@@ -112,25 +112,25 @@ The link is signed with a token derived from `JWT_SECRET` — recipients cannot 
 <a href="{{unsubscribe_url}}">Unsubscribe</a>
 ```
 
-### PUBLIC_URL is required for broadcasts and campaigns
+### A public URL is required for broadcasts and campaigns
 
-Both `/broadcast` and the campaign scheduler will refuse to run when `PUBLIC_URL` is unset or points at localhost. Without a public URL, recipients cannot reach the unsubscribe page, and that is a hard "no" for SendDock — sending without a working unsubscribe is the canonical spam pattern.
+Both `/broadcast` and the campaign scheduler will refuse to run when your public URL is unset or points at localhost. Without a public URL, recipients cannot reach the unsubscribe page, and that is a hard "no" for SendDock — sending without a working unsubscribe is the canonical spam pattern.
 
 The error returned is:
 
 ```json
 {
-  "error": "PUBLIC_URL is not set to a publicly reachable URL. Newsletters need a working unsubscribe link before they can be sent. Set PUBLIC_URL in your .env to your public domain and restart the server"
+  "error": "your public URL is not set to a publicly reachable address. Newsletters need a working unsubscribe link before they can be sent. Set it under Settings → Instance"
 }
 ```
 
 To enable broadcasts:
 
 1. Put SendDock behind a real domain (reverse proxy + DNS).
-2. Set `PUBLIC_URL=https://your-domain.com` in `.env`.
+2. Set your public URL to `https://your-domain.com` under **Instance** in the dashboard.
 3. Restart the server.
 
-`/send` (single-recipient transactional) and `/send/batch` continue to work without `PUBLIC_URL`, since their use cases are typically internal apps and explicit recipient lists, not list emails.
+`/send` (single-recipient transactional) and `/send/batch` continue to work without a public URL, since their use cases are typically internal apps and explicit recipient lists, not list emails.
 
 ### How a broadcast actually runs
 
@@ -185,7 +185,7 @@ See the [Campaigns guide](/guide/campaigns) for details on creating and managing
   </g>
 </svg>
 
-Tracking is on by default for every send. The two touch points — the open pixel and the click redirect — are public endpoints on your SendDock instance, so `PUBLIC_URL` must point at a host the recipient can reach.
+Tracking is on by default for every send. The two touch points — the open pixel and the click redirect — are public endpoints on your SendDock instance, so your public URL must point at a host the recipient can reach.
 
 ## Open Tracking
 

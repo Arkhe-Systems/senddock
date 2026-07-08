@@ -61,8 +61,7 @@ Before exposing to the internet:
 
 - [ ] Generate `JWT_SECRET` from `openssl rand -hex 32` (or `base64 48`) — used for JWT signing **and** the HMAC on click-tracking URLs. Min 32 chars.
 - [ ] Generate `POSTGRES_PASSWORD` from `openssl rand -base64 32` instead of using a guessable value
-- [ ] Set `PUBLIC_URL` to your public HTTPS domain (drives unsubscribe + tracking links inside outgoing emails)
-- [ ] Set `FRONTEND_URL` (or just `PUBLIC_URL` — it falls back) to the same domain so CORS and `Secure` cookies are configured automatically
+- [ ] Set your public HTTPS domain under **Instance** in the dashboard (drives unsubscribe + tracking links inside outgoing emails, and the CORS origin)
 - [ ] Put SendDock behind HTTPS — `Secure: true` is set on auth cookies when the resolved URL starts with `https://`
 - [ ] Keep Redis enabled (it ships in the production composes); without it every rate limit is a no-op
 - [ ] Enable **two-factor authentication** on every account from **Settings → Account** — see [Your account & security](/guide/account#two-factor-authentication)

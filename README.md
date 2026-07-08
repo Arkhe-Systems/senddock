@@ -66,7 +66,6 @@ curl -fsSL https://raw.githubusercontent.com/arkhe-systems/senddock/main/docker-
 cat > .env <<EOF
 POSTGRES_PASSWORD=$(openssl rand -base64 32)
 JWT_SECRET=$(openssl rand -hex 32)
-PUBLIC_URL=https://your-domain.com
 EOF
 
 docker compose up -d
