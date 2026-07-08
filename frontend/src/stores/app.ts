@@ -5,6 +5,7 @@ export const useAppStore = defineStore('app', () => {
     const deploymentMode = ref('self-hosted')
     const setupRequired = ref(false)
     const publicUrl = ref('')
+    const sessionIdleTimeoutMinutes = ref(120)
     const checked = ref(false)
 
     const publicUrlIsReachable = computed(() => {
@@ -20,5 +21,5 @@ export const useAppStore = defineStore('app', () => {
         }
     })
 
-    return { deploymentMode, setupRequired, publicUrl, checked, publicUrlIsReachable }
+    return { deploymentMode, setupRequired, publicUrl, sessionIdleTimeoutMinutes, checked, publicUrlIsReachable }
 })

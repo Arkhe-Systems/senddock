@@ -121,6 +121,9 @@ onMounted(async () => {
                     <RouterLink to="/billing" class="block px-3 py-2 text-sm rounded-lg bg-zinc-800 text-white">
                         Billing
                     </RouterLink>
+                    <RouterLink v-if="!isCloud" to="/instance" class="block px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+                        Instance
+                    </RouterLink>
                 </nav>
 
                 <UserProfilePanel />

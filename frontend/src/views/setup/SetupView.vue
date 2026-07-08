@@ -18,8 +18,18 @@ const name = ref('')
 const email = ref('')
 const password = ref('')
 const passwordConfirm = ref('')
+const publicUrl = ref(app.publicUrl || window.location.origin)
 const error = ref('')
 const loading = ref(false)
+
+const publicUrlWarning = computed(() => {
+    const raw = publicUrl.value.trim()
+    if (!raw) return ''
+    if (/localhost|127\.|0\.0\.0\.0|\[::1\]/.test(raw)) {
+        return 'This points at your own machine, so unsubscribe and tracking links will not work in outgoing emails. Fine for a local test — you can change it later under Instance.'
+    }
+    return ''
+})
 
 function validatePassword(pw: string): string | null {
     if (pw.length < 8) return 'Password must be at least 8 characters'
@@ -63,14 +73,21 @@ async function handleSetup() {
         return
     }
 
+    const url = publicUrl.value.trim()
+    if (url && !/^https?:\/\//.test(url)) {
+        error.value = 'The public URL must start with http:// or https://'
+        return
+    }
+
     loading.value = true
     try {
         await api('/setup', {
             method: 'POST',
-            body: { name: name.value, email: email.value, password: password.value },
+            body: { name: name.value, email: email.value, password: password.value, public_url: publicUrl.value.trim() },
         })
         auth.isAuthenticated = true
         app.setupRequired = false
+        app.publicUrl = publicUrl.value.trim()
         toast.success('Welcome to SendDock! Your admin account is ready.')
         router.push('/dashboard')
     } catch (e: any) {
@@ -121,6 +138,16 @@ async function handleSetup() {
                     </div>
                 </div>
                 <AppInput v-model="passwordConfirm" label="Confirm Password" type="password" placeholder="Repeat your password" required />
+
+                <div class="pt-2 border-t border-zinc-800">
+                    <AppInput v-model="publicUrl" label="Public URL" placeholder="https://mail.example.com" />
+                    <p class="text-xs text-zinc-500 mt-2">
+                        Where this instance is reachable from the internet. Used for unsubscribe and tracking links.
+                        You can change it later under Instance.
+                    </p>
+                    <p v-if="publicUrlWarning" class="text-xs text-amber-300 mt-2">{{ publicUrlWarning }}</p>
+                </div>
+
                 <AppButton :loading="loading">
                     {{ loading ? 'Setting up...' : 'Complete Setup' }}
                 </AppButton>
