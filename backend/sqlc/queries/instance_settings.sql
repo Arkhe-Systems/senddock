@@ -15,3 +15,10 @@ UPDATE instance_settings SET
     updated_at = NOW()
 WHERE id = true
 RETURNING *;
+
+-- name: SetInstanceLicenseKey :one
+UPDATE instance_settings SET
+    license_key_encrypted = $1,
+    updated_at = NOW()
+WHERE id = true
+RETURNING *;

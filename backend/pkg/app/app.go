@@ -99,9 +99,9 @@ func New(cfg config.Config) (*App, error) {
 	a.eitherAuth = middleware.EitherAuth(a.authMiddleware, a.apiKeyMiddleware)
 	a.rateLimiter = middleware.NewRateLimiter(redisCache, cfg.RateLimitPerMinute, time.Minute)
 
-	a.settings = settings.NewProvider(queries)
+	a.settings = settings.NewProvider(queries, secretCipher{secret: cfg.JWTSecret})
 	settingsCtx, cancelSettings := context.WithTimeout(context.Background(), 10*time.Second)
-	err = a.settings.Load(settingsCtx, cfg.PublicURL)
+	err = a.settings.Load(settingsCtx, cfg.PublicURL, os.Getenv("SENDDOCK_LICENSE_KEY"))
 	cancelSettings()
 	if err != nil {
 		conn.Close()
@@ -138,6 +138,20 @@ func New(cfg config.Config) (*App, error) {
 
 	return a, nil
 }
+
+type secretCipher struct {
+	secret string
+}
+
+func (c secretCipher) Encrypt(plaintext string) (string, error) {
+	return service.Encrypt(plaintext, c.secret)
+}
+
+func (c secretCipher) Decrypt(ciphertext string) (string, error) {
+	return service.Decrypt(ciphertext, c.secret)
+}
+
+func (a *App) Settings() *settings.Provider { return a.settings }
 
 func (a *App) corsOrigin() string {
 	if publicURL := a.settings.PublicURL(); publicURL != "" {

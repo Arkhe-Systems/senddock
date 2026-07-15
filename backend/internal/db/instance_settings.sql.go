@@ -10,7 +10,7 @@ import (
 )
 
 const getInstanceSettings = `-- name: GetInstanceSettings :one
-SELECT id, public_url, session_idle_timeout_minutes, updated_at FROM instance_settings WHERE id = true
+SELECT id, public_url, session_idle_timeout_minutes, updated_at, license_key_encrypted FROM instance_settings WHERE id = true
 `
 
 func (q *Queries) GetInstanceSettings(ctx context.Context) (InstanceSetting, error) {
@@ -21,6 +21,28 @@ func (q *Queries) GetInstanceSettings(ctx context.Context) (InstanceSetting, err
 		&i.PublicUrl,
 		&i.SessionIdleTimeoutMinutes,
 		&i.UpdatedAt,
+		&i.LicenseKeyEncrypted,
+	)
+	return i, err
+}
+
+const setInstanceLicenseKey = `-- name: SetInstanceLicenseKey :one
+UPDATE instance_settings SET
+    license_key_encrypted = $1,
+    updated_at = NOW()
+WHERE id = true
+RETURNING id, public_url, session_idle_timeout_minutes, updated_at, license_key_encrypted
+`
+
+func (q *Queries) SetInstanceLicenseKey(ctx context.Context, licenseKeyEncrypted string) (InstanceSetting, error) {
+	row := q.db.QueryRowContext(ctx, setInstanceLicenseKey, licenseKeyEncrypted)
+	var i InstanceSetting
+	err := row.Scan(
+		&i.ID,
+		&i.PublicUrl,
+		&i.SessionIdleTimeoutMinutes,
+		&i.UpdatedAt,
+		&i.LicenseKeyEncrypted,
 	)
 	return i, err
 }
@@ -30,7 +52,7 @@ UPDATE instance_settings SET
     public_url = $1,
     updated_at = NOW()
 WHERE id = true
-RETURNING id, public_url, session_idle_timeout_minutes, updated_at
+RETURNING id, public_url, session_idle_timeout_minutes, updated_at, license_key_encrypted
 `
 
 func (q *Queries) SetInstancePublicURL(ctx context.Context, publicUrl string) (InstanceSetting, error) {
@@ -41,6 +63,7 @@ func (q *Queries) SetInstancePublicURL(ctx context.Context, publicUrl string) (I
 		&i.PublicUrl,
 		&i.SessionIdleTimeoutMinutes,
 		&i.UpdatedAt,
+		&i.LicenseKeyEncrypted,
 	)
 	return i, err
 }
@@ -51,7 +74,7 @@ UPDATE instance_settings SET
     session_idle_timeout_minutes = $2,
     updated_at = NOW()
 WHERE id = true
-RETURNING id, public_url, session_idle_timeout_minutes, updated_at
+RETURNING id, public_url, session_idle_timeout_minutes, updated_at, license_key_encrypted
 `
 
 type UpdateInstanceSettingsParams struct {
@@ -67,6 +90,7 @@ func (q *Queries) UpdateInstanceSettings(ctx context.Context, arg UpdateInstance
 		&i.PublicUrl,
 		&i.SessionIdleTimeoutMinutes,
 		&i.UpdatedAt,
+		&i.LicenseKeyEncrypted,
 	)
 	return i, err
 }

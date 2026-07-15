@@ -110,6 +110,7 @@ type InstanceSetting struct {
 	PublicUrl                 string
 	SessionIdleTimeoutMinutes int32
 	UpdatedAt                 time.Time
+	LicenseKeyEncrypted       string
 }
 
 type Project struct {
