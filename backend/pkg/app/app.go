@@ -151,7 +151,24 @@ func (c secretCipher) Decrypt(ciphertext string) (string, error) {
 	return service.Decrypt(ciphertext, c.secret)
 }
 
-func (a *App) Settings() *settings.Provider { return a.settings }
+func (a *App) LicenseKey() string { return a.settings.LicenseKey() }
+
+func (a *App) SetLicenseKey(ctx context.Context, key string) error {
+	return a.settings.SetLicenseKey(ctx, key)
+}
+
+func (a *App) OnLicenseKeyChange(fn func(key string)) {
+	a.settings.OnLicenseKeyChange(fn)
+}
+
+func (a *App) IsWorkspaceOwner(ctx context.Context, userID string) bool {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return false
+	}
+	owned, err := a.queries.CountOwnedWorkspacesByUser(ctx, uid)
+	return err == nil && owned > 0
+}
 
 func (a *App) corsOrigin() string {
 	if publicURL := a.settings.PublicURL(); publicURL != "" {
