@@ -67,7 +67,7 @@ const promoVisible = computed(() => props.tier === 'pro' && isLaunchPromoActive(
             </p>
 
             <p class="text-xs text-zinc-500 max-w-md mx-auto">
-                After payment you'll get a license key by email. Paste it into <span class="font-mono text-zinc-400">SENDDOCK_LICENSE_KEY</span> in your environment and restart.
+                After payment you'll get a license key by email. Paste it under <span class="text-zinc-400">Instance → License</span> and it activates right away.
                 <a href="https://docs.senddock.dev/self-hosting/configuration#plans-licensing" target="_blank" rel="noopener" class="underline decoration-zinc-700 hover:text-zinc-300">Read the docs</a>.
             </p>
         </template>

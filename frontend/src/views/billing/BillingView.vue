@@ -171,8 +171,10 @@ onMounted(async () => {
                             License validation issue: {{ status?.reason }}
                         </div>
 
-                        <p v-if="!isCloud && tier !== 'free'" class="text-xs text-zinc-500 mt-4">
-                            Your license key is set via the <code class="text-zinc-400">SENDDOCK_LICENSE_KEY</code> environment variable on the server. To change it, update the env var and restart SendDock.
+                        <p v-if="!isCloud" class="text-xs text-zinc-500 mt-4">
+                            Manage your license key under
+                            <RouterLink to="/instance" class="underline decoration-zinc-700 hover:text-zinc-300">Instance → License</RouterLink>.
+                            Changes apply immediately.
                         </p>
                     </section>
 

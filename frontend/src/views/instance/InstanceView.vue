@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'
+import { useLicenseStore } from '@/stores/license'
 import { useToastStore } from '@/stores/toast'
 import { ApiError } from '@/api/client'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -12,7 +13,18 @@ import UserProfilePanel from '@/components/UserProfilePanel.vue'
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
+const licenseStore = useLicenseStore()
 const toast = useToastStore()
+
+const licenseKey = ref('')
+const licenseError = ref('')
+const licenseNotice = ref('')
+const activating = ref(false)
+
+const tierLabel = computed(() => {
+    const tier = licenseStore.status?.tier ?? 'free'
+    return tier === 'free' ? 'Community (free)' : tier === 'team' ? 'Team' : 'Pro'
+})
 
 const mobileNavOpen = ref(false)
 const publicUrl = ref('')
@@ -32,6 +44,7 @@ const publicUrlWarning = computed(() => {
 })
 
 onMounted(async () => {
+    licenseStore.fetch(true)
     const current = await settingsStore.fetchSettings()
     if (!current) {
         forbidden.value = true
@@ -40,6 +53,32 @@ onMounted(async () => {
     publicUrl.value = current.public_url
     idleTimeout.value = String(current.session_idle_timeout_minutes)
 })
+
+async function activateLicense() {
+    licenseError.value = ''
+    licenseNotice.value = ''
+
+    const key = licenseKey.value.trim()
+    if (!key) {
+        licenseError.value = 'Paste the license key you received by email.'
+        return
+    }
+
+    activating.value = true
+    try {
+        const result = await licenseStore.activate(key)
+        if (result.unverified) {
+            licenseNotice.value = 'Key saved, but it could not be verified right now. SendDock will retry on its own.'
+        } else {
+            toast.success(`License active — ${result.plan || 'Pro'}`)
+        }
+        licenseKey.value = ''
+    } catch (e) {
+        licenseError.value = e instanceof ApiError ? e.message : 'Could not activate the license'
+    } finally {
+        activating.value = false
+    }
+}
 
 async function save() {
     formError.value = ''
@@ -152,6 +191,39 @@ async function save() {
                                 Save changes
                             </AppButton>
                         </div>
+
+                        <section v-if="licenseStore.available" class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-white">License</h3>
+                                    <p class="text-xs text-zinc-500 mt-1">
+                                        Paste the key you received by email after purchasing. It takes effect
+                                        immediately — no restart, no editing files on the server.
+                                    </p>
+                                </div>
+                                <span class="shrink-0 text-xs px-2 py-1 rounded-lg border border-zinc-700 text-zinc-300">
+                                    {{ tierLabel }}
+                                </span>
+                            </div>
+
+                            <p v-if="licenseStore.status?.has_license" class="text-xs text-zinc-400">
+                                A key is already stored. Pasting a new one replaces it.
+                            </p>
+                            <p v-if="licenseStore.status?.reason" class="text-xs text-amber-300">
+                                {{ licenseStore.status.reason }}
+                            </p>
+
+                            <AppInput v-model="licenseKey" label="License key" placeholder="Paste your key" />
+
+                            <AppAlert v-if="licenseError" :message="licenseError" type="error" />
+                            <AppAlert v-if="licenseNotice" :message="licenseNotice" type="info" />
+
+                            <div class="flex justify-end">
+                                <AppButton :loading="activating" @click="activateLicense">
+                                    Activate license
+                                </AppButton>
+                            </div>
+                        </section>
                     </template>
                 </div>
             </main>
