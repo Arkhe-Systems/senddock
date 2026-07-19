@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useAppStore } from '@/stores/app'
 import { api, ApiError } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -13,11 +12,9 @@ import UserProfilePanel from '@/components/UserProfilePanel.vue'
 import TwoFactorSetupModal from '@/components/TwoFactorSetupModal.vue'
 
 const auth = useAuthStore()
-const appStore = useAppStore()
 const toast = useToastStore()
 const router = useRouter()
 const mobileNavOpen = ref(false)
-const isSelfHosted = computed(() => appStore.deploymentMode !== 'cloud')
 
 const currentPassword = ref('')
 const newPassword = ref('')
@@ -188,17 +185,7 @@ onMounted(async () => {
                     &larr; Projects
                 </RouterLink>
 
-                <nav class="space-y-1 flex-1">
-                    <RouterLink to="/account" class="block px-3 py-2 text-sm rounded-lg bg-zinc-800 text-white">
-                        Account
-                    </RouterLink>
-                    <RouterLink to="/billing" class="block px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                        Billing
-                    </RouterLink>
-                    <RouterLink v-if="isSelfHosted" to="/instance" class="block px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                        Instance
-                    </RouterLink>
-                </nav>
+                <div class="flex-1"></div>
 
                 <UserProfilePanel />
             </aside>
