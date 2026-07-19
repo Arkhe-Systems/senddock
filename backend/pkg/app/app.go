@@ -170,11 +170,20 @@ func (a *App) IsWorkspaceOwner(ctx context.Context, userID string) bool {
 	return err == nil && owned > 0
 }
 
-func (a *App) corsOrigin() string {
-	if publicURL := a.settings.PublicURL(); publicURL != "" {
+const devFrontendOrigin = "http://localhost:5173"
+
+func resolveCORSOrigin(frontendURL, publicURL string) string {
+	if frontendURL != "" {
+		return frontendURL
+	}
+	if publicURL != "" {
 		return publicURL
 	}
-	return a.cfg.FrontendURL
+	return devFrontendOrigin
+}
+
+func (a *App) corsOrigin() string {
+	return resolveCORSOrigin(a.cfg.FrontendURL, a.settings.PublicURL())
 }
 
 func (a *App) Mux() *http.ServeMux { return a.mux }

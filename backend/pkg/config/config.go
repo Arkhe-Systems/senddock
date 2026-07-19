@@ -22,16 +22,12 @@ type Config struct {
 }
 
 func Load() Config {
-	frontendURL := getEnv("FRONTEND_URL", "http://localhost:5173")
-	publicURL := getEnv("PUBLIC_URL", "")
-	if publicURL == "" {
-		publicURL = frontendURL
-	}
-	publicURL = strings.TrimRight(publicURL, "/")
+	frontendURL := strings.TrimRight(getEnv("FRONTEND_URL", ""), "/")
+	publicURL := strings.TrimRight(getEnv("PUBLIC_URL", ""), "/")
 
 	mode := getEnv("DEPLOYMENT_MODE", "self-hosted")
 	if mode != "cloud" && strings.HasPrefix(publicURL, "http://localhost") {
-		log.Println("WARNING: PUBLIC_URL is set to localhost. Unsubscribe and tracking links in outgoing emails will not work outside this machine. Set PUBLIC_URL in your .env to the URL where this instance is reachable from the internet.")
+		log.Println("WARNING: the public URL points at localhost. Unsubscribe and tracking links in outgoing emails will not work outside this machine. Set it under Instance in the dashboard.")
 	}
 
 	return Config{
