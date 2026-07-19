@@ -108,6 +108,10 @@ func New(cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("load instance settings: %w", err)
 	}
 
+	handler.SetSecureCookieResolver(func() bool {
+		return strings.HasPrefix(a.settings.PublicURL(), "https://") || strings.HasPrefix(cfg.FrontendURL, "https://")
+	})
+
 	a.webhooks = webhooks.NewService(queries)
 	suppressionService := service.NewSuppressionService(queries)
 	emailService := service.NewEmailService(queries, a.settings, cfg.JWTSecret, redisCache, a.webhooks, suppressionService)
