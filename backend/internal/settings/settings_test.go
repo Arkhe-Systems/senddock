@@ -87,3 +87,34 @@ func TestLicenseChangeListenersFire(t *testing.T) {
 		t.Errorf("every listener must be notified in order, got %v", seen)
 	}
 }
+
+func TestUpdateRejectsMalformedPublicURL(t *testing.T) {
+	p := NewProvider(nil, nil)
+
+	for _, raw := range []string{"not a url", "ftp://mail.example.com", "mail.example.com", "https://"} {
+		_, err := p.Update(context.Background(), Settings{PublicURL: raw, SessionIdleTimeoutMinutes: 120})
+		if !errors.Is(err, ErrInvalidPublicURL) {
+			t.Errorf("%q: expected ErrInvalidPublicURL, got %v", raw, err)
+		}
+	}
+}
+
+func TestNormalizePublicURLAcceptsWhatWeBuildLinksFrom(t *testing.T) {
+	cases := map[string]string{
+		"":                          "",
+		"  ":                        "",
+		"https://mail.example.com/": "https://mail.example.com",
+		"http://localhost:8080":     "http://localhost:8080",
+	}
+
+	for raw, want := range cases {
+		got, err := normalizePublicURL(raw)
+		if err != nil {
+			t.Errorf("%q: unexpected error %v", raw, err)
+			continue
+		}
+		if got != want {
+			t.Errorf("%q normalised to %q, expected %q", raw, got, want)
+		}
+	}
+}

@@ -75,7 +75,7 @@ func (h *InstanceSettingsHandler) Update(w http.ResponseWriter, r *http.Request)
 
 	updated, err := h.provider.Update(r.Context(), next)
 	if err != nil {
-		if errors.Is(err, settings.ErrInvalidIdleTimeout) {
+		if errors.Is(err, settings.ErrInvalidIdleTimeout) || errors.Is(err, settings.ErrInvalidPublicURL) {
 			writeJSON(w, http.StatusBadRequest, errorResponse{Error: err.Error()})
 			return
 		}

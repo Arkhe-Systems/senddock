@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -18,8 +19,28 @@ const (
 
 var (
 	ErrInvalidIdleTimeout        = errors.New("session idle timeout must be between 5 and 1440 minutes")
+	ErrInvalidPublicURL          = errors.New("the public URL must start with http:// or https:// and include a host")
 	ErrLicenseStorageUnavailable = errors.New("license storage is not configured")
 )
+
+func normalizePublicURL(raw string) (string, error) {
+	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
+	if trimmed == "" {
+		return "", nil
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", ErrInvalidPublicURL
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", ErrInvalidPublicURL
+	}
+	if parsed.Hostname() == "" {
+		return "", ErrInvalidPublicURL
+	}
+	return trimmed, nil
+}
 
 type Settings struct {
 	PublicURL                 string
@@ -179,8 +200,13 @@ func (p *Provider) Update(ctx context.Context, next Settings) (Settings, error) 
 		return Settings{}, ErrInvalidIdleTimeout
 	}
 
+	publicURL, err := normalizePublicURL(next.PublicURL)
+	if err != nil {
+		return Settings{}, err
+	}
+
 	row, err := p.queries.UpdateInstanceSettings(ctx, db.UpdateInstanceSettingsParams{
-		PublicUrl:                 strings.TrimRight(strings.TrimSpace(next.PublicURL), "/"),
+		PublicUrl:                 publicURL,
 		SessionIdleTimeoutMinutes: int32(next.SessionIdleTimeoutMinutes),
 	})
 	if err != nil {
