@@ -5,6 +5,7 @@ import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useToastStore } from '@/stores/toast'
+import { hasHttpScheme, isLoopbackUrl } from '@/utils/publicUrl'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
@@ -25,7 +26,7 @@ const loading = ref(false)
 const publicUrlWarning = computed(() => {
     const raw = publicUrl.value.trim()
     if (!raw) return ''
-    if (/localhost|127\.|0\.0\.0\.0|\[::1\]/.test(raw)) {
+    if (isLoopbackUrl(raw)) {
         return 'This points at your own machine, so unsubscribe and tracking links will not work in outgoing emails. Fine for a local test — you can change it later under Instance.'
     }
     return ''
@@ -74,7 +75,7 @@ async function handleSetup() {
     }
 
     const url = publicUrl.value.trim()
-    if (url && !/^https?:\/\//.test(url)) {
+    if (url && !hasHttpScheme(url)) {
         error.value = 'The public URL must start with http:// or https://'
         return
     }

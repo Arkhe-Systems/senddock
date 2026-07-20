@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import { useLicenseStore } from '@/stores/license'
 import { useToastStore } from '@/stores/toast'
 import { ApiError } from '@/api/client'
+import { hasHttpScheme, isLoopbackUrl } from '@/utils/publicUrl'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
@@ -36,10 +37,10 @@ const forbidden = ref(false)
 const publicUrlWarning = computed(() => {
     const raw = publicUrl.value.trim()
     if (!raw) return 'Newsletters cannot be sent until this is set to a public address.'
-    if (/localhost|127\.|0\.0\.0\.0|\[::1\]/.test(raw)) {
+    if (!hasHttpScheme(raw)) return 'Include the scheme, for example https://mail.example.com'
+    if (isLoopbackUrl(raw)) {
         return 'This points at your own machine. Unsubscribe and tracking links will not work in outgoing emails.'
     }
-    if (!/^https?:\/\//.test(raw)) return 'Include the scheme, for example https://mail.example.com'
     return ''
 })
 
@@ -83,7 +84,7 @@ async function activateLicense() {
 async function save() {
     formError.value = ''
     const raw = publicUrl.value.trim()
-    if (raw && !/^https?:\/\//.test(raw)) {
+    if (raw && !hasHttpScheme(raw)) {
         formError.value = 'The public URL must start with http:// or https://'
         return
     }
