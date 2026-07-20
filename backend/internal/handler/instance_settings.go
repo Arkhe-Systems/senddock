@@ -9,7 +9,6 @@ import (
 	"github.com/arkhe-systems/senddock/internal/service"
 	"github.com/arkhe-systems/senddock/internal/settings"
 	"github.com/arkhe-systems/senddock/pkg/auth"
-	"github.com/google/uuid"
 )
 
 type InstanceSettingsHandler struct {
@@ -34,12 +33,7 @@ type updateInstanceSettingsRequest struct {
 
 func (h *InstanceSettingsHandler) requireOwner(r *http.Request) (string, bool) {
 	userID, _ := r.Context().Value(auth.UserIDKey).(string)
-	uid, err := uuid.Parse(userID)
-	if err != nil {
-		return "", false
-	}
-	owned, err := h.queries.CountOwnedWorkspacesByUser(r.Context(), uid)
-	if err != nil || owned == 0 {
+	if !IsWorkspaceOwner(r.Context(), h.queries, userID) {
 		return "", false
 	}
 	return userID, true

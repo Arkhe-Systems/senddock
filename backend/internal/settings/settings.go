@@ -54,6 +54,10 @@ func NewProvider(queries *db.Queries, cipher Cipher) *Provider {
 }
 
 func (p *Provider) Load(ctx context.Context, envPublicURL, envLicenseKey string) error {
+	if err := p.queries.EnsureInstanceSettingsRow(ctx); err != nil {
+		return err
+	}
+
 	row, err := p.queries.GetInstanceSettings(ctx)
 	if err != nil {
 		return err

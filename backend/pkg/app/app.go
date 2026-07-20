@@ -166,12 +166,7 @@ func (a *App) OnLicenseKeyChange(fn func(key string)) {
 }
 
 func (a *App) IsWorkspaceOwner(ctx context.Context, userID string) bool {
-	uid, err := uuid.Parse(userID)
-	if err != nil {
-		return false
-	}
-	owned, err := a.queries.CountOwnedWorkspacesByUser(ctx, uid)
-	return err == nil && owned > 0
+	return handler.IsWorkspaceOwner(ctx, a.queries, userID)
 }
 
 const devFrontendOrigin = "http://localhost:5173"

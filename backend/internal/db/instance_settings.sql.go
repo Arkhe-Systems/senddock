@@ -9,6 +9,16 @@ import (
 	"context"
 )
 
+const ensureInstanceSettingsRow = `-- name: EnsureInstanceSettingsRow :exec
+INSERT INTO instance_settings (id) VALUES (true)
+ON CONFLICT (id) DO NOTHING
+`
+
+func (q *Queries) EnsureInstanceSettingsRow(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, ensureInstanceSettingsRow)
+	return err
+}
+
 const getInstanceSettings = `-- name: GetInstanceSettings :one
 SELECT id, public_url, session_idle_timeout_minutes, updated_at, license_key_encrypted FROM instance_settings WHERE id = true
 `

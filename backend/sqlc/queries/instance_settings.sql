@@ -22,3 +22,7 @@ UPDATE instance_settings SET
     updated_at = NOW()
 WHERE id = true
 RETURNING *;
+
+-- name: EnsureInstanceSettingsRow :exec
+INSERT INTO instance_settings (id) VALUES (true)
+ON CONFLICT (id) DO NOTHING;
