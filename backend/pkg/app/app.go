@@ -101,7 +101,11 @@ func New(cfg config.Config) (*App, error) {
 
 	a.settings = settings.NewProvider(queries, secretCipher{secret: cfg.JWTSecret})
 	settingsCtx, cancelSettings := context.WithTimeout(context.Background(), 10*time.Second)
-	err = a.settings.Load(settingsCtx, cfg.PublicURL, os.Getenv("SENDDOCK_LICENSE_KEY"))
+	err = a.settings.Load(settingsCtx, settings.LoadOptions{
+		EnvPublicURL:  cfg.PublicURL,
+		EnvLicenseKey: os.Getenv("SENDDOCK_LICENSE_KEY"),
+		EnvWins:       !cfg.IsSelfHosted(),
+	})
 	cancelSettings()
 	if err != nil {
 		conn.Close()

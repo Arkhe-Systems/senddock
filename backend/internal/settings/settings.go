@@ -74,7 +74,14 @@ func NewProvider(queries *db.Queries, cipher Cipher) *Provider {
 	}
 }
 
-func (p *Provider) Load(ctx context.Context, envPublicURL, envLicenseKey string) error {
+type LoadOptions struct {
+	EnvPublicURL  string
+	EnvLicenseKey string
+
+	EnvWins bool
+}
+
+func (p *Provider) Load(ctx context.Context, opts LoadOptions) error {
 	if err := p.queries.EnsureInstanceSettingsRow(ctx); err != nil {
 		return err
 	}
@@ -84,9 +91,15 @@ func (p *Provider) Load(ctx context.Context, envPublicURL, envLicenseKey string)
 		return err
 	}
 
-	envPublicURL = strings.TrimRight(strings.TrimSpace(envPublicURL), "/")
+	envPublicURL := strings.TrimRight(strings.TrimSpace(opts.EnvPublicURL), "/")
 
-	if row.PublicUrl == "" && envPublicURL != "" {
+	switch {
+	case opts.EnvWins && envPublicURL != "" && envPublicURL != row.PublicUrl:
+		row, err = p.queries.SetInstancePublicURL(ctx, envPublicURL)
+		if err != nil {
+			return err
+		}
+	case !opts.EnvWins && row.PublicUrl == "" && envPublicURL != "":
 		log.Println("DEPRECATION: PUBLIC_URL is now configured from the dashboard under Instance Settings. The value in your environment has been imported and support for it will be removed in v0.9.")
 		row, err = p.queries.SetInstancePublicURL(ctx, envPublicURL)
 		if err != nil {
@@ -94,7 +107,7 @@ func (p *Provider) Load(ctx context.Context, envPublicURL, envLicenseKey string)
 		}
 	}
 
-	envLicenseKey = strings.TrimSpace(envLicenseKey)
+	envLicenseKey := strings.TrimSpace(opts.EnvLicenseKey)
 
 	if row.LicenseKeyEncrypted == "" && envLicenseKey != "" && p.cipher != nil {
 		log.Println("DEPRECATION: SENDDOCK_LICENSE_KEY is now configured from the dashboard under Instance Settings. The value in your environment has been imported and support for it will be removed in v0.9.")
