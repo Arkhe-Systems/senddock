@@ -75,9 +75,7 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 		current := h.settings.Current()
 		current.PublicURL = publicURL
 		if _, err := h.settings.Update(r.Context(), current); err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(errorResponse{Error: "could not save the public URL"})
+			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
