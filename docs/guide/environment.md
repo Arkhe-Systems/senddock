@@ -18,7 +18,7 @@ All configuration is done via environment variables. For self-hosting deployment
 | `FRONTEND_URL` | Frontend origin for CORS headers. When it starts with `https://`, auth cookies are issued with `Secure: true`. | `http://localhost:5173` |
 | `PUBLIC_URL` | **Deprecated — set this from the dashboard instead** (Instance settings). If present it is imported into the database on first boot and support for it is removed in v0.9. | _stored in the database_ |
 | `CLOUD` | Set to `true` only on the hosted product. Self-hosted installs leave it unset. Replaces the former `DEPLOYMENT_MODE`, which is still read until v0.9. | _unset_ |
-| `SENDDOCK_LICENSE_KEY` | Pro / Team license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only) regardless of `DEPLOYMENT_MODE`. See [Pro license](/self-hosting/configuration#plans-and-licensing). | — |
+| `SENDDOCK_LICENSE_KEY` | Pro / Team license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only). See [Pro license](/self-hosting/configuration#plans-and-licensing). | — |
 | `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the **global** rate limiter (rolling 60s fixed window, applied to every HTTP endpoint except `/health`). Independent from the hard-coded per-project sending limits on `/send`, `/send/batch`, `/broadcast` (those are not configurable). Lower this on small deployments behind a single egress IP; raise it for high-traffic apps. Only enforced when `REDIS_URL` is set. | `600` |
 | `SENDDOCK_WATCHTOWER_URL` | URL of the [Watchtower](https://containrrr.dev/watchtower/) HTTP API (typically `http://watchtower:8080` on the Docker network). When set and reachable, the dashboard's update modal shows an "Update now" button that triggers a Watchtower scan + image refresh. When unset, the modal falls back to the manual `docker compose pull && up -d` command. See [Updating → One-click updates](/self-hosting/updating#one-click-updates-from-the-dashboard-watchtower). | — |
 | `SENDDOCK_WATCHTOWER_TOKEN` | Bearer token expected by Watchtower's HTTP API (set as `WATCHTOWER_HTTP_API_TOKEN` on the Watchtower container). Required when `SENDDOCK_WATCHTOWER_URL` is set. | — |
@@ -71,6 +71,4 @@ JWT_SECRET=change-this-to-a-random-secret
 PORT=8080
 REDIS_URL=redis://localhost:6380
 FRONTEND_URL=https://email.mycompany.com
-DEPLOYMENT_MODE=self-hosted
-SENDDOCK_LICENSE_KEY=
 ```
