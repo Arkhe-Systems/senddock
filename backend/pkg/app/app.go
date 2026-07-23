@@ -429,7 +429,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	suppressionHandler.Audit = a.audit
 	workspaceHandler.Audit = a.audit
 
-	releaseService := service.NewReleaseService(a.cache, cfg.DeploymentMode)
+	releaseService := service.NewReleaseService(a.cache, cfg.DeploymentModeName())
 	releaseHandler := handler.NewReleaseHandler(releaseService)
 
 	waitlistHandler := handler.NewWaitlistHandler(subscriberService, emailService)

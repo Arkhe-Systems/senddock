@@ -14,7 +14,7 @@ type Config struct {
 	JWTSecret          string
 	FrontendURL        string
 	PublicURL          string
-	DeploymentMode     string
+	IsCloud            bool
 	RateLimitPerMinute int64
 	WatchtowerURL      string
 	WatchtowerToken    string
@@ -25,8 +25,8 @@ func Load() Config {
 	frontendURL := strings.TrimRight(getEnv("FRONTEND_URL", ""), "/")
 	publicURL := strings.TrimRight(getEnv("PUBLIC_URL", ""), "/")
 
-	mode := getEnv("DEPLOYMENT_MODE", "self-hosted")
-	if mode != "cloud" && strings.HasPrefix(publicURL, "http://localhost") {
+	isCloud := resolveCloud()
+	if !isCloud && strings.HasPrefix(publicURL, "http://localhost") {
 		log.Println("WARNING: the public URL points at localhost. Unsubscribe and tracking links in outgoing emails will not work outside this machine. Set it under Instance in the dashboard.")
 	}
 
@@ -37,7 +37,7 @@ func Load() Config {
 		JWTSecret:          getEnv("JWT_SECRET", ""),
 		FrontendURL:        frontendURL,
 		PublicURL:          publicURL,
-		DeploymentMode:     mode,
+		IsCloud:            isCloud,
 		RateLimitPerMinute: getEnvInt64("RATE_LIMIT_PER_MINUTE", 600),
 		WatchtowerURL:      strings.TrimSpace(getEnv("SENDDOCK_WATCHTOWER_URL", "")),
 		WatchtowerToken:    strings.TrimSpace(getEnv("SENDDOCK_WATCHTOWER_TOKEN", "")),
@@ -59,7 +59,28 @@ func getEnvInt64(key string, fallback int64) int64 {
 }
 
 func (c Config) IsSelfHosted() bool {
-	return c.DeploymentMode != "cloud"
+	return !c.IsCloud
+}
+
+func (c Config) DeploymentModeName() string {
+	if c.IsCloud {
+		return "cloud"
+	}
+	return "self-hosted"
+}
+
+func resolveCloud() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("CLOUD"))) {
+	case "true", "1", "yes":
+		return true
+	}
+
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("DEPLOYMENT_MODE")), "cloud") {
+		log.Println("DEPRECATION: DEPLOYMENT_MODE=cloud has been replaced by CLOUD=true and will stop being read in v0.9.")
+		return true
+	}
+
+	return false
 }
 
 func getEnv(key, fallback string) string {

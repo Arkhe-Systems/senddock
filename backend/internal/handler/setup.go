@@ -34,7 +34,7 @@ func (h *SetupHandler) Status(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"setup_required":               count == 0,
-		"deployment_mode":              h.cfg.DeploymentMode,
+		"deployment_mode":              h.cfg.DeploymentModeName(),
 		"public_url":                   current.PublicURL,
 		"session_idle_timeout_minutes": current.SessionIdleTimeoutMinutes,
 	})
