@@ -16,7 +16,7 @@ All configuration is done via environment variables. For self-hosting deployment
 | `PORT` | HTTP port the binary listens on inside the container. Not the same as `SENDDOCK_PORT`, which the compose file uses to map the host port. Leave at `8080` unless you know why you're changing it. | `8080` |
 | `REDIS_URL` | Redis connection string. Rate limiting is backed by Redis, so **always configure it in production / any internet-facing deployment**. Only omit it in ephemeral local/test environments. | — |
 | `FRONTEND_URL` | Frontend origin for CORS headers. When it starts with `https://`, auth cookies are issued with `Secure: true`. | `http://localhost:5173` |
-| `PUBLIC_URL` | **Deprecated — set this from the dashboard instead** (Instance settings). If present it is imported into the database on first boot and support for it is removed in v0.9. | _stored in the database_ |
+| `PUBLIC_URL` | On self-hosted this is **deprecated** — set it from the dashboard under Instance instead; a value left here is imported on first boot and stops being read in v0.9. On the hosted product it stays the source of truth, since there is no Instance screen there. | _stored in the database_ |
 | `CLOUD` | Set to `true` only on the hosted product. Self-hosted installs leave it unset. Replaces the former `DEPLOYMENT_MODE`, which is still read until v0.9. | _unset_ |
 | `SENDDOCK_LICENSE_KEY` | Pro / Team license key. Validated against Lemon Squeezy. Empty leaves the deployment on the free tier (Core only). See [Pro license](/self-hosting/configuration#plans-and-licensing). | — |
 | `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the **global** rate limiter (rolling 60s fixed window, applied to every HTTP endpoint except `/health`). Independent from the hard-coded per-project sending limits on `/send`, `/send/batch`, `/broadcast` (those are not configurable). Lower this on small deployments behind a single egress IP; raise it for high-traffic apps. Only enforced when `REDIS_URL` is set. | `600` |
@@ -48,7 +48,9 @@ Outgoing emails contain links like the unsubscribe URL and the open-tracking pix
 
 Since v0.8 this lives in the database, not in the environment. You set it on the Setup screen the first time you open SendDock, and change it any time under **Instance** in the dashboard. Changes apply immediately, with no restart.
 
-Existing installations that still have `PUBLIC_URL` in their environment keep working: the value is imported into the database on first boot and a deprecation warning is logged. The variable is removed in v0.9.
+Existing self-hosted installations that still have `PUBLIC_URL` in their environment keep working: the value is imported into the database on first boot and a deprecation warning is logged. Reading it stops in v0.9.
+
+On the hosted product the environment stays in charge, because there is no Instance screen for a tenant to reach. Changing `PUBLIC_URL` there applies on the next boot.
 :::
 
 ## Deployment Modes
