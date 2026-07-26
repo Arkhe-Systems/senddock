@@ -103,6 +103,7 @@ type EmailLog struct {
 	SentAt       time.Time
 	OpenedAt     sql.NullTime
 	ClickedAt    sql.NullTime
+	BroadcastID  uuid.NullUUID
 }
 
 type InstanceSetting struct {

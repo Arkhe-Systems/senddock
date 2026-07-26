@@ -1,7 +1,16 @@
 -- name: CreateEmailLog :one
-INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error, broadcast_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
+
+-- name: MarkLatestLogBouncedByEmail :exec
+UPDATE email_logs SET status = 'bounced', error = $3
+WHERE id = (
+    SELECT el.id FROM email_logs el
+    WHERE el.project_id = $1 AND el.to_email = $2 AND el.status = 'sent'
+    ORDER BY el.sent_at DESC
+    LIMIT 1
+);
 
 -- name: ListEmailLogsByProject :many
 SELECT * FROM email_logs

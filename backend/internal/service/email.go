@@ -134,7 +134,7 @@ func classifyBounce(err error) *BounceError {
 	return &BounceError{Code: protoErr.Code, Message: protoErr.Msg}
 }
 
-func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject string) {
+func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject string, broadcastID uuid.NullUUID) {
 	_, _ = s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
@@ -143,6 +143,7 @@ func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, s
 		Subject:      subject,
 		Status:       "suppressed",
 		Error:        sql.NullString{String: "recipient on suppression list", Valid: true},
+		BroadcastID:  broadcastID,
 	})
 }
 
@@ -189,7 +190,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, sub.Email) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, template.Subject)
+		s.logSuppressed(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, template.Subject, uuid.NullUUID{})
 		return SendResult{Suppressed: 1}, nil
 	}
 
@@ -200,7 +201,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	unsubURL := s.unsubURL(pid.String(), sid.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	sendErr := s.trackAndSend(ctx, project, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
+	sendErr := s.trackAndSend(ctx, project, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL, uuid.NullUUID{})
 	if sendErr != nil {
 		return SendResult{Failed: 1}, sendErr
 	}
@@ -341,7 +342,7 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, job.ProjectID, sub.Email) {
-		s.logSuppressed(ctx, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, broadcast.Subject)
+		s.logSuppressed(ctx, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, broadcast.Subject, uuid.NullUUID{UUID: broadcast.ID, Valid: true})
 		return BroadcastJobOutcomeSuppressed, nil
 	}
 
@@ -370,7 +371,7 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 	unsubURL := s.unsubURL(job.ProjectID.String(), sub.ID.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	sendErr := s.trackAndSend(ctx, project, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, subject, body, unsubURL)
+	sendErr := s.trackAndSend(ctx, project, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, subject, body, unsubURL, uuid.NullUUID{UUID: broadcast.ID, Valid: true})
 	if sendErr == nil {
 		return BroadcastJobOutcomeSent, nil
 	}
@@ -428,11 +429,11 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, to) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject)
+		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, uuid.NullUUID{})
 		return ErrRecipientSuppressed
 	}
 
-	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "")
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "", uuid.NullUUID{})
 }
 
 func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string) error {
@@ -464,7 +465,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, to) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, template.Subject)
+		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, template.Subject, uuid.NullUUID{})
 		return ErrRecipientSuppressed
 	}
 
@@ -494,7 +495,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubscribeURL)
 	}
 
-	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL)
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL, uuid.NullUUID{})
 }
 
 type LogFilters struct {
@@ -660,7 +661,7 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 	return stats, nil
 }
 
-func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string) uuid.UUID {
+func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, broadcastID uuid.NullUUID) uuid.UUID {
 	logEntry, _ := s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
@@ -668,6 +669,7 @@ func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subs
 		ToEmail:      toEmail,
 		Subject:      subject,
 		Status:       "sent",
+		BroadcastID:  broadcastID,
 	})
 	s.cache.Delete(ctx, "stats:"+projectID.String())
 	return logEntry.ID
@@ -696,8 +698,8 @@ func (s *EmailService) markLogFailed(ctx context.Context, projectID, logID uuid.
 	s.markLogStatus(ctx, projectID, logID, "failed", sendErr)
 }
 
-func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string) error {
-	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject)
+func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string, broadcastID uuid.NullUUID) error {
+	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject, broadcastID)
 	body = s.injectTrackingPixel(body, logID)
 	body = s.rewriteLinksForTracking(body, logID)
 	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
