@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -81,6 +82,12 @@ func (h *BounceWebhookHandler) Receive(w http.ResponseWriter, r *http.Request) {
 	if h.suppressions != nil {
 		_, _ = h.suppressions.Add(r.Context(), project.ID, email, service.SuppressionReasonBounce, "webhook ingest: "+reason)
 	}
+
+	_ = h.queries.MarkLatestLogBouncedByEmail(r.Context(), db.MarkLatestLogBouncedByEmailParams{
+		ProjectID: project.ID,
+		ToEmail:   email,
+		Error:     sql.NullString{String: "bounce reported via webhook: " + reason, Valid: true},
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted", "email": email})
