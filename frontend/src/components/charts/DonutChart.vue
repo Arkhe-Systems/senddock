@@ -7,6 +7,8 @@ const props = defineProps<{
     labels: string[]
     values: number[]
     colors?: string[]
+    // '0%' turns the doughnut into a pie.
+    cutout?: string
 }>()
 
 const data = computed(() => ({
@@ -22,7 +24,7 @@ const data = computed(() => ({
 const options = computed(() => {
     const o = baseOptions() as any
     delete o.scales
-    o.cutout = '62%'
+    o.cutout = props.cutout ?? '62%'
     o.plugins.legend.position = 'right'
     return o
 })

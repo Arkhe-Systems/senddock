@@ -8,7 +8,7 @@ import UserProfilePanel from '@/components/UserProfilePanel.vue'
 import type { Component } from 'vue'
 import {
     LayoutDashboard, Users, Filter, Ban, LayoutTemplate, ScrollText,
-    Server, Newspaper, Send, BarChart3, Webhook, Settings, ShieldCheck,
+    Server, Newspaper, Send, BarChart3, Webhook, Settings, ShieldCheck, Table2,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -49,6 +49,7 @@ const navItems: { name: string; route: string; icon: Component }[] = [
 ]
 
 const proItems: { name: string; route: string; icon: Component }[] = [
+    { name: 'Reports', route: 'project-reports', icon: Table2 },
     { name: 'Audit log', route: 'project-audit-log', icon: ShieldCheck },
 ]
 
