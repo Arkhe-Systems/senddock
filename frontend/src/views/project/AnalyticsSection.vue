@@ -41,9 +41,11 @@ const PRESETS: { value: Preset; label: string }[] = [
     { value: '24h', label: '24h' }, { value: '7d', label: '7d' },
     { value: '30d', label: '30d' }, { value: '90d', label: '90d' }, { value: '1y', label: '1y' },
 ]
-const preset = ref<Preset>('30d')
+const preset = ref<Preset | ''>('30d')
 const fromISO = ref('')
 const toISO = ref('')
+const customFrom = ref('')
+const customTo = ref('')
 
 function presetWindow(p: Preset): { from: Date; to: Date } {
     const to = new Date()
@@ -110,7 +112,20 @@ async function loadCurrentTab() {
 
 function applyPreset(p: Preset) {
     preset.value = p
+    customFrom.value = ''
+    customTo.value = ''
     const { from, to } = presetWindow(p)
+    fromISO.value = from.toISOString()
+    toISO.value = to.toISOString()
+    loadCurrentTab()
+}
+
+function applyCustomRange() {
+    if (!customFrom.value || !customTo.value) return
+    const from = new Date(customFrom.value + 'T00:00:00Z')
+    const to = new Date(customTo.value + 'T23:59:59Z')
+    if (isNaN(from.getTime()) || isNaN(to.getTime()) || to <= from) return
+    preset.value = ''
     fromISO.value = from.toISOString()
     toISO.value = to.toISOString()
     loadCurrentTab()
@@ -239,7 +254,7 @@ onBeforeUnmount(() => { if (pollTimer) clearInterval(pollTimer) })
 onMounted(async () => {
     await licenseStore.fetch()
     segmentStore.fetchSegments(props.project.id)
-    applyPreset(preset.value)
+    applyPreset('30d')
     startPolling()
 })
 </script>
@@ -262,6 +277,14 @@ onMounted(async () => {
                         :class="['px-2.5 py-1 text-sm rounded-md transition', preset === p.value ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white']">
                         {{ p.label }}
                     </button>
+                </div>
+                <div class="flex items-center gap-1 bg-zinc-900 border rounded-lg px-2 py-1"
+                    :class="preset === '' ? 'border-indigo-500/60' : 'border-zinc-800'">
+                    <input type="date" v-model="customFrom" @change="applyCustomRange"
+                        class="bg-transparent text-sm text-zinc-300 focus:outline-none [color-scheme:dark] cursor-pointer" aria-label="From date" />
+                    <span class="text-zinc-600 text-xs">→</span>
+                    <input type="date" v-model="customTo" @change="applyCustomRange"
+                        class="bg-transparent text-sm text-zinc-300 focus:outline-none [color-scheme:dark] cursor-pointer" aria-label="To date" />
                 </div>
             </div>
         </div>

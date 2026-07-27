@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps<{
     cells: { weekday: number; hour: number; count: number }[]
@@ -26,6 +26,13 @@ function cellStyle(count: number): Record<string, string> {
     const alpha = 0.15 + 0.85 * (count / grid.value.max)
     return { backgroundColor: `rgba(52, 211, 153, ${alpha})` }
 }
+
+const tip = ref<{ x: number; y: number; text: string } | null>(null)
+function showTip(e: MouseEvent, d: number, h: number, count: number) {
+    const label = days[d] ?? ''
+    const hour = String(h).padStart(2, '0')
+    tip.value = { x: e.clientX, y: e.clientY, text: `${label} · ${hour}:00 — ${count} click${count === 1 ? '' : 's'}` }
+}
 </script>
 
 <template>
@@ -34,9 +41,10 @@ function cellStyle(count: number): Record<string, string> {
             <div v-for="(row, d) in grid.m" :key="d" class="flex items-center gap-1 mb-1">
                 <span class="w-8 text-[10px] text-zinc-500 shrink-0">{{ days[d] }}</span>
                 <div v-for="h in hours" :key="h"
-                    class="w-3.5 h-3.5 rounded-sm shrink-0"
+                    class="w-3.5 h-3.5 rounded-sm shrink-0 hover:ring-1 hover:ring-white/40"
                     :style="cellStyle(row[h] ?? 0)"
-                    :title="`${days[d]} ${h}:00 — ${row[h] ?? 0} clicks`"></div>
+                    @mousemove="showTip($event, d, h, row[h] ?? 0)"
+                    @mouseleave="tip = null"></div>
             </div>
             <div class="flex items-center gap-1">
                 <span class="w-8 shrink-0"></span>
@@ -44,4 +52,12 @@ function cellStyle(count: number): Record<string, string> {
             </div>
         </div>
     </div>
+
+    <Teleport to="body">
+        <div v-if="tip"
+            class="fixed z-50 pointer-events-none px-2 py-1 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-white whitespace-nowrap shadow-lg"
+            :style="{ left: tip.x + 12 + 'px', top: tip.y + 12 + 'px' }">
+            {{ tip.text }}
+        </div>
+    </Teleport>
 </template>
