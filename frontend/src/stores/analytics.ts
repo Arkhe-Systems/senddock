@@ -51,7 +51,13 @@ export interface Audience {
 }
 
 export interface Breakdown { label: string; count: number }
-export interface Engagement { devices: Breakdown[]; clients: Breakdown[] }
+export interface Funnel { sent: number; opened: number; clicked: number }
+export interface EngagementBucket { bucket: string; opens: number; clicks: number }
+export interface HeatCell { weekday: number; hour: number; count: number }
+export interface Engagement {
+    devices: Breakdown[]; clients: Breakdown[]
+    funnel: Funnel; series: EngagementBucket[]; heatmap: HeatCell[]
+}
 
 export type CheckStatus = 'pass' | 'warn' | 'fail'
 export interface DomainCheck {
@@ -87,8 +93,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     function audience(projectID: string, from: string, to: string) {
         return api<Audience>(`${base(projectID)}/audience?${windowParams(from, to)}`)
     }
-    function engagement(projectID: string) {
-        return api<Engagement>(`${base(projectID)}/engagement`)
+    function engagement(projectID: string, from: string, to: string) {
+        return api<Engagement>(`${base(projectID)}/engagement?${windowParams(from, to)}`)
     }
     // Export is a file download, so it goes straight to the URL rather than through api().
     function exportUrl(projectID: string): string {

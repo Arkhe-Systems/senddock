@@ -12,6 +12,7 @@ import { chartColors } from '@/components/charts/chartSetup'
 import LineChart from '@/components/charts/LineChart.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import DonutChart from '@/components/charts/DonutChart.vue'
+import AppHeatmap from '@/components/charts/AppHeatmap.vue'
 import AppStatTile from '@/components/ui/AppStatTile.vue'
 import AppStatusPill from '@/components/ui/AppStatusPill.vue'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
@@ -90,7 +91,7 @@ async function loadCurrentTab() {
         } else if (tab.value === 'audience') {
             audience.value = await analytics.audience(props.project.id, fromISO.value, toISO.value)
         } else if (tab.value === 'engagement') {
-            engagement.value = await analytics.engagement(props.project.id)
+            engagement.value = await analytics.engagement(props.project.id, fromISO.value, toISO.value)
         } else if (tab.value === 'deliverability') {
             if (!licenseStore.allowsPro) return
             const [dh, bp] = await Promise.all([
@@ -180,6 +181,37 @@ const bouncesDonut = computed(() => {
     const b = bounces.value
     if (!b || !b.providers.length) return { labels: [] as string[], values: [] as number[] }
     return { labels: b.providers.map((p) => p.provider), values: b.providers.map((p) => p.total) }
+})
+
+// --- engagement views ---
+const engView = ref<'donut' | 'bars'>('donut')
+
+const funnelRows = computed(() => {
+    const f = engagement.value?.funnel
+    if (!f) return [] as { label: string; count: number; pct: number }[]
+    const base = f.sent || 1
+    return [
+        { label: 'Sent', count: f.sent, pct: 100 },
+        { label: 'Opened', count: f.opened, pct: (f.opened / base) * 100 },
+        { label: 'Clicked', count: f.clicked, pct: (f.clicked / base) * 100 },
+    ]
+})
+
+function breakdownPct(items: { label: string; count: number }[]) {
+    const total = items.reduce((s, i) => s + i.count, 0) || 1
+    return items.map((i) => ({ ...i, pct: (i.count / total) * 100 }))
+}
+
+const activityLine = computed(() => {
+    const e = engagement.value
+    if (!e) return { labels: [] as string[], series: [] as { label: string; values: number[]; color: string; fill: boolean }[] }
+    return {
+        labels: e.series.map((b) => fmtBucket(b.bucket)),
+        series: [
+            { label: 'Opens', values: e.series.map((b) => b.opens), color: chartColors.indigo, fill: true },
+            { label: 'Clicks', values: e.series.map((b) => b.clicks), color: chartColors.emerald, fill: false },
+        ],
+    }
 })
 
 // --- broadcasts-in-flight polling (kept) ---
@@ -349,16 +381,63 @@ onMounted(async () => {
             </div>
 
             <!-- ENGAGEMENT -->
-            <div v-else-if="tab === 'engagement' && engagement" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-else-if="tab === 'engagement' && engagement" class="space-y-6">
                 <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                    <p class="text-sm font-semibold text-white mb-3">Devices</p>
-                    <DonutChart v-if="engagement.devices.length" :labels="engagement.devices.map(d => d.label)" :values="engagement.devices.map(d => d.count)" />
-                    <p v-else class="text-sm text-zinc-500 py-8 text-center">No click data yet.</p>
+                    <p class="text-sm font-semibold text-white mb-3">Engagement funnel</p>
+                    <div class="space-y-3">
+                        <div v-for="row in funnelRows" :key="row.label">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-zinc-300">{{ row.label }}</span>
+                                <span class="text-zinc-400">{{ row.count }} · {{ row.pct.toFixed(1) }}%</span>
+                            </div>
+                            <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                <div class="h-full bg-indigo-400" :style="{ width: row.pct + '%' }"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <div class="flex justify-end">
+                    <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
+                        <button v-for="v in (['donut', 'bars'] as const)" :key="v" @click="engView = v"
+                            :class="['px-2.5 py-1 text-xs rounded-md transition capitalize', engView === v ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white']">
+                            {{ v }}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-for="group in [{ title: 'Devices', items: engagement.devices }, { title: 'Mail clients', items: engagement.clients }]" :key="group.title"
+                        class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                        <p class="text-sm font-semibold text-white mb-3">{{ group.title }}</p>
+                        <template v-if="group.items.length">
+                            <DonutChart v-if="engView === 'donut'" :labels="group.items.map(i => i.label)" :values="group.items.map(i => i.count)" />
+                            <BarChart v-else :labels="group.items.map(i => i.label)" :values="group.items.map(i => i.count)" horizontal />
+                            <table class="w-full text-sm mt-3">
+                                <tbody>
+                                    <tr v-for="i in breakdownPct(group.items)" :key="i.label" class="border-b border-zinc-800/60 last:border-0">
+                                        <td class="py-1.5 text-zinc-300">{{ i.label }}</td>
+                                        <td class="py-1.5 text-right text-zinc-400">{{ i.count }}</td>
+                                        <td class="py-1.5 text-right text-zinc-500 w-16">{{ i.pct.toFixed(1) }}%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </template>
+                        <p v-else class="text-sm text-zinc-500 py-8 text-center">No click data yet.</p>
+                    </div>
+                </div>
+
                 <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                    <p class="text-sm font-semibold text-white mb-3">Mail clients</p>
-                    <DonutChart v-if="engagement.clients.length" :labels="engagement.clients.map(c => c.label)" :values="engagement.clients.map(c => c.count)" />
-                    <p v-else class="text-sm text-zinc-500 py-8 text-center">No click data yet.</p>
+                    <p class="text-sm font-semibold text-white mb-3">Opens &amp; clicks over time</p>
+                    <LineChart v-if="activityLine.labels.length" :labels="activityLine.labels" :series="activityLine.series" />
+                    <p v-else class="text-sm text-zinc-500 py-8 text-center">No activity in this range.</p>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                    <p class="text-sm font-semibold text-white mb-1">Clicks by day &amp; hour</p>
+                    <p class="text-xs text-zinc-500 mb-3">When your audience actually clicks (UTC) — based on clicks, since Apple MPP makes open times unreliable.</p>
+                    <AppHeatmap v-if="engagement.heatmap.length" :cells="engagement.heatmap" />
+                    <p v-else class="text-sm text-zinc-500 py-8 text-center">No clicks in this range.</p>
                 </div>
             </div>
 
