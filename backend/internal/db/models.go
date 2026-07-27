@@ -49,6 +49,7 @@ type Broadcast struct {
 	SuppressedCount int32
 	StartedAt       time.Time
 	FinishedAt      sql.NullTime
+	HtmlFields      json.RawMessage
 }
 
 type BroadcastJob struct {

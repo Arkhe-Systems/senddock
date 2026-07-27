@@ -70,6 +70,7 @@ func (h *WaitlistHandler) Join(w http.ResponseWriter, r *http.Request) {
 				req.Email,
 				"",
 				map[string]string{"email": req.Email},
+				nil,
 			)
 			if err != nil {
 				log.Printf("Waitlist confirmation email failed for %s: %v", req.Email, err)

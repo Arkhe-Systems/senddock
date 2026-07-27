@@ -1,6 +1,6 @@
 -- name: CreateBroadcast :one
-INSERT INTO broadcasts (project_id, template_id, subject, variables, total_recipients)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO broadcasts (project_id, template_id, subject, variables, html_fields, total_recipients)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: IncrementBroadcastSent :exec

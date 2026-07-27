@@ -22,6 +22,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/richtext"
 	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/google/uuid"
 	premailer "github.com/vanng822/go-premailer/premailer"
@@ -208,7 +209,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	return SendResult{Sent: 1}, nil
 }
 
-func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage, segmentID string) (SendResult, error) {
+func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage, htmlFields []string, segmentID string) (SendResult, error) {
 	if err := requireAuthorizedProject(ctx, projectID); err != nil {
 		return SendResult{}, err
 	}
@@ -276,11 +277,19 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		variablesJSON = []byte("{}")
 	}
 
+	htmlFieldsJSON := []byte("[]")
+	if len(htmlFields) > 0 {
+		if b, err := json.Marshal(htmlFields); err == nil {
+			htmlFieldsJSON = b
+		}
+	}
+
 	broadcast, err := s.queries.CreateBroadcast(ctx, db.CreateBroadcastParams{
 		ProjectID:       pid,
 		TemplateID:      tid,
 		Subject:         baseSubject,
 		Variables:       variablesJSON,
+		HtmlFields:      htmlFieldsJSON,
 		TotalRecipients: int32(total),
 	})
 	if err != nil {
@@ -351,6 +360,12 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 		_ = json.Unmarshal(broadcast.Variables, &customVars)
 	}
 
+	var htmlFields []string
+	if len(broadcast.HtmlFields) > 0 {
+		_ = json.Unmarshal(broadcast.HtmlFields, &htmlFields)
+	}
+	htmlSet := stringSet(htmlFields)
+
 	body := ensureUnsubscribeFooter(template.HtmlBody)
 	subject := broadcast.Subject
 	if subject == "" {
@@ -358,8 +373,8 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 	}
 
 	for k, v := range customVars {
-		body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
-		subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
+		body = strings.ReplaceAll(body, "{{"+k+"}}", renderValue(v, htmlSet[k]))
+		subject = strings.ReplaceAll(subject, "{{"+k+"}}", subjectValue(v, htmlSet[k]))
 	}
 
 	body = replaceCustomVariables(body, sub, true)
@@ -436,7 +451,7 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "", uuid.NullUUID{})
 }
 
-func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string) error {
+func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string, htmlFields []string) error {
 	if err := requireAuthorizedProject(ctx, projectID); err != nil {
 		return err
 	}
@@ -474,9 +489,10 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	if subjectOverride != "" {
 		subject = subjectOverride
 	}
+	htmlSet := stringSet(htmlFields)
 	for key, val := range variables {
-		body = strings.ReplaceAll(body, "{{"+key+"}}", html.EscapeString(val))
-		subject = strings.ReplaceAll(subject, "{{"+key+"}}", val)
+		body = strings.ReplaceAll(body, "{{"+key+"}}", renderValue(val, htmlSet[key]))
+		subject = strings.ReplaceAll(subject, "{{"+key+"}}", subjectValue(val, htmlSet[key]))
 	}
 
 	var unsubscribeURL string
@@ -1064,6 +1080,31 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 	}
 
 	return client.Quit()
+}
+
+func stringSet(keys []string) map[string]bool {
+	if len(keys) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		set[k] = true
+	}
+	return set
+}
+
+func renderValue(val string, asHTML bool) string {
+	if asHTML {
+		return richtext.Sanitize(val)
+	}
+	return html.EscapeString(val)
+}
+
+func subjectValue(val string, asHTML bool) string {
+	if asHTML {
+		return richtext.PlainText(val)
+	}
+	return val
 }
 
 func replaceVariables(body string, sub db.Subscriber) string {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import RichTextEditor from '@/components/ui/RichTextEditor.vue'
+import { Type, WandSparkles } from 'lucide-vue-next'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import { useAppStore } from '@/stores/app'
@@ -52,6 +54,7 @@ const subjectOverride = ref('')
 const sendLoading = ref(false)
 const openSendLoading = ref(false)
 const templateVars = ref<Record<string, string>>({})
+const richFields = ref<Record<string, boolean>>({})
 
 const selectedTemplateData = computed(() => templates.value.find(t => t.id === selectedTemplate.value))
 const templateHasSubject = computed(() => !!(selectedTemplateData.value?.subject?.trim()))
@@ -74,8 +77,11 @@ const customTemplateVars = computed(() =>
 
 watch(selectedTemplate, () => {
     templateVars.value = {}
+    richFields.value = {}
     selectedTemplateVars.value.filter(v => !SYSTEM_VARS.has(v)).forEach(v => { templateVars.value[v] = '' })
 })
+
+const htmlFields = computed(() => customTemplateVars.value.filter(v => richFields.value[v]))
 
 async function loadData() {
     try {
@@ -135,7 +141,7 @@ async function handleSend() {
         if (sendMode.value === 'broadcast') {
             const result = await api<{ sent: number, failed: number }>(`/projects/${props.project.id}/broadcast`, {
                 method: 'POST',
-                body: { template_id: selectedTemplate.value, subject: subjectOverride.value, variables: templateVars.value, segment_id: selectedSegment.value },
+                body: { template_id: selectedTemplate.value, subject: subjectOverride.value, variables: templateVars.value, html_fields: htmlFields.value, segment_id: selectedSegment.value },
             })
             toast.success(`Broadcast complete: ${result.sent} sent, ${result.failed} failed`)
         } else {
@@ -146,7 +152,7 @@ async function handleSend() {
             }
             await api(`/projects/${props.project.id}/send`, {
                 method: 'POST',
-                body: { template_id: selectedTemplate.value, to: directEmail.value, subject: subjectOverride.value, data: templateVars.value },
+                body: { template_id: selectedTemplate.value, to: directEmail.value, subject: subjectOverride.value, data: templateVars.value, html_fields: htmlFields.value },
             })
             toast.success(`Email sent to ${directEmail.value}`)
         }
@@ -261,10 +267,24 @@ onMounted(loadData)
                 <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
                     <p class="text-xs font-medium text-zinc-400">Template Variables</p>
 
-                    <div v-if="customTemplateVars.length > 0" class="space-y-2">
+                    <div v-if="customTemplateVars.length > 0" class="space-y-3">
                         <p class="text-xs text-zinc-500">Fill in the custom values for this send:</p>
-                        <div v-for="v in customTemplateVars" :key="v">
-                            <AppInput v-model="templateVars[v]" :label="v" :placeholder="'Value for {{' + v + '}}'" />
+                        <div v-for="v in customTemplateVars" :key="v" class="space-y-1">
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-sm font-medium text-zinc-300 font-mono">{{ varLabel(v) }}</label>
+                                <div class="flex gap-0.5 bg-zinc-950/60 rounded-md p-0.5 border border-zinc-800">
+                                    <button type="button" @click="richFields[v] = false" title="Plain text"
+                                        :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded cursor-pointer transition', !richFields[v] ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white']">
+                                        <Type class="w-3 h-3" /> Text
+                                    </button>
+                                    <button type="button" @click="richFields[v] = true" title="Rich text (bold, lists, links…)"
+                                        :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded cursor-pointer transition', richFields[v] ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white']">
+                                        <WandSparkles class="w-3 h-3" /> Rich
+                                    </button>
+                                </div>
+                            </div>
+                            <RichTextEditor v-if="richFields[v]" v-model="templateVars[v]" />
+                            <AppInput v-else v-model="templateVars[v]" :placeholder="'Value for {{' + v + '}}'" />
                         </div>
                     </div>
 
