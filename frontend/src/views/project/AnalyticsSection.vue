@@ -5,7 +5,7 @@ import { useLicenseStore } from '@/stores/license'
 import { useSegmentStore } from '@/stores/segments'
 import {
     useAnalyticsStore, type Overview, type CampaignStat, type CampaignDetail,
-    type Audience, type Engagement, type DomainHealth, type BouncesByProvider,
+    type Audience, type Engagement, type DomainHealth, type ProviderBreakdown,
 } from '@/stores/analytics'
 import { ApiError } from '@/api/client'
 import { chartColors } from '@/components/charts/chartSetup'
@@ -72,7 +72,7 @@ const openCampaign = ref<CampaignDetail | null>(null)
 const audience = ref<Audience | null>(null)
 const engagement = ref<Engagement | null>(null)
 const domainHealth = ref<DomainHealth | null>(null)
-const bounces = ref<BouncesByProvider | null>(null)
+const providers = ref<ProviderBreakdown | null>(null)
 
 function handleError(e: unknown) {
     // The descriptive tabs are free; only deliverability can 402, and that path
@@ -96,12 +96,12 @@ async function loadCurrentTab() {
             engagement.value = await analytics.engagement(props.project.id, fromISO.value, toISO.value)
         } else if (tab.value === 'deliverability') {
             if (!licenseStore.allowsPro) return
-            const [dh, bp] = await Promise.all([
+            const [dh, pv] = await Promise.all([
                 analytics.domainHealth(props.project.id),
-                analytics.bouncesByProvider(props.project.id, fromISO.value, toISO.value),
+                analytics.providers(props.project.id, fromISO.value, toISO.value),
             ])
             domainHealth.value = dh
-            bounces.value = bp
+            providers.value = pv
         }
     } catch (e) {
         handleError(e)
@@ -196,10 +196,10 @@ const audienceChart = computed(() => {
     return { labels: a.series.map((b) => fmtBucket(b.bucket)), values: a.series.map((b) => b.cumulative_net) }
 })
 
-const bouncesDonut = computed(() => {
-    const b = bounces.value
-    if (!b || !b.providers.length) return { labels: [] as string[], values: [] as number[] }
-    return { labels: b.providers.map((p) => p.provider), values: b.providers.map((p) => p.total) }
+const providerDonut = computed(() => {
+    const p = providers.value
+    if (!p || !p.providers.length) return { labels: [] as string[], values: [] as number[] }
+    return { labels: p.providers.map((x) => x.provider), values: p.providers.map((x) => x.sent) }
 })
 
 // --- engagement views ---
@@ -497,35 +497,41 @@ onMounted(async () => {
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div class="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                            <p class="text-sm font-semibold text-white mb-3">Bounces by provider</p>
-                            <p v-if="!bounces || !bounces.providers.length" class="text-sm text-zinc-500 py-8 text-center">No bounces in this range.</p>
+                            <p class="text-sm font-semibold text-white mb-3">By provider</p>
+                            <p v-if="!providers || !providers.providers.length" class="text-sm text-zinc-500 py-8 text-center">No sends in this range.</p>
                             <div v-else class="overflow-x-auto">
                                 <table class="w-full text-sm">
                                     <thead class="text-zinc-500 text-xs uppercase tracking-wide border-b border-zinc-800">
                                         <tr>
                                             <th class="text-left px-3 py-2">Provider</th>
-                                            <th class="text-right px-3 py-2">Total</th>
-                                            <th class="text-right px-3 py-2">Hard</th>
-                                            <th class="text-right px-3 py-2">Soft</th>
-                                            <th class="text-right px-3 py-2">Unknown</th>
+                                            <th class="text-right px-3 py-2">Sent</th>
+                                            <th class="text-right px-3 py-2">Acceptance</th>
+                                            <th class="text-right px-3 py-2">Bounce</th>
+                                            <th class="text-right px-3 py-2">Open</th>
+                                            <th class="text-right px-3 py-2">Click</th>
+                                            <th class="text-right px-3 py-2">Hard / Soft</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="p in bounces.providers" :key="p.provider" class="border-b border-zinc-800/60">
+                                        <tr v-for="p in providers.providers" :key="p.provider" class="border-b border-zinc-800/60">
                                             <td class="px-3 py-2.5 text-white">{{ p.provider }}</td>
-                                            <td class="px-3 py-2.5 text-right text-zinc-300">{{ p.total }}</td>
-                                            <td class="px-3 py-2.5 text-right text-red-400">{{ p.hard }}</td>
-                                            <td class="px-3 py-2.5 text-right text-amber-400">{{ p.soft }}</td>
-                                            <td class="px-3 py-2.5 text-right text-zinc-500">{{ p.unknown }}</td>
+                                            <td class="px-3 py-2.5 text-right text-zinc-300">{{ p.sent }}</td>
+                                            <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.acceptance_pct) }}</td>
+                                            <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.bounce_rate_pct) }}</td>
+                                            <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.open_rate_pct) }}</td>
+                                            <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.click_rate_pct) }}</td>
+                                            <td class="px-3 py-2.5 text-right text-zinc-500">
+                                                <span class="text-red-400">{{ p.hard_bounces }}</span> / <span class="text-amber-400">{{ p.soft_bounces }}</span>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                            <p class="text-sm font-semibold text-white mb-3">Bounce share</p>
-                            <DonutChart v-if="bouncesDonut.values.length" :labels="bouncesDonut.labels" :values="bouncesDonut.values" />
-                            <p v-else class="text-sm text-zinc-500 py-8 text-center">No bounces.</p>
+                            <p class="text-sm font-semibold text-white mb-3">Volume by provider</p>
+                            <DonutChart v-if="providerDonut.values.length" :labels="providerDonut.labels" :values="providerDonut.values" />
+                            <p v-else class="text-sm text-zinc-500 py-8 text-center">No sends.</p>
                         </div>
                     </div>
                 </template>

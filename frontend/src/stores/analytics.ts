@@ -65,11 +65,14 @@ export interface DomainCheck {
 }
 export interface DomainHealth { domain: string; checks: DomainCheck[] }
 
-export interface ProviderBounces {
-    provider: string; total: number; hard: number; soft: number; unknown: number
+export interface ProviderStats {
+    provider: string
+    sent: number; failed: number; bounced: number; opened: number; clicked: number
+    hard_bounces: number; soft_bounces: number
+    acceptance_pct: number; bounce_rate_pct: number; open_rate_pct: number; click_rate_pct: number
 }
-export interface BouncesByProvider {
-    from: string; to: string; total_bounced: number; providers: ProviderBounces[]
+export interface ProviderBreakdown {
+    from: string; to: string; total_bounced: number; providers: ProviderStats[]
 }
 
 function windowParams(from: string, to: string, segmentID?: string): string {
@@ -106,9 +109,9 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     function domainHealth(projectID: string) {
         return api<DomainHealth>(`${deliverabilityBase(projectID)}/domain-health`)
     }
-    function bouncesByProvider(projectID: string, from: string, to: string) {
-        return api<BouncesByProvider>(`${deliverabilityBase(projectID)}/bounces-by-provider?${windowParams(from, to)}`)
+    function providers(projectID: string, from: string, to: string) {
+        return api<ProviderBreakdown>(`${deliverabilityBase(projectID)}/providers?${windowParams(from, to)}`)
     }
 
-    return { overview, campaigns, campaign, audience, engagement, exportUrl, domainHealth, bouncesByProvider }
+    return { overview, campaigns, campaign, audience, engagement, exportUrl, domainHealth, providers }
 })
