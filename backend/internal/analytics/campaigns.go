@@ -53,13 +53,17 @@ func (h *Handler) Campaigns(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	from, to, _, ok := parseWindow(w, r)
+	if !ok {
+		return
+	}
 
 	rows, err := h.db.QueryContext(r.Context(), campaignSelect+`
-		WHERE b.project_id = $1
+		WHERE b.project_id = $1 AND b.started_at >= $2 AND b.started_at < $3
 		GROUP BY b.id
 		ORDER BY b.started_at DESC
 		LIMIT 200
-	`, projectID)
+	`, projectID, from, to)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to load campaigns")
 		return

@@ -86,7 +86,7 @@ async function loadCurrentTab() {
         if (tab.value === 'overview') {
             overview.value = await analytics.overview(props.project.id, fromISO.value, toISO.value, selectedSegment.value || undefined)
         } else if (tab.value === 'campaigns') {
-            const res = await analytics.campaigns(props.project.id)
+            const res = await analytics.campaigns(props.project.id, fromISO.value, toISO.value)
             campaigns.value = res.campaigns
         } else if (tab.value === 'audience') {
             audience.value = await analytics.audience(props.project.id, fromISO.value, toISO.value)
@@ -143,6 +143,10 @@ function fmtBucket(iso: string): string {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 function pct(v: number): string { return `${v.toFixed(1)}%` }
+function fmtDay(iso: string): string {
+    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+const rangeLabel = computed(() => (fromISO.value && toISO.value) ? `${fmtDay(fromISO.value)} – ${fmtDay(toISO.value)}` : '')
 function trend(cur: number, prev: number): number | null {
     if (prev === 0) return cur === 0 ? 0 : null
     return ((cur - prev) / prev) * 100
@@ -434,8 +438,11 @@ onMounted(async () => {
                 </div>
 
                 <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                    <p class="text-sm font-semibold text-white mb-1">Clicks by day &amp; hour</p>
-                    <p class="text-xs text-zinc-500 mb-3">When your audience actually clicks (UTC) — based on clicks, since Apple MPP makes open times unreliable.</p>
+                    <div class="flex items-center justify-between mb-1 gap-3">
+                        <p class="text-sm font-semibold text-white">Best time to engage</p>
+                        <span class="text-xs text-zinc-500 shrink-0">{{ rangeLabel }} · UTC</span>
+                    </div>
+                    <p class="text-xs text-zinc-500 mb-3">Clicks aggregated by weekday and hour across the selected range — not specific dates. Based on clicks, since Apple MPP makes open times unreliable.</p>
                     <AppHeatmap v-if="engagement.heatmap.length" :cells="engagement.heatmap" />
                     <p v-else class="text-sm text-zinc-500 py-8 text-center">No clicks in this range.</p>
                 </div>

@@ -84,8 +84,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     function overview(projectID: string, from: string, to: string, segmentID?: string) {
         return api<Overview>(`${base(projectID)}/overview?${windowParams(from, to, segmentID)}`)
     }
-    function campaigns(projectID: string) {
-        return api<{ campaigns: CampaignStat[] }>(`${base(projectID)}/campaigns`)
+    function campaigns(projectID: string, from: string, to: string) {
+        return api<{ campaigns: CampaignStat[] }>(`${base(projectID)}/campaigns?${windowParams(from, to)}`)
     }
     function campaign(projectID: string, broadcastID: string) {
         return api<CampaignDetail>(`${base(projectID)}/campaigns/${broadcastID}`)
