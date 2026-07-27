@@ -5,6 +5,11 @@ import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import AppLoader from '@/components/ui/AppLoader.vue'
 import UserProfilePanel from '@/components/UserProfilePanel.vue'
+import type { Component } from 'vue'
+import {
+    LayoutDashboard, Users, Filter, Ban, LayoutTemplate, ScrollText,
+    Server, Newspaper, Send, BarChart3, Webhook, Settings, ShieldCheck,
+} from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,23 +33,23 @@ async function loadProject() {
     }
 }
 
-const navItems = [
-    { name: 'Overview', route: 'project-overview' },
-    { name: 'Subscribers', route: 'project-subscribers' },
-    { name: 'Segments', route: 'project-segments' },
-    { name: 'Suppressions', route: 'project-suppressions' },
-    { name: 'Templates', route: 'project-templates' },
-    { name: 'Logs', route: 'project-logs' },
-    { name: 'SMTP Settings', route: 'project-smtp' },
-    { name: 'Newsletters', route: 'project-campaigns' },
-    { name: 'Broadcasts', route: 'project-broadcasts' },
-    { name: 'Analytics', route: 'project-analytics' },
-    { name: 'Webhooks', route: 'project-webhooks' },
-    { name: 'Settings', route: 'project-settings' },
+const navItems: { name: string; route: string; icon: Component }[] = [
+    { name: 'Overview', route: 'project-overview', icon: LayoutDashboard },
+    { name: 'Subscribers', route: 'project-subscribers', icon: Users },
+    { name: 'Segments', route: 'project-segments', icon: Filter },
+    { name: 'Suppressions', route: 'project-suppressions', icon: Ban },
+    { name: 'Templates', route: 'project-templates', icon: LayoutTemplate },
+    { name: 'Logs', route: 'project-logs', icon: ScrollText },
+    { name: 'SMTP Settings', route: 'project-smtp', icon: Server },
+    { name: 'Newsletters', route: 'project-campaigns', icon: Newspaper },
+    { name: 'Broadcasts', route: 'project-broadcasts', icon: Send },
+    { name: 'Analytics', route: 'project-analytics', icon: BarChart3 },
+    { name: 'Webhooks', route: 'project-webhooks', icon: Webhook },
+    { name: 'Settings', route: 'project-settings', icon: Settings },
 ]
 
-const proItems = [
-    { name: 'Audit log', route: 'project-audit-log' },
+const proItems: { name: string; route: string; icon: Component }[] = [
+    { name: 'Audit log', route: 'project-audit-log', icon: ShieldCheck },
 ]
 
 onMounted(loadProject)
@@ -95,12 +100,13 @@ onMounted(loadProject)
                     <RouterLink v-for="item in navItems" :key="item.route"
                         :to="{ name: item.route, params: { id: projectId } }"
                         :class="[
-                            'block px-3 py-2 text-sm rounded-lg transition',
+                            'flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition',
                             route.name === item.route
                                 ? 'bg-zinc-800 text-white'
                                 : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
                         ]">
-                        {{ item.name }}
+                        <component :is="item.icon" class="w-4 h-4 shrink-0" />
+                        <span>{{ item.name }}</span>
                     </RouterLink>
 
                     <div class="pt-4 mt-4 border-t border-zinc-800">
@@ -114,7 +120,10 @@ onMounted(loadProject)
                                         ? 'bg-zinc-800 text-white'
                                         : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
                                 ]">
-                                <span>{{ item.name }}</span>
+                                <span class="flex items-center gap-2.5">
+                                    <component :is="item.icon" class="w-4 h-4 shrink-0" />
+                                    {{ item.name }}
+                                </span>
                                 <span class="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">Pro</span>
                             </RouterLink>
                             <span v-else

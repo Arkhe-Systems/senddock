@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import { useWorkspaceStore } from '@/stores/workspaces'
 import { useLicenseStore } from '@/stores/license'
 import { useToastStore } from '@/stores/toast'
+import { User, CreditCard, HardDrive, LogOut } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const appStore = useAppStore()
@@ -68,20 +69,24 @@ async function handleLogout() {
 
         <div class="space-y-1">
             <RouterLink to="/account" active-class="bg-zinc-800 text-white"
-                class="block px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                Account
+                class="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+                <User class="w-4 h-4 shrink-0" />
+                <span>Account</span>
             </RouterLink>
             <RouterLink to="/billing" active-class="bg-zinc-800 text-white"
-                class="block px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                Billing
+                class="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+                <CreditCard class="w-4 h-4 shrink-0" />
+                <span>Billing</span>
             </RouterLink>
             <RouterLink v-if="isSelfHosted" to="/instance" active-class="bg-zinc-800 text-white"
-                class="block px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                Instance
+                class="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+                <HardDrive class="w-4 h-4 shrink-0" />
+                <span>Instance</span>
             </RouterLink>
             <button type="button" @click="handleLogout"
-                class="w-full text-left px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer">
-                Logout
+                class="w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer">
+                <LogOut class="w-4 h-4 shrink-0" />
+                <span>Logout</span>
             </button>
         </div>
     </div>
