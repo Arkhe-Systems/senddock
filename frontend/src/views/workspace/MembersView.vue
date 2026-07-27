@@ -206,6 +206,26 @@ async function confirmRename() {
     }
 }
 
+const showDelete = ref(false)
+const deleteLoading = ref(false)
+// Only offer delete to an owner, and never for their last workspace (the
+// backend also refuses if it still has projects).
+const canDelete = computed(() => isOwner.value && workspaceStore.workspaces.length > 1)
+
+async function confirmDelete() {
+    deleteLoading.value = true
+    try {
+        await workspaceStore.remove(workspaceId.value)
+        toast.success('Workspace deleted')
+        router.push('/dashboard')
+    } catch (e: any) {
+        toast.error(e.message || 'Could not delete the workspace')
+        showDelete.value = false
+    } finally {
+        deleteLoading.value = false
+    }
+}
+
 function fmtDate(iso: string) {
     return new Date(iso).toLocaleDateString()
 }
@@ -242,6 +262,7 @@ onMounted(async () => {
                     </div>
                     <div class="flex items-center gap-2">
                         <AppButton variant="ghost" size="sm" v-if="isOwner" @click="openRename">Rename</AppButton>
+                        <AppButton variant="danger" size="sm" v-if="canDelete" @click="showDelete = true">Delete</AppButton>
                         <AppButton variant="ghost" size="sm" v-if="isOwner && canManageTeam" @click="openInvite('existing')">+ Add existing</AppButton>
                         <AppButton size="sm" v-if="isOwner && canManageTeam" @click="openInvite('new')">+ Create user</AppButton>
                     </div>
@@ -369,6 +390,11 @@ onMounted(async () => {
                 :message="`Remove ${memberToRemove?.email} from this workspace? They will lose access to every project in it.`"
                 confirm-label="Remove" danger :loading="removeLoading"
                 @confirm="confirmRemove" @cancel="showRemove = false" />
+
+            <AppConfirmModal :show="showDelete" title="Delete workspace"
+                :message="`Delete “${workspace?.name}”? This can't be undone. The workspace must have no projects.`"
+                confirm-label="Delete workspace" danger :loading="deleteLoading"
+                @confirm="confirmDelete" @cancel="showDelete = false" />
         </div>
     </div>
 </template>

@@ -192,7 +192,7 @@ onMounted(async () => {
                             <div class="border-t border-zinc-800 my-1"></div>
                             <button v-if="activeWorkspace" @click="router.push(`/workspaces/${activeWorkspace.id}/members`); showWorkspaceMenu = false; mobileNavOpen = false"
                                 class="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition cursor-pointer">
-                                Manage members
+                                Manage workspace
                             </button>
                             <button @click="showCreateWorkspaceModal = true; showWorkspaceMenu = false"
                                 class="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition cursor-pointer">
