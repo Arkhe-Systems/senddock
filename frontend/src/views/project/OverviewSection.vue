@@ -75,11 +75,13 @@ const customTemplateVars = computed(() =>
     selectedTemplateVars.value.filter(v => !SYSTEM_VARS.has(v))
 )
 
-watch(selectedTemplate, () => {
+function resetTemplateVars() {
     templateVars.value = {}
     richFields.value = {}
     selectedTemplateVars.value.filter(v => !SYSTEM_VARS.has(v)).forEach(v => { templateVars.value[v] = '' })
-})
+}
+
+watch(selectedTemplate, resetTemplateVars)
 
 const htmlFields = computed(() => customTemplateVars.value.filter(v => richFields.value[v]))
 
@@ -108,6 +110,7 @@ async function openSendModal() {
             return
         }
         selectedTemplate.value = templates.value[0]?.id ?? ''
+        resetTemplateVars()
         sendMode.value = appStore.publicUrlIsReachable ? 'broadcast' : 'direct'
         directEmail.value = ''
         subjectOverride.value = ''
