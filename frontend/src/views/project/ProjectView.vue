@@ -38,12 +38,12 @@ const navItems = [
     { name: 'SMTP Settings', route: 'project-smtp' },
     { name: 'Newsletters', route: 'project-campaigns' },
     { name: 'Broadcasts', route: 'project-broadcasts' },
+    { name: 'Analytics', route: 'project-analytics' },
     { name: 'Webhooks', route: 'project-webhooks' },
     { name: 'Settings', route: 'project-settings' },
 ]
 
 const proItems = [
-    { name: 'Analytics', route: 'project-analytics' },
     { name: 'Audit log', route: 'project-audit-log' },
 ]
 
