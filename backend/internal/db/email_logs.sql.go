@@ -123,7 +123,7 @@ func (q *Queries) CreateEmailClick(ctx context.Context, arg CreateEmailClickPara
 const createEmailLog = `-- name: CreateEmailLog :one
 INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error, broadcast_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id
+RETURNING id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at
 `
 
 type CreateEmailLogParams struct {
@@ -162,12 +162,13 @@ func (q *Queries) CreateEmailLog(ctx context.Context, arg CreateEmailLogParams) 
 		&i.OpenedAt,
 		&i.ClickedAt,
 		&i.BroadcastID,
+		&i.ComplainedAt,
 	)
 	return i, err
 }
 
 const getEmailLog = `-- name: GetEmailLog :one
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id FROM email_logs WHERE id = $1 AND project_id = $2
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at FROM email_logs WHERE id = $1 AND project_id = $2
 `
 
 type GetEmailLogParams struct {
@@ -191,6 +192,7 @@ func (q *Queries) GetEmailLog(ctx context.Context, arg GetEmailLogParams) (Email
 		&i.OpenedAt,
 		&i.ClickedAt,
 		&i.BroadcastID,
+		&i.ComplainedAt,
 	)
 	return i, err
 }
@@ -251,7 +253,7 @@ func (q *Queries) ListEmailClicksByLog(ctx context.Context, logID uuid.UUID) ([]
 }
 
 const listEmailLogsByProject = `-- name: ListEmailLogsByProject :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at FROM email_logs
 WHERE project_id = $1
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3
@@ -285,6 +287,7 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 			&i.OpenedAt,
 			&i.ClickedAt,
 			&i.BroadcastID,
+			&i.ComplainedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -300,7 +303,7 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 }
 
 const listEmailLogsByProjectExport = `-- name: ListEmailLogsByProjectExport :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at FROM email_logs
 WHERE project_id = $1
 AND ($2::text = '' OR status = $2::text)
 AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
@@ -348,6 +351,7 @@ func (q *Queries) ListEmailLogsByProjectExport(ctx context.Context, arg ListEmai
 			&i.OpenedAt,
 			&i.ClickedAt,
 			&i.BroadcastID,
+			&i.ComplainedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -363,7 +367,7 @@ func (q *Queries) ListEmailLogsByProjectExport(ctx context.Context, arg ListEmai
 }
 
 const listEmailLogsByProjectFiltered = `-- name: ListEmailLogsByProjectFiltered :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at FROM email_logs
 WHERE project_id = $1
 AND ($4::text = '' OR status = $4::text)
 AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
@@ -416,6 +420,7 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 			&i.OpenedAt,
 			&i.ClickedAt,
 			&i.BroadcastID,
+			&i.ComplainedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -472,6 +477,26 @@ type MarkLatestLogBouncedByEmailParams struct {
 
 func (q *Queries) MarkLatestLogBouncedByEmail(ctx context.Context, arg MarkLatestLogBouncedByEmailParams) error {
 	_, err := q.db.ExecContext(ctx, markLatestLogBouncedByEmail, arg.ProjectID, arg.ToEmail, arg.Error)
+	return err
+}
+
+const markLatestLogComplainedByEmail = `-- name: MarkLatestLogComplainedByEmail :exec
+UPDATE email_logs SET complained_at = NOW()
+WHERE id = (
+    SELECT el.id FROM email_logs el
+    WHERE el.project_id = $1 AND el.to_email = $2 AND el.status = 'sent' AND el.complained_at IS NULL
+    ORDER BY el.sent_at DESC
+    LIMIT 1
+)
+`
+
+type MarkLatestLogComplainedByEmailParams struct {
+	ProjectID uuid.UUID
+	ToEmail   string
+}
+
+func (q *Queries) MarkLatestLogComplainedByEmail(ctx context.Context, arg MarkLatestLogComplainedByEmailParams) error {
+	_, err := q.db.ExecContext(ctx, markLatestLogComplainedByEmail, arg.ProjectID, arg.ToEmail)
 	return err
 }
 

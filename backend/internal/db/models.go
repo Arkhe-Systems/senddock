@@ -104,6 +104,7 @@ type EmailLog struct {
 	OpenedAt     sql.NullTime
 	ClickedAt    sql.NullTime
 	BroadcastID  uuid.NullUUID
+	ComplainedAt sql.NullTime
 }
 
 type InstanceSetting struct {

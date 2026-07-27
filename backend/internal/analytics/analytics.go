@@ -35,8 +35,10 @@ type Overview struct {
 	TotalBounced       int64               `json:"total_bounced"`
 	TotalOpened        int64               `json:"total_opened"`
 	TotalClicked       int64               `json:"total_clicked"`
-	AcceptancePct  float64             `json:"acceptance_pct"`
+	TotalComplained    int64               `json:"total_complained"`
+	AcceptancePct      float64             `json:"acceptance_pct"`
 	BounceRatePct      float64             `json:"bounce_rate_pct"`
+	ComplaintRatePct   float64             `json:"complaint_rate_pct"`
 	OpenRatePct        float64             `json:"open_rate_pct"`
 	ClickRatePct       float64             `json:"click_rate_pct"`
 	ClickToOpenPct     float64             `json:"click_to_open_pct"`
@@ -62,15 +64,17 @@ type BroadcastInFlight struct {
 }
 
 type PeriodMetrics struct {
-	TotalSent         int64   `json:"total_sent"`
-	TotalFailed       int64   `json:"total_failed"`
-	TotalBounced      int64   `json:"total_bounced"`
-	TotalOpened       int64   `json:"total_opened"`
-	TotalClicked      int64   `json:"total_clicked"`
-	AcceptancePct float64 `json:"acceptance_pct"`
-	BounceRatePct     float64 `json:"bounce_rate_pct"`
-	OpenRatePct       float64 `json:"open_rate_pct"`
-	ClickRatePct      float64 `json:"click_rate_pct"`
+	TotalSent        int64   `json:"total_sent"`
+	TotalFailed      int64   `json:"total_failed"`
+	TotalBounced     int64   `json:"total_bounced"`
+	TotalOpened      int64   `json:"total_opened"`
+	TotalClicked     int64   `json:"total_clicked"`
+	TotalComplained  int64   `json:"total_complained"`
+	AcceptancePct    float64 `json:"acceptance_pct"`
+	BounceRatePct    float64 `json:"bounce_rate_pct"`
+	ComplaintRatePct float64 `json:"complaint_rate_pct"`
+	OpenRatePct      float64 `json:"open_rate_pct"`
+	ClickRatePct     float64 `json:"click_rate_pct"`
 }
 
 type LinkStat struct {
@@ -405,6 +409,14 @@ func (h *Handler) computeOverview(ctx context.Context, projectID string, from, t
 	out.ClickRatePct = ratePct(out.TotalClicked, out.TotalSent)
 	out.ClickToOpenPct = ratePct(out.TotalClicked, out.TotalOpened)
 
+	if err := h.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM email_logs
+		WHERE project_id = $1 AND sent_at >= $2 AND sent_at < $3 AND complained_at IS NOT NULL`+logFilter+`
+	`, logArgs...).Scan(&out.TotalComplained); err != nil {
+		return out, err
+	}
+	out.ComplaintRatePct = ratePct(out.TotalComplained, out.TotalSent)
+
 	linkFilter := ""
 	if subIDs != nil {
 		linkFilter = " AND l.subscriber_id = ANY($4)"
@@ -529,6 +541,14 @@ func (h *Handler) periodMetrics(ctx context.Context, projectID string, since, un
 		return m, err
 	}
 	m.ClickRatePct = ratePct(m.TotalClicked, m.TotalSent)
+
+	if err := h.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM email_logs
+		WHERE project_id = $1 AND sent_at >= $2 AND sent_at < $3 AND complained_at IS NOT NULL`+logFilter+`
+	`, logArgs...).Scan(&m.TotalComplained); err != nil {
+		return m, err
+	}
+	m.ComplaintRatePct = ratePct(m.TotalComplained, m.TotalSent)
 
 	return m, nil
 }

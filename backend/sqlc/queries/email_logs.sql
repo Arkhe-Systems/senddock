@@ -12,6 +12,15 @@ WHERE id = (
     LIMIT 1
 );
 
+-- name: MarkLatestLogComplainedByEmail :exec
+UPDATE email_logs SET complained_at = NOW()
+WHERE id = (
+    SELECT el.id FROM email_logs el
+    WHERE el.project_id = $1 AND el.to_email = $2 AND el.status = 'sent' AND el.complained_at IS NULL
+    ORDER BY el.sent_at DESC
+    LIMIT 1
+);
+
 -- name: ListEmailLogsByProject :many
 SELECT * FROM email_logs
 WHERE project_id = $1

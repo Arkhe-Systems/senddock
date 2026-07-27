@@ -641,6 +641,9 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	bounceWebhookHandler := handler.NewBounceWebhookHandler(queries, a.suppressions)
 	mux.HandleFunc("POST /webhooks/bounces/{projectId}", bounceWebhookHandler.Receive)
 
+	complaintWebhookHandler := handler.NewComplaintWebhookHandler(queries, a.suppressions)
+	mux.HandleFunc("POST /webhooks/complaints/{projectId}", complaintWebhookHandler.Receive)
+
 	mux.Handle("POST /api/v1/projects/{id}/subscribers", authMW(http.HandlerFunc(subscriberHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/subscribers", authMW(http.HandlerFunc(subscriberHandler.List)))
 	mux.Handle("POST /api/v1/projects/{id}/subscribers/bulk", authMW(http.HandlerFunc(subscriberHandler.BulkAction)))
