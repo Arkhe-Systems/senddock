@@ -162,6 +162,13 @@ function fmtDay(iso: string): string {
     return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 const rangeLabel = computed(() => (fromISO.value && toISO.value) ? `${fmtDay(fromISO.value)} – ${fmtDay(toISO.value)}` : '')
+function spamPct(v: number): string { return `${v.toFixed(2)}%` }
+// Gmail's threshold is 0.3%; treat 0.1% as the warning line.
+function spamTone(rate: number): 'good' | 'warn' | 'bad' {
+    if (rate >= 0.3) return 'bad'
+    if (rate >= 0.1) return 'warn'
+    return 'good'
+}
 function trend(cur: number, prev: number): number | null {
     if (prev === 0) return cur === 0 ? 0 : null
     return ((cur - prev) / prev) * 100
@@ -303,10 +310,11 @@ onMounted(async () => {
 
             <!-- OVERVIEW -->
             <div v-else-if="tab === 'overview' && overview" class="space-y-6">
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                     <AppStatTile label="Sent" :value="overview.total_sent" :trend="trend(overview.total_sent, overview.previous.total_sent)" />
                     <AppStatTile label="Acceptance" :value="pct(overview.acceptance_pct)" :trend="trend(overview.acceptance_pct, overview.previous.acceptance_pct)" hint="accepted by relay" />
                     <AppStatTile label="Bounce rate" :value="pct(overview.bounce_rate_pct)" :trend="trend(overview.bounce_rate_pct, overview.previous.bounce_rate_pct)" invert-good />
+                    <AppStatTile label="Spam rate" :value="spamPct(overview.complaint_rate_pct)" :trend="trend(overview.complaint_rate_pct, overview.previous.complaint_rate_pct)" invert-good :tone="spamTone(overview.complaint_rate_pct)" hint="keep < 0.3%" />
                     <AppStatTile label="Open rate" :value="pct(overview.open_rate_pct)" :trend="trend(overview.open_rate_pct, overview.previous.open_rate_pct)" />
                     <AppStatTile label="Click rate" :value="pct(overview.click_rate_pct)" :trend="trend(overview.click_rate_pct, overview.previous.click_rate_pct)" />
                     <AppStatTile label="Active subs" :value="overview.active_subscribers" />
@@ -507,6 +515,7 @@ onMounted(async () => {
                                             <th class="text-right px-3 py-2">Sent</th>
                                             <th class="text-right px-3 py-2">Acceptance</th>
                                             <th class="text-right px-3 py-2">Bounce</th>
+                                            <th class="text-right px-3 py-2">Spam</th>
                                             <th class="text-right px-3 py-2">Open</th>
                                             <th class="text-right px-3 py-2">Click</th>
                                             <th class="text-right px-3 py-2">Hard / Soft</th>
@@ -518,6 +527,7 @@ onMounted(async () => {
                                             <td class="px-3 py-2.5 text-right text-zinc-300">{{ p.sent }}</td>
                                             <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.acceptance_pct) }}</td>
                                             <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.bounce_rate_pct) }}</td>
+                                            <td class="px-3 py-2.5 text-right" :class="spamTone(p.complaint_rate_pct) === 'bad' ? 'text-red-400' : spamTone(p.complaint_rate_pct) === 'warn' ? 'text-amber-400' : 'text-zinc-300'">{{ spamPct(p.complaint_rate_pct) }}</td>
                                             <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.open_rate_pct) }}</td>
                                             <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.click_rate_pct) }}</td>
                                             <td class="px-3 py-2.5 text-right text-zinc-500">

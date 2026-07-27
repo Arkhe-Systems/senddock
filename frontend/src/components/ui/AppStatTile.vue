@@ -9,7 +9,19 @@ const props = defineProps<{
     trend?: number | null
     invertGood?: boolean
     hint?: string
+    // Colours the value itself by an absolute threshold (e.g. spam rate),
+    // independent of the trend arrow.
+    tone?: 'good' | 'warn' | 'bad'
 }>()
+
+const valueClass = computed(() => {
+    switch (props.tone) {
+        case 'good': return 'text-emerald-400'
+        case 'warn': return 'text-amber-400'
+        case 'bad': return 'text-red-400'
+        default: return 'text-white'
+    }
+})
 
 const hasTrend = computed(() => props.trend !== null && props.trend !== undefined && isFinite(props.trend as number))
 
@@ -35,7 +47,7 @@ const trendLabel = computed(() => {
 <template>
     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
         <p class="text-xs text-zinc-500 uppercase tracking-wide">{{ label }}</p>
-        <p class="text-2xl font-bold text-white mt-1">{{ value }}</p>
+        <p :class="['text-2xl font-bold mt-1', valueClass]">{{ value }}</p>
         <div class="mt-1 flex items-center gap-2">
             <span v-if="hasTrend" :class="['text-xs font-medium', trendClass]">{{ trendLabel }}</span>
             <span v-if="hint" class="text-xs text-zinc-600">{{ hint }}</span>

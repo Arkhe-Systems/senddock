@@ -13,15 +13,15 @@ export interface BroadcastInFlight {
 }
 export interface PeriodMetrics {
     total_sent: number; total_failed: number; total_bounced: number
-    total_opened: number; total_clicked: number
-    acceptance_pct: number; bounce_rate_pct: number
+    total_opened: number; total_clicked: number; total_complained: number
+    acceptance_pct: number; bounce_rate_pct: number; complaint_rate_pct: number
     open_rate_pct: number; click_rate_pct: number
 }
 export interface Overview {
     from: string; to: string; granularity: string; range_days: number; segment_id?: string
     total_sent: number; total_failed: number; total_bounced: number
-    total_opened: number; total_clicked: number
-    acceptance_pct: number; bounce_rate_pct: number
+    total_opened: number; total_clicked: number; total_complained: number
+    acceptance_pct: number; bounce_rate_pct: number; complaint_rate_pct: number
     open_rate_pct: number; click_rate_pct: number; click_to_open_pct: number
     opens_series: OpenBucket[]; clicks_series: ClickBucket[]
     top_templates: TemplateStat[]; top_clicked_links: LinkStat[]
@@ -67,9 +67,10 @@ export interface DomainHealth { domain: string; checks: DomainCheck[] }
 
 export interface ProviderStats {
     provider: string
-    sent: number; failed: number; bounced: number; opened: number; clicked: number
+    sent: number; failed: number; bounced: number; opened: number; clicked: number; complained: number
     hard_bounces: number; soft_bounces: number
-    acceptance_pct: number; bounce_rate_pct: number; open_rate_pct: number; click_rate_pct: number
+    acceptance_pct: number; bounce_rate_pct: number; complaint_rate_pct: number
+    open_rate_pct: number; click_rate_pct: number
 }
 export interface ProviderBreakdown {
     from: string; to: string; total_bounced: number; providers: ProviderStats[]
