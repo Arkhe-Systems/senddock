@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/arkhe-systems/senddock/internal/analytics"
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/internal/handler"
@@ -703,6 +704,14 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("GET /api/v1/projects/{id}/logs/{logId}", authMW(http.HandlerFunc(emailHandler.LogDetail)))
 	mux.Handle("GET /api/v1/projects/{id}/broadcasts", authMW(http.HandlerFunc(emailHandler.ListBroadcasts)))
 	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
+
+	analyticsHandler := analytics.NewHandler(a.conn)
+	mux.Handle("GET /api/v1/projects/{id}/analytics/overview", authMW(http.HandlerFunc(analyticsHandler.Overview)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/campaigns", authMW(http.HandlerFunc(analyticsHandler.Campaigns)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/campaigns/{broadcastId}", authMW(http.HandlerFunc(analyticsHandler.Campaign)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/audience", authMW(http.HandlerFunc(analyticsHandler.Audience)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/engagement", authMW(http.HandlerFunc(analyticsHandler.Engagement)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/export", authMW(http.HandlerFunc(analyticsHandler.Export)))
 
 	mux.HandleFunc("GET /unsubscribe/{id}/{subscriberId}", emailHandler.UnsubscribePage)
 	mux.HandleFunc("POST /unsubscribe/{id}/{subscriberId}", emailHandler.Unsubscribe)
