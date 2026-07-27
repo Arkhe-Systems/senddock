@@ -5,7 +5,7 @@ import { useLicenseStore } from '@/stores/license'
 import { useSegmentStore } from '@/stores/segments'
 import {
     useAnalyticsStore, type Overview, type CampaignStat, type CampaignDetail,
-    type Audience, type Engagement,
+    type Audience, type Engagement, type DomainHealth, type BouncesByProvider,
 } from '@/stores/analytics'
 import { ApiError } from '@/api/client'
 import { chartColors } from '@/components/charts/chartSetup'
@@ -13,6 +13,7 @@ import LineChart from '@/components/charts/LineChart.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import DonutChart from '@/components/charts/DonutChart.vue'
 import AppStatTile from '@/components/ui/AppStatTile.vue'
+import AppStatusPill from '@/components/ui/AppStatusPill.vue'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import AppLoader from '@/components/ui/AppLoader.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
@@ -23,13 +24,14 @@ const licenseStore = useLicenseStore()
 const segmentStore = useSegmentStore()
 const analytics = useAnalyticsStore()
 
-type Tab = 'overview' | 'campaigns' | 'audience' | 'engagement'
+type Tab = 'overview' | 'campaigns' | 'audience' | 'engagement' | 'deliverability'
 const tab = ref<Tab>('overview')
-const TABS: { key: Tab; label: string }[] = [
+const TABS: { key: Tab; label: string; pro?: boolean }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'campaigns', label: 'Campaigns' },
     { key: 'audience', label: 'Audience' },
     { key: 'engagement', label: 'Engagement' },
+    { key: 'deliverability', label: 'Deliverability', pro: true },
 ]
 
 // --- date window + segment filter (kept from the previous implementation) ---
@@ -58,7 +60,7 @@ function presetWindow(p: Preset): { from: Date; to: Date } {
 const selectedSegment = ref('')
 const segments = computed(() => segmentStore.segments(props.project.id))
 
-const errorState = ref<'none' | 'paywall' | 'generic'>('none')
+const errorState = ref<'none' | 'generic'>('none')
 const loading = ref(false)
 
 const overview = ref<Overview | null>(null)
@@ -66,17 +68,17 @@ const campaigns = ref<CampaignStat[]>([])
 const openCampaign = ref<CampaignDetail | null>(null)
 const audience = ref<Audience | null>(null)
 const engagement = ref<Engagement | null>(null)
+const domainHealth = ref<DomainHealth | null>(null)
+const bounces = ref<BouncesByProvider | null>(null)
 
 function handleError(e: unknown) {
-    if (e instanceof ApiError && (e.status === 402 || e.message.includes('license'))) {
-        errorState.value = 'paywall'
-    } else {
-        errorState.value = 'generic'
-    }
+    // The descriptive tabs are free; only deliverability can 402, and that path
+    // is gated by allowsPro before we ever fetch — so anything here is a real error.
+    errorState.value = 'generic'
+    if (e instanceof ApiError) { /* keep last good data */ }
 }
 
 async function loadCurrentTab() {
-    if (!licenseStore.allowsPro) { errorState.value = 'paywall'; return }
     loading.value = true
     errorState.value = 'none'
     try {
@@ -89,6 +91,14 @@ async function loadCurrentTab() {
             audience.value = await analytics.audience(props.project.id, fromISO.value, toISO.value)
         } else if (tab.value === 'engagement') {
             engagement.value = await analytics.engagement(props.project.id)
+        } else if (tab.value === 'deliverability') {
+            if (!licenseStore.allowsPro) return
+            const [dh, bp] = await Promise.all([
+                analytics.domainHealth(props.project.id),
+                analytics.bouncesByProvider(props.project.id, fromISO.value, toISO.value),
+            ])
+            domainHealth.value = dh
+            bounces.value = bp
         }
     } catch (e) {
         handleError(e)
@@ -166,6 +176,12 @@ const audienceChart = computed(() => {
     return { labels: a.series.map((b) => fmtBucket(b.bucket)), values: a.series.map((b) => b.cumulative_net) }
 })
 
+const bouncesDonut = computed(() => {
+    const b = bounces.value
+    if (!b || !b.providers.length) return { labels: [] as string[], values: [] as number[] }
+    return { labels: b.providers.map((p) => p.provider), values: b.providers.map((p) => p.total) }
+})
+
 // --- broadcasts-in-flight polling (kept) ---
 let pollTimer: ReturnType<typeof setInterval> | null = null
 const inFlight = computed(() => overview.value?.broadcasts_in_flight ?? [])
@@ -196,10 +212,7 @@ onMounted(async () => {
     <div>
         <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
-                <div class="flex items-center gap-2">
-                    <h2 class="text-2xl font-bold text-white">Analytics</h2>
-                    <span class="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">Pro</span>
-                </div>
+                <h2 class="text-2xl font-bold text-white">Analytics</h2>
                 <p class="text-sm text-zinc-500 mt-1">Send performance, campaigns and audience</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -217,17 +230,14 @@ onMounted(async () => {
             </div>
         </div>
 
-        <AppProPaywall v-if="errorState === 'paywall'" title="Analytics is a Pro feature"
-            description="Track deliverability, opens, clicks and per-campaign performance." />
-
-        <template v-else>
-            <div class="flex gap-1 border-b border-zinc-800 mb-6">
-                <button v-for="t in TABS" :key="t.key" @click="switchTab(t.key)"
-                    :class="['px-4 py-2 text-sm font-medium border-b-2 -mb-px transition',
-                        tab === t.key ? 'border-indigo-400 text-white' : 'border-transparent text-zinc-400 hover:text-white']">
-                    {{ t.label }}
-                </button>
-            </div>
+        <div class="flex gap-1 border-b border-zinc-800 mb-6">
+            <button v-for="t in TABS" :key="t.key" @click="switchTab(t.key)"
+                :class="['px-4 py-2 text-sm font-medium border-b-2 -mb-px transition flex items-center gap-1.5',
+                    tab === t.key ? 'border-indigo-400 text-white' : 'border-transparent text-zinc-400 hover:text-white']">
+                {{ t.label }}
+                <span v-if="t.pro" class="text-[9px] font-semibold tracking-wider uppercase px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">Pro</span>
+            </button>
+        </div>
 
             <AppAlert v-if="errorState === 'generic'" type="error" message="Could not load analytics. Try again." class="mb-4" />
             <AppLoader v-if="loading" message="Loading…" />
@@ -236,7 +246,7 @@ onMounted(async () => {
             <div v-else-if="tab === 'overview' && overview" class="space-y-6">
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     <AppStatTile label="Sent" :value="overview.total_sent" :trend="trend(overview.total_sent, overview.previous.total_sent)" />
-                    <AppStatTile label="Deliverability" :value="pct(overview.deliverability_pct)" :trend="trend(overview.deliverability_pct, overview.previous.deliverability_pct)" />
+                    <AppStatTile label="Acceptance" :value="pct(overview.acceptance_pct)" :trend="trend(overview.acceptance_pct, overview.previous.acceptance_pct)" hint="accepted by relay" />
                     <AppStatTile label="Bounce rate" :value="pct(overview.bounce_rate_pct)" :trend="trend(overview.bounce_rate_pct, overview.previous.bounce_rate_pct)" invert-good />
                     <AppStatTile label="Open rate" :value="pct(overview.open_rate_pct)" :trend="trend(overview.open_rate_pct, overview.previous.open_rate_pct)" />
                     <AppStatTile label="Click rate" :value="pct(overview.click_rate_pct)" :trend="trend(overview.click_rate_pct, overview.previous.click_rate_pct)" />
@@ -286,7 +296,7 @@ onMounted(async () => {
                             <tr>
                                 <th class="text-left px-3 py-2">Campaign</th>
                                 <th class="text-right px-3 py-2">Recipients</th>
-                                <th class="text-right px-3 py-2">Deliverability</th>
+                                <th class="text-right px-3 py-2">Acceptance</th>
                                 <th class="text-right px-3 py-2">Bounce</th>
                                 <th class="text-right px-3 py-2">Open</th>
                                 <th class="text-right px-3 py-2">Click</th>
@@ -297,7 +307,7 @@ onMounted(async () => {
                                 class="border-b border-zinc-800/60 hover:bg-zinc-900 cursor-pointer">
                                 <td class="px-3 py-2.5 text-white truncate max-w-xs">{{ c.subject || '(no subject)' }}</td>
                                 <td class="px-3 py-2.5 text-right text-zinc-300">{{ c.total_recipients }}</td>
-                                <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(c.deliverability_pct) }}</td>
+                                <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(c.acceptance_pct) }}</td>
                                 <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(c.bounce_rate_pct) }}</td>
                                 <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(c.open_rate_pct) }}</td>
                                 <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(c.click_rate_pct) }}</td>
@@ -309,7 +319,7 @@ onMounted(async () => {
                 <div v-if="openCampaign" class="mt-6 bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                     <p class="text-sm font-semibold text-white mb-3">{{ openCampaign.subject || '(no subject)' }}</p>
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-                        <AppStatTile label="Deliverability" :value="pct(openCampaign.deliverability_pct)" />
+                        <AppStatTile label="Acceptance" :value="pct(openCampaign.acceptance_pct)" />
                         <AppStatTile label="Bounce rate" :value="pct(openCampaign.bounce_rate_pct)" invert-good />
                         <AppStatTile label="Open rate" :value="pct(openCampaign.open_rate_pct)" />
                         <AppStatTile label="Click rate" :value="pct(openCampaign.click_rate_pct)" />
@@ -351,6 +361,65 @@ onMounted(async () => {
                     <p v-else class="text-sm text-zinc-500 py-8 text-center">No click data yet.</p>
                 </div>
             </div>
-        </template>
+
+            <!-- DELIVERABILITY (Pro) -->
+            <div v-else-if="tab === 'deliverability'" class="space-y-6">
+                <AppProPaywall v-if="!licenseStore.allowsPro"
+                    title="Deliverability is a Pro feature"
+                    description="Check your domain authentication (SPF, DKIM, DMARC) and see which providers bounce your mail." />
+                <template v-else>
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-sm font-semibold text-white">Domain authentication</p>
+                            <span v-if="domainHealth" class="text-xs text-zinc-500">{{ domainHealth.domain }}</span>
+                        </div>
+                        <div v-if="domainHealth" class="space-y-3">
+                            <div v-for="c in domainHealth.checks" :key="c.name"
+                                class="border-b border-zinc-800/60 last:border-0 pb-3 last:pb-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm text-white font-medium w-16">{{ c.name }}</span>
+                                    <AppStatusPill :status="c.status" />
+                                </div>
+                                <p class="text-xs text-zinc-400 mt-1">{{ c.detail }}</p>
+                                <p v-if="c.fix" class="text-xs text-zinc-500 mt-0.5">Fix: {{ c.fix }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div class="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                            <p class="text-sm font-semibold text-white mb-3">Bounces by provider</p>
+                            <p v-if="!bounces || !bounces.providers.length" class="text-sm text-zinc-500 py-8 text-center">No bounces in this range.</p>
+                            <div v-else class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="text-zinc-500 text-xs uppercase tracking-wide border-b border-zinc-800">
+                                        <tr>
+                                            <th class="text-left px-3 py-2">Provider</th>
+                                            <th class="text-right px-3 py-2">Total</th>
+                                            <th class="text-right px-3 py-2">Hard</th>
+                                            <th class="text-right px-3 py-2">Soft</th>
+                                            <th class="text-right px-3 py-2">Unknown</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="p in bounces.providers" :key="p.provider" class="border-b border-zinc-800/60">
+                                            <td class="px-3 py-2.5 text-white">{{ p.provider }}</td>
+                                            <td class="px-3 py-2.5 text-right text-zinc-300">{{ p.total }}</td>
+                                            <td class="px-3 py-2.5 text-right text-red-400">{{ p.hard }}</td>
+                                            <td class="px-3 py-2.5 text-right text-amber-400">{{ p.soft }}</td>
+                                            <td class="px-3 py-2.5 text-right text-zinc-500">{{ p.unknown }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                            <p class="text-sm font-semibold text-white mb-3">Bounce share</p>
+                            <DonutChart v-if="bouncesDonut.values.length" :labels="bouncesDonut.labels" :values="bouncesDonut.values" />
+                            <p v-else class="text-sm text-zinc-500 py-8 text-center">No bounces.</p>
+                        </div>
+                    </div>
+                </template>
+            </div>
     </div>
 </template>
