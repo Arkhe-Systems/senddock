@@ -23,7 +23,18 @@ Campaigns let you schedule email broadcasts for a future time. Instead of sendin
 
 ## Create a Campaign
 
-From the **Newsletters** tab in your project, click **+ New Campaign**, pick a template, set the scheduled date and (optionally) override the subject. The full request shape (including `variables` for per-campaign substitutions) lives in the [Campaigns API reference](/api/campaigns#create-campaign).
+From the **Newsletters** tab in your project, click **+ New Campaign**, then:
+
+![The New Campaign dialog](/screenshots/new-campaign-modal.png)
+
+
+1. **Name** the campaign (for your own reference in the list).
+2. Pick a **template**.
+3. Optionally **override the subject**.
+4. Fill in any **template variables** — each custom `{{placeholder}}` in the template gets its own input, applied to every recipient (subscriber values like `{{name}}` are filled per person automatically).
+5. Choose **Send now** to broadcast immediately, or **Schedule** and set a date and time.
+
+Click **Create** and it appears in the list. The programmatic equivalent, including the `variables` shape, is in the [Campaigns API reference](/api/campaigns#create-campaign).
 
 ::: tip Cookie auth only
 Campaigns mutate workspace state and require role-based capabilities (`campaigns:write`). API keys, which are project-scoped and identity-less, can't call these endpoints — you'll get `401`. Schedule from the dashboard, or call the endpoints from your own UI built on the same cookie-session login.
@@ -33,9 +44,12 @@ Campaigns mutate workspace state and require role-based capabilities (`campaigns
 
 The **Newsletters** tab shows every campaign in the project, ordered by scheduled time, with their current status and live `sent_count` / `failed_count`. The same data is exposed at `GET /api/v1/projects/{id}/campaigns` — see the [API reference](/api/campaigns#list-campaigns).
 
-## Cancel a Campaign
+## Edit or delete a campaign
 
-You can only delete or reschedule a campaign while its status is `scheduled`. From the dashboard, open the campaign row and use **Cancel** or **Edit**. Once it transitions to `sending`, `sent` or `failed`, the row becomes immutable.
+Each row in the **Newsletters** tab has:
+
+- **Edit** — only available while the campaign is still `scheduled`. Use it to change the template, subject, variables or scheduled time before it fires. Once it moves to `sending`, `sent` or `failed`, editing is closed.
+- **Delete** — available in **any** status. Deleting a `scheduled` campaign cancels it before it sends; deleting a `sent`/`failed` one just removes it from the list (it doesn't unsend anything). A confirmation dialog spells out what will happen for the current status.
 
 ## How the Worker Operates
 
@@ -51,6 +65,10 @@ While the campaign is in `sending`, its `sent_count` and `failed_count` shown in
 If the backend process is killed mid-broadcast, the campaign stays in `sending`, jobs that were `sending` get reset to `retry` on the next startup, and sending resumes from where it left off — no recipient is sent to twice and no recipient is silently dropped. See the **How a broadcast actually runs** section in [Sending emails](/guide/sending#how-a-broadcast-actually-runs) for queue mechanics and retry behavior.
 
 No additional configuration is needed -- the worker starts automatically with the backend.
+
+## Per-campaign analytics
+
+Every email a campaign sends is tagged with its broadcast, so each campaign gets its own engagement breakdown — not just a global roll-up. Open **Project → Analytics → Campaigns** to see, per broadcast, how many were sent, opened and clicked and the resulting rates. See [Analytics](/guide/analytics#tabs).
 
 ## Tips
 

@@ -8,7 +8,9 @@ Subscribers are the people who receive your emails. Each subscriber belongs to a
 
 ### Via the UI
 
-Go to **Subscribers** in the project sidebar and click **+ Add Subscriber**. Provide an email and optional name.
+Go to **Subscribers** in the project sidebar and click **+ Add Subscriber**. Enter an email and an optional name — and, right there in the same dialog, add **tags** and fill in any **[custom fields](#custom-fields)** the project defines, so the subscriber lands fully populated in one step.
+
+![The Add Subscriber dialog with tags and custom fields](/screenshots/add-subscriber-modal.png)
 
 ### Via the API
 
@@ -32,12 +34,18 @@ For waitlist forms on landing pages, use the public [`/waitlist` endpoint](/api/
 
 ## Import
 
-Bulk-import subscribers from a CSV or JSON file. Open the **Subscribers** tab, click **Import**, and either drop a file onto the dropzone or pick one with the file picker.
+Bulk-import subscribers from a **CSV** file. Open the **Subscribers** tab, click **Import**, and either drop a `.csv` onto the dropzone or pick one with the file picker.
 
-### File formats
+![The CSV import dialog](/screenshots/import-modal.png)
 
-- **CSV** — first row is the header. Recognized columns: `email` (required), `name`, `status`. Any extra column whose header matches a [custom field](#custom-fields) key or label is imported into that field; unmatched extra columns are ignored.
-- **JSON** — an array of `{ "email": "...", "name": "...", "status": "...", "fields": {...}, "tags": [...] }` objects.
+### CSV format
+
+- The first row is the **header**. Recognized columns: `email` (required) and `name`. Any extra column whose header matches a [custom field](#custom-fields) key or label is imported into that field; unmatched extra columns are ignored.
+- New subscribers are created with status `active`.
+
+::: tip Importing JSON, or from your own code
+The dashboard importer takes CSV only. To import a JSON array (with `fields` and `tags` per row), or to sync from a CRM/database, use the [import API](/api/subscribers#bulk-import) instead — see [Via the API](#via-the-api) above.
+:::
 
 ### Email validation
 
@@ -70,12 +78,20 @@ Only `active` subscribers receive broadcast emails. Unsubscribed subscribers are
 
 ## Managing Subscribers
 
-From the subscribers table you can:
+From the subscribers table, on a single row you can:
 
 - **Activate** a pending or unsubscribed subscriber
 - **Unsubscribe** an active subscriber
-- **Edit** a subscriber's custom fields and tags
+- **Edit** a subscriber's name, custom fields and tags
 - **Delete** a subscriber permanently
+
+### Bulk actions
+
+Tick the checkboxes on several rows (or the header checkbox to select the page) and a bulk-action bar appears. From it you can, across every selected subscriber at once:
+
+- **Change status** — set them all to active, unsubscribed or pending.
+- **Tags** — add or remove tags (see [Tags](#tags)).
+- **Delete** — remove them all permanently (asks you to confirm first).
 
 ## Custom Fields
 

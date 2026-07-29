@@ -61,8 +61,7 @@ Before exposing to the internet:
 
 - [ ] Generate `JWT_SECRET` from `openssl rand -hex 32` (or `base64 48`) — used for JWT signing **and** the HMAC on click-tracking URLs. Min 32 chars.
 - [ ] Generate `POSTGRES_PASSWORD` from `openssl rand -base64 32` instead of using a guessable value
-- [ ] Set `PUBLIC_URL` to your public HTTPS domain (drives unsubscribe + tracking links inside outgoing emails)
-- [ ] Set `FRONTEND_URL` (or just `PUBLIC_URL` — it falls back) to the same domain so CORS and `Secure` cookies are configured automatically
+- [ ] Set your public HTTPS domain under **Instance** in the dashboard (drives unsubscribe + tracking links inside outgoing emails, and the CORS origin)
 - [ ] Put SendDock behind HTTPS — `Secure: true` is set on auth cookies when the resolved URL starts with `https://`
 - [ ] Keep Redis enabled (it ships in the production composes); without it every rate limit is a no-op
 - [ ] Enable **two-factor authentication** on every account from **Settings → Account** — see [Your account & security](/guide/account#two-factor-authentication)
@@ -74,11 +73,9 @@ If anything misbehaves after going live, see [Troubleshooting](/self-hosting/tro
 
 ## Plans and licensing
 
-SendDock is open-core: the AGPL-3.0 **Community** edition does everything most one-person operations need, and two paid tiers (**Pro** and **Team**) add features for analytics and team collaboration. All paid tiers are unlocked through a single environment variable validated against [Lemon Squeezy](https://lemonsqueezy.com).
+SendDock is open-core: the AGPL-3.0 **Community** edition does everything most one-person operations need, and two paid tiers (**Pro** and **Team**) add deliverability, reporting and team collaboration. Paid tiers are unlocked with a license key validated against [Lemon Squeezy](https://lemonsqueezy.com).
 
-```bash
-SENDDOCK_LICENSE_KEY=
-```
+On a **self-hosted** instance you activate that key from the dashboard, under **Instance → License** — it's stored encrypted in the database and applies immediately, no restart. See [Instance settings → Pro license](/guide/instance-settings#pro-license). The legacy `SENDDOCK_LICENSE_KEY` environment variable still works but is **deprecated**: if set, it's imported into the database once on boot and support for it is removed in v0.9. On the **cloud** deployment the environment owns the key.
 
 ::: info Self-hosted prices below are flat per instance
 The `$9` and `$29` prices on this page are the **self-hosted** rates — one license per SendDock instance, unlimited subscribers, unlimited sends. The [managed cloud at senddock.dev](https://senddock.dev/#pricing) is live and priced separately on a per-subscriber tier basis (Free up to 2,000, then $19 / $49 / $129 per month) because we operate the platform for you. BYO SMTP applies to both — neither path charges per send.
@@ -94,8 +91,10 @@ The `$9` and `$29` prices on this page are the **self-hosted** rates — one lic
 | Bounce ingestion, suppression list | ✓ | ✓ | ✓ |
 | Click & open tracking | ✓ | ✓ | ✓ |
 | API keys + webhook dispatcher | ✓ | ✓ | ✓ |
-| Pro Analytics dashboard | — | ✓ | ✓ |
+| Analytics dashboard (Overview, Campaigns, Audience, Engagement) | ✓ | ✓ | ✓ |
 | Webhooks management UI | — | ✓ | ✓ |
+| Deliverability — domain health + per-provider rates + spam rate | — | ✓ | ✓ |
+| Report builder — pivots, segment filters, saved reports, CSV | — | ✓ | ✓ |
 | Audit log | — | ✓ | ✓ |
 | Multi-user workspaces (members + invites) | — | — | ✓ |
 | Roles: owner / admin / developer / viewer | — | — | ✓ |
@@ -109,7 +108,7 @@ A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tr
     <marker id="lm-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.7"/></marker>
   </defs>
   <g style="font-family: ui-sans-serif, system-ui, sans-serif">
-    <g transform="translate(290,20)"><rect x="0" y="0" width="180" height="50" rx="25" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="24" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">SENDDOCK_LICENSE_KEY</text><text x="90" y="40" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">checked at startup</text></g>
+    <g transform="translate(290,20)"><rect x="0" y="0" width="180" height="50" rx="25" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="24" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">License key</text><text x="90" y="40" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">activated in the dashboard</text></g>
     <path d="M 380 70 L 380 110 L 150 110 L 150 218" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#lm-a)"/>
     <text x="262" y="100" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor" fill-opacity="0.7">empty</text>
     <path d="M 380 70 L 380 218" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
@@ -118,22 +117,22 @@ A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tr
     <path d="M 380 70 L 380 110 L 610 110 L 610 218" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
     <text x="498" y="100" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor" fill-opacity="0.75">valid Team key</text>
     <g transform="translate(60,224)"><rect x="0" y="0" width="180" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.4" stroke-dasharray="5 4"/><text x="90" y="26" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor" fill-opacity="0.85">Community</text><text x="90" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">core only</text><text x="90" y="58" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.5">Pro · Team locked</text></g>
-    <g transform="translate(290,224)"><rect x="0" y="0" width="180" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="26" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Pro tier</text><text x="90" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">analytics · audit log</text><text x="90" y="58" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.55">Team locked</text></g>
+    <g transform="translate(290,224)"><rect x="0" y="0" width="180" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="26" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Pro tier</text><text x="90" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">deliverability · reports · audit</text><text x="90" y="58" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.55">Team locked</text></g>
     <g transform="translate(520,224)"><rect x="0" y="0" width="180" height="64" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="26" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Team tier</text><text x="90" y="44" text-anchor="middle" font-size="10" font-weight="600" letter-spacing="0.06em" text-transform="uppercase" fill="currentColor" fill-opacity="0.55">members · roles · admin</text><text x="90" y="58" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.55">Pro + Team unlocked</text></g>
-    <text x="380" y="308" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.55">Tier classification by Lemon Squeezy variant_id · re-validated periodically · DEPLOYMENT_MODE does not change gating</text>
+    <text x="380" y="308" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.55">Tier classification by Lemon Squeezy variant_id · re-validated periodically · the CLOUD flag does not change gating</text>
   </g>
 </svg>
 
-| `SENDDOCK_LICENSE_KEY` | What unlocks |
+| License state | What unlocks |
 |---|---|
-| empty | **Community** — Pro features locked, Team features locked. |
-| valid Pro key | Pro features unlocked (Analytics, Audit log). Team features stay locked. |
+| none | **Community** — Pro features locked, Team features locked. |
+| valid Pro key | Pro features unlocked (Deliverability, Reports, Audit log). Team features stay locked. |
 | valid Team key | Pro and Team features unlocked. |
 | invalid / revoked | Locked after the next validation tick (24h grace from the last successful check). |
 
 The validator distinguishes Pro from Team by the Lemon Squeezy `variant_id` of the license — there is no separate Team key file or env var. Buying Team gives you a single key that the validator recognizes as Team-tier; buying Pro gives a key that validates only the Pro features.
 
-`DEPLOYMENT_MODE` no longer changes Pro gating — the license requirement applies the same way to self-hosted and cloud. The mode still controls registration: `cloud` opens public sign-up endpoints used by the senddock.dev managed product, while `self-hosted` keeps registration closed and relies on the first-boot setup screen plus the admin **Create user** flow on Team workspaces. There is no public sign-up endpoint to call on a self-hosted deploy.
+The `CLOUD` flag (which replaced the old `DEPLOYMENT_MODE` string — see [Environment Variables](/guide/environment)) does not change Pro gating — the license requirement applies the same way to self-hosted and cloud. What it does control is who owns configuration and registration: `CLOUD=true` opens the public sign-up endpoints used by the senddock.dev managed product and lets the environment own settings like the public URL and license key. A self-hosted instance (the default) keeps registration closed — relying on the first-boot setup screen plus the admin **Create user** flow on Team workspaces — and owns those settings from the dashboard instead. There is no public sign-up endpoint to call on a self-hosted deploy.
 
 The validator only needs the license key — there is no API key, store ID or webhook secret to configure on the self-hosted side. Those are provisioned on the senddock.dev managed service that issues licenses.
 

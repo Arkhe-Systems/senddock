@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-func CORS(frontendURL string) func(http.Handler) http.Handler {
+func CORS(allowedOrigin func() string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := frontendURL
+			origin := allowedOrigin()
 
 			if strings.Contains(r.URL.Path, "/waitlist") {
 				origin = "*"

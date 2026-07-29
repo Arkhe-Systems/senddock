@@ -14,11 +14,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/arkhe-systems/senddock/internal/analytics"
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/internal/handler"
 	"github.com/arkhe-systems/senddock/internal/middleware"
 	"github.com/arkhe-systems/senddock/internal/service"
+	"github.com/arkhe-systems/senddock/internal/settings"
 	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/pkg/config"
@@ -53,6 +55,7 @@ type App struct {
 	subscribers     *service.SubscriberService
 	watchtower      *service.WatchtowerClient
 	authHandler     *handler.AuthHandler
+	settings        *settings.Provider
 
 	server *http.Server
 
@@ -97,9 +100,26 @@ func New(cfg config.Config) (*App, error) {
 	a.eitherAuth = middleware.EitherAuth(a.authMiddleware, a.apiKeyMiddleware)
 	a.rateLimiter = middleware.NewRateLimiter(redisCache, cfg.RateLimitPerMinute, time.Minute)
 
+	a.settings = settings.NewProvider(queries, secretCipher{secret: cfg.JWTSecret})
+	settingsCtx, cancelSettings := context.WithTimeout(context.Background(), 10*time.Second)
+	err = a.settings.Load(settingsCtx, settings.LoadOptions{
+		EnvPublicURL:  cfg.PublicURL,
+		EnvLicenseKey: os.Getenv("SENDDOCK_LICENSE_KEY"),
+		EnvWins:       !cfg.IsSelfHosted(),
+	})
+	cancelSettings()
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("load instance settings: %w", err)
+	}
+
+	handler.SetSecureCookieResolver(func() bool {
+		return strings.HasPrefix(a.settings.PublicURL(), "https://") || strings.HasPrefix(cfg.FrontendURL, "https://")
+	})
+
 	a.webhooks = webhooks.NewService(queries)
 	suppressionService := service.NewSuppressionService(queries)
-	emailService := service.NewEmailService(queries, cfg.PublicURL, cfg.JWTSecret, redisCache, a.webhooks, suppressionService)
+	emailService := service.NewEmailService(queries, a.settings, cfg.JWTSecret, redisCache, a.webhooks, suppressionService)
 	a.worker = service.NewCampaignWorker(queries, emailService)
 	a.broadcastWorker = service.NewBroadcastWorker(queries, emailService)
 	a.suppressions = suppressionService
@@ -126,6 +146,48 @@ func New(cfg config.Config) (*App, error) {
 	a.serveFrontend()
 
 	return a, nil
+}
+
+type secretCipher struct {
+	secret string
+}
+
+func (c secretCipher) Encrypt(plaintext string) (string, error) {
+	return service.Encrypt(plaintext, c.secret)
+}
+
+func (c secretCipher) Decrypt(ciphertext string) (string, error) {
+	return service.Decrypt(ciphertext, c.secret)
+}
+
+func (a *App) LicenseKey() string { return a.settings.LicenseKey() }
+
+func (a *App) SetLicenseKey(ctx context.Context, key string) error {
+	return a.settings.SetLicenseKey(ctx, key)
+}
+
+func (a *App) OnLicenseKeyChange(fn func(key string)) {
+	a.settings.OnLicenseKeyChange(fn)
+}
+
+func (a *App) IsWorkspaceOwner(ctx context.Context, userID string) bool {
+	return handler.IsWorkspaceOwner(ctx, a.queries, userID)
+}
+
+const devFrontendOrigin = "http://localhost:5173"
+
+func resolveCORSOrigin(frontendURL, publicURL string) string {
+	if frontendURL != "" {
+		return frontendURL
+	}
+	if publicURL != "" {
+		return publicURL
+	}
+	return devFrontendOrigin
+}
+
+func (a *App) corsOrigin() string {
+	return resolveCORSOrigin(a.cfg.FrontendURL, a.settings.PublicURL())
 }
 
 func (a *App) Mux() *http.ServeMux { return a.mux }
@@ -216,7 +278,7 @@ func (a *App) Run(ctx context.Context) error {
 	wrapped := middleware.Security(
 		middleware.LimitBody(
 			a.rateLimiter.Middleware(
-				middleware.CORS(a.cfg.FrontendURL)(a.mux),
+				middleware.CORS(a.corsOrigin)(a.mux),
 			),
 		),
 	)
@@ -334,6 +396,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	suppressionHandler := handler.NewSuppressionHandler(a.suppressions, projectService)
 	subscriberHandler := handler.NewSubscriberHandler(subscriberService, projectService)
 	fieldHandler := handler.NewFieldDefinitionHandler(fieldService, projectService)
+	instanceSettingsHandler := handler.NewInstanceSettingsHandler(queries, a.settings)
 
 	segmentService := service.NewSegmentService(queries, a.conn)
 	emailService.SetSegmentService(segmentService)
@@ -352,13 +415,14 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	emailHandler := handler.NewEmailHandler(emailService, projectService, a.cache)
 
 	campaignService := service.NewCampaignService(queries)
-	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, a.worker, cfg.PublicURL)
+	campaignHandler := handler.NewCampaignHandler(campaignService, projectService, a.worker, a.settings)
 
 	trackingHandler := handler.NewTrackingHandler(queries, emailService, a.webhooks)
 
 	projectHandler.Audit = a.audit
 	subscriberHandler.Audit = a.audit
 	fieldHandler.Audit = a.audit
+	instanceSettingsHandler.Audit = a.audit
 	segmentHandler.Audit = a.audit
 	webhookHandler.Audit = a.audit
 	apiKeyHandler.Audit = a.audit
@@ -366,11 +430,11 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	suppressionHandler.Audit = a.audit
 	workspaceHandler.Audit = a.audit
 
-	releaseService := service.NewReleaseService(a.cache, cfg.DeploymentMode)
+	releaseService := service.NewReleaseService(a.cache, cfg.DeploymentModeName())
 	releaseHandler := handler.NewReleaseHandler(releaseService)
 
 	waitlistHandler := handler.NewWaitlistHandler(subscriberService, emailService)
-	setupHandler := handler.NewSetupHandler(queries, authService, cfg)
+	setupHandler := handler.NewSetupHandler(queries, authService, cfg, a.settings)
 
 	mux := a.mux
 	authMW := a.authMiddleware
@@ -577,12 +641,20 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	bounceWebhookHandler := handler.NewBounceWebhookHandler(queries, a.suppressions)
 	mux.HandleFunc("POST /webhooks/bounces/{projectId}", bounceWebhookHandler.Receive)
 
+	complaintWebhookHandler := handler.NewComplaintWebhookHandler(queries, a.suppressions)
+	mux.HandleFunc("POST /webhooks/complaints/{projectId}", complaintWebhookHandler.Receive)
+
 	mux.Handle("POST /api/v1/projects/{id}/subscribers", authMW(http.HandlerFunc(subscriberHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/subscribers", authMW(http.HandlerFunc(subscriberHandler.List)))
 	mux.Handle("POST /api/v1/projects/{id}/subscribers/bulk", authMW(http.HandlerFunc(subscriberHandler.BulkAction)))
 	mux.Handle("PATCH /api/v1/projects/{id}/subscribers/{subscriberId}", authMW(http.HandlerFunc(subscriberHandler.UpdateStatus)))
 	mux.Handle("DELETE /api/v1/projects/{id}/subscribers/{subscriberId}", authMW(http.HandlerFunc(subscriberHandler.Delete)))
 	mux.Handle("POST /api/v1/projects/{id}/subscribers/import", eitherAuth(http.HandlerFunc(subscriberHandler.Import)))
+
+	if cfg.IsSelfHosted() {
+		mux.Handle("GET /api/v1/instance/settings", authMW(http.HandlerFunc(instanceSettingsHandler.Get)))
+		mux.Handle("PATCH /api/v1/instance/settings", authMW(http.HandlerFunc(instanceSettingsHandler.Update)))
+	}
 
 	mux.Handle("POST /api/v1/projects/{id}/fields", authMW(http.HandlerFunc(fieldHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/fields", authMW(http.HandlerFunc(fieldHandler.List)))
@@ -635,6 +707,14 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("GET /api/v1/projects/{id}/logs/{logId}", authMW(http.HandlerFunc(emailHandler.LogDetail)))
 	mux.Handle("GET /api/v1/projects/{id}/broadcasts", authMW(http.HandlerFunc(emailHandler.ListBroadcasts)))
 	mux.Handle("GET /api/v1/projects/{id}/stats", eitherAuth(http.HandlerFunc(emailHandler.Stats)))
+
+	analyticsHandler := analytics.NewHandler(a.conn)
+	mux.Handle("GET /api/v1/projects/{id}/analytics/overview", authMW(http.HandlerFunc(analyticsHandler.Overview)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/campaigns", authMW(http.HandlerFunc(analyticsHandler.Campaigns)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/campaigns/{broadcastId}", authMW(http.HandlerFunc(analyticsHandler.Campaign)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/audience", authMW(http.HandlerFunc(analyticsHandler.Audience)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/engagement", authMW(http.HandlerFunc(analyticsHandler.Engagement)))
+	mux.Handle("GET /api/v1/projects/{id}/analytics/export", authMW(http.HandlerFunc(analyticsHandler.Export)))
 
 	mux.HandleFunc("GET /unsubscribe/{id}/{subscriberId}", emailHandler.UnsubscribePage)
 	mux.HandleFunc("POST /unsubscribe/{id}/{subscriberId}", emailHandler.Unsubscribe)

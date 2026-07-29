@@ -8,7 +8,6 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       REDIS_URL: redis://redis:6379
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
-      DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
       PORT: "8080"
     depends_on:
       postgres:

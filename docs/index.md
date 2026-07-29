@@ -27,6 +27,8 @@ features:
     details: Typed custom fields, free-form tags, and saved segment filters over status, tags and custom.* — target broadcasts at any subset of your list.
   - title: Webhooks
     details: Seven event types with HMAC-SHA256 signing and exponential-backoff retries. Fully in Core — dispatcher, UI and API, no license required.
-  - title: Pro Analytics
-    details: Funnel, opens-over-time, top templates, top clicked links and trend pills against the previous period — with an optional segment filter, all from a single endpoint.
+  - title: Analytics, free
+    details: A tabbed dashboard — Overview, Campaigns, Audience and Engagement — with charts, a date-range picker, per-campaign breakdowns and a click heatmap. Part of Core, no license.
+  - title: Deliverability & Reports (Pro)
+    details: Domain health (SPF/DKIM/DMARC), per-provider accept/bounce/open/spam rates, and a dynamic report builder with pivots, segment filters and CSV export.
 ---

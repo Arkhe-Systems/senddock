@@ -24,9 +24,9 @@ func (q *Queries) CountBroadcastsByProject(ctx context.Context, projectID uuid.U
 }
 
 const createBroadcast = `-- name: CreateBroadcast :one
-INSERT INTO broadcasts (project_id, template_id, subject, variables, total_recipients)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at
+INSERT INTO broadcasts (project_id, template_id, subject, variables, html_fields, total_recipients)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields
 `
 
 type CreateBroadcastParams struct {
@@ -34,6 +34,7 @@ type CreateBroadcastParams struct {
 	TemplateID      uuid.UUID
 	Subject         string
 	Variables       json.RawMessage
+	HtmlFields      json.RawMessage
 	TotalRecipients int32
 }
 
@@ -43,6 +44,7 @@ func (q *Queries) CreateBroadcast(ctx context.Context, arg CreateBroadcastParams
 		arg.TemplateID,
 		arg.Subject,
 		arg.Variables,
+		arg.HtmlFields,
 		arg.TotalRecipients,
 	)
 	var i Broadcast
@@ -59,12 +61,13 @@ func (q *Queries) CreateBroadcast(ctx context.Context, arg CreateBroadcastParams
 		&i.SuppressedCount,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.HtmlFields,
 	)
 	return i, err
 }
 
 const getBroadcast = `-- name: GetBroadcast :one
-SELECT id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at FROM broadcasts WHERE id = $1 AND project_id = $2
+SELECT id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields FROM broadcasts WHERE id = $1 AND project_id = $2
 `
 
 type GetBroadcastParams struct {
@@ -88,6 +91,7 @@ func (q *Queries) GetBroadcast(ctx context.Context, arg GetBroadcastParams) (Bro
 		&i.SuppressedCount,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.HtmlFields,
 	)
 	return i, err
 }
@@ -120,7 +124,7 @@ func (q *Queries) IncrementBroadcastSuppressed(ctx context.Context, id uuid.UUID
 }
 
 const listBroadcastsByProject = `-- name: ListBroadcastsByProject :many
-SELECT id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at FROM broadcasts
+SELECT id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields FROM broadcasts
 WHERE project_id = $1
 ORDER BY started_at DESC
 LIMIT $2 OFFSET $3
@@ -154,6 +158,7 @@ func (q *Queries) ListBroadcastsByProject(ctx context.Context, arg ListBroadcast
 			&i.SuppressedCount,
 			&i.StartedAt,
 			&i.FinishedAt,
+			&i.HtmlFields,
 		); err != nil {
 			return nil, err
 		}

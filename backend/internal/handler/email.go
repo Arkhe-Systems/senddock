@@ -89,12 +89,14 @@ type sendRequest struct {
 	Subject      string            `json:"subject"`
 	HtmlBody     string            `json:"html_body"`
 	Data         map[string]string `json:"data"`
+	HtmlFields   []string          `json:"html_fields"`
 }
 
 type broadcastRequest struct {
 	TemplateID string            `json:"template_id"`
 	Subject    string            `json:"subject"`
 	Variables  map[string]string `json:"variables"`
+	HtmlFields []string          `json:"html_fields"`
 	SegmentID  string            `json:"segment_id"`
 }
 
@@ -107,6 +109,7 @@ type batchSendRequest struct {
 	TemplateID string           `json:"template_id"`
 	Subject    string           `json:"subject"`
 	Recipients []batchRecipient `json:"recipients"`
+	HtmlFields []string         `json:"html_fields"`
 }
 
 func (h *EmailHandler) verifyAccess(r *http.Request) (string, error) {
@@ -152,7 +155,7 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.To != "" && req.TemplateID != "" {
-		err := h.emailService.SendWithTemplate(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.To, req.Subject, req.Data)
+		err := h.emailService.SendWithTemplate(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.To, req.Subject, req.Data, req.HtmlFields)
 		if errors.Is(err, service.ErrRecipientSuppressed) {
 			json.NewEncoder(w).Encode(map[string]any{"message": "suppressed", "suppressed": 1})
 			return
@@ -220,7 +223,7 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		varsJSON, _ = json.Marshal(req.Variables)
 	}
 
-	result, err := h.emailService.Broadcast(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.Subject, varsJSON, req.SegmentID)
+	result, err := h.emailService.Broadcast(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.Subject, varsJSON, req.HtmlFields, req.SegmentID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -277,7 +280,7 @@ func (h *EmailHandler) BatchSend(w http.ResponseWriter, r *http.Request) {
 			failed++
 			continue
 		}
-		err := h.emailService.SendWithTemplate(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, rcpt.To, req.Subject, rcpt.Data)
+		err := h.emailService.SendWithTemplate(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, rcpt.To, req.Subject, rcpt.Data, req.HtmlFields)
 		if errors.Is(err, service.ErrRecipientSuppressed) {
 			suppressed++
 			continue

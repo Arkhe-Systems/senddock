@@ -12,9 +12,6 @@ export default defineConfig({
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
   ],
   markdown: {
-    // Inline code containing `{{ ... }}` (e.g. template merge tags like
-    // `{{name}}`) would otherwise be parsed by Vue as an interpolation and
-    // render empty. Emit those spans with `v-pre` so they render literally.
     config(md) {
       const original = md.renderer.rules.code_inline
       md.renderer.rules.code_inline = (tokens, idx, options, env, self) => {
@@ -71,7 +68,10 @@ export default defineConfig({
             { text: 'Segments', link: '/guide/segments' },
             { text: 'Templates', link: '/guide/templates' },
             { text: 'Email Sending', link: '/guide/sending' },
+            { text: 'Broadcasts', link: '/guide/broadcasts' },
             { text: 'Campaigns', link: '/guide/campaigns' },
+            { text: 'Logs', link: '/guide/logs' },
+            { text: 'Analytics', link: '/guide/analytics' },
             { text: 'Suppressions', link: '/guide/suppressions' },
             { text: 'Bounces', link: '/guide/bounces' },
             { text: 'Webhooks', link: '/guide/webhooks' },
@@ -79,15 +79,18 @@ export default defineConfig({
           ],
         },
         {
-          text: 'Pro Features',
+          text: 'Pro & Team',
           items: [
-            { text: 'Analytics', link: '/guide/analytics' },
+            { text: 'Deliverability', link: '/guide/deliverability' },
+            { text: 'Reports', link: '/guide/reports' },
             { text: 'Audit Log', link: '/guide/audit-log' },
+            { text: 'Members & roles', link: '/guide/members' },
           ],
         },
         {
           text: 'Configuration',
           items: [
+            { text: 'Instance settings', link: '/guide/instance-settings' },
             { text: 'SMTP Setup', link: '/guide/smtp' },
             { text: 'Environment Variables', link: '/guide/environment' },
           ],
@@ -106,6 +109,7 @@ export default defineConfig({
             { text: 'Templates', link: '/api/templates' },
             { text: 'Email Sending', link: '/api/sending' },
             { text: 'Campaigns', link: '/api/campaigns' },
+            { text: 'Analytics', link: '/api/analytics' },
             { text: 'Suppressions', link: '/api/suppressions' },
             { text: 'Bounces', link: '/api/bounces' },
             { text: 'Webhooks', link: '/api/webhooks' },
@@ -115,7 +119,8 @@ export default defineConfig({
         {
           text: 'Pro API',
           items: [
-            { text: 'Analytics', link: '/api/analytics' },
+            { text: 'Deliverability', link: '/api/deliverability' },
+            { text: 'Reports', link: '/api/reports' },
             { text: 'Audit Log', link: '/api/audit-log' },
           ],
         },

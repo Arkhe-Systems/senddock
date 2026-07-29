@@ -114,14 +114,7 @@ onMounted(async () => {
                     &larr; Projects
                 </RouterLink>
 
-                <nav class="space-y-1 flex-1">
-                    <RouterLink to="/account" class="block px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                        Account
-                    </RouterLink>
-                    <RouterLink to="/billing" class="block px-3 py-2 text-sm rounded-lg bg-zinc-800 text-white">
-                        Billing
-                    </RouterLink>
-                </nav>
+                <div class="flex-1"></div>
 
                 <UserProfilePanel />
             </aside>
@@ -168,8 +161,10 @@ onMounted(async () => {
                             License validation issue: {{ status?.reason }}
                         </div>
 
-                        <p v-if="!isCloud && tier !== 'free'" class="text-xs text-zinc-500 mt-4">
-                            Your license key is set via the <code class="text-zinc-400">SENDDOCK_LICENSE_KEY</code> environment variable on the server. To change it, update the env var and restart SendDock.
+                        <p v-if="!isCloud" class="text-xs text-zinc-500 mt-4">
+                            Manage your license key under
+                            <RouterLink to="/instance" class="underline decoration-zinc-700 hover:text-zinc-300">Instance → License</RouterLink>.
+                            Changes apply immediately.
                         </p>
                     </section>
 

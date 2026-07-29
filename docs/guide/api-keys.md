@@ -8,6 +8,8 @@ API keys allow external applications to authenticate with SendDock's API. Each k
 
 Go to **Settings** in the project sidebar, find the **API Keys** section, and click **+ Create Key**. Give it a descriptive name.
 
+![Creating an API key](/screenshots/new-api-key-modal.png)
+
 The key is shown only once after creation. Copy it immediately.
 
 ## Key Format

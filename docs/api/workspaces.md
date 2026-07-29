@@ -2,7 +2,7 @@
 
 Every project belongs to a workspace. Endpoints under `/workspaces` manage workspaces and their member list. All endpoints require cookie authentication. See the [Workspaces guide](../guide/workspaces) for the conceptual model and the role/capability matrix.
 
-**Team plan**: workspace CRUD and listing members is free. Adding members, creating users from admin, and changing roles all return `402 Payment Required` (`{"error":"license required for workspace members"}`) without a `SENDDOCK_LICENSE_KEY` that includes the Team tier.
+**Team plan**: workspace CRUD and listing members is free. Adding members, creating users from admin, and changing roles all return `402 Payment Required` (`{"error":"license required for workspace members"}`) without a Team-tier license.
 
 All errors share the shape `{"error": "human-readable message"}`.
 

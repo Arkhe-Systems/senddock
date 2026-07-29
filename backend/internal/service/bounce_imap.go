@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"fmt"
 	"log"
 	"regexp"
@@ -128,6 +129,11 @@ func (p *BounceIMAPPoller) pollProject(ctx context.Context, project db.Project) 
 			if p.suppressions != nil {
 				_, _ = p.suppressions.Add(ctx, project.ID, email, SuppressionReasonBounce, "imap dsn poll")
 			}
+			_ = p.queries.MarkLatestLogBouncedByEmail(ctx, db.MarkLatestLogBouncedByEmailParams{
+				ProjectID: project.ID,
+				ToEmail:   email,
+				Error:     sql.NullString{String: "bounce reported via IMAP DSN", Valid: true},
+			})
 		}
 		if len(emails) > 0 {
 			processed++

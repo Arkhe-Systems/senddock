@@ -185,14 +185,7 @@ onMounted(async () => {
                     &larr; Projects
                 </RouterLink>
 
-                <nav class="space-y-1 flex-1">
-                    <RouterLink to="/account" class="block px-3 py-2 text-sm rounded-lg bg-zinc-800 text-white">
-                        Account
-                    </RouterLink>
-                    <RouterLink to="/billing" class="block px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
-                        Billing
-                    </RouterLink>
-                </nav>
+                <div class="flex-1"></div>
 
                 <UserProfilePanel />
             </aside>

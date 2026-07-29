@@ -22,6 +22,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/richtext"
 	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/google/uuid"
 	premailer "github.com/vanng822/go-premailer/premailer"
@@ -61,9 +62,13 @@ type WebhookDispatcher interface {
 	Enqueue(ctx context.Context, event webhooks.Event)
 }
 
+type PublicURLProvider interface {
+	PublicURL() string
+}
+
 type EmailService struct {
 	queries      *db.Queries
-	publicURL    string
+	settings     PublicURLProvider
 	encSecret    string
 	cache        *cache.Redis
 	hooks        WebhookDispatcher
@@ -75,8 +80,12 @@ func (s *EmailService) SetSegmentService(seg *SegmentService) {
 	s.segments = seg
 }
 
-func NewEmailService(queries *db.Queries, publicURL, encSecret string, redis *cache.Redis, hooks WebhookDispatcher, suppressions *SuppressionService) *EmailService {
-	return &EmailService{queries: queries, publicURL: publicURL, encSecret: encSecret, cache: redis, hooks: hooks, suppressions: suppressions}
+func NewEmailService(queries *db.Queries, settings PublicURLProvider, encSecret string, redis *cache.Redis, hooks WebhookDispatcher, suppressions *SuppressionService) *EmailService {
+	return &EmailService{queries: queries, settings: settings, encSecret: encSecret, cache: redis, hooks: hooks, suppressions: suppressions}
+}
+
+func (s *EmailService) publicURL() string {
+	return s.settings.PublicURL()
 }
 
 func (s *EmailService) signUnsub(projectID, subscriberID string) string {
@@ -91,7 +100,7 @@ func (s *EmailService) verifyUnsubToken(projectID, subscriberID, token string) b
 }
 
 func (s *EmailService) unsubURL(projectID, subscriberID string) string {
-	return fmt.Sprintf("%s/unsubscribe/%s/%s?t=%s", s.publicURL, projectID, subscriberID, s.signUnsub(projectID, subscriberID))
+	return fmt.Sprintf("%s/unsubscribe/%s/%s?t=%s", s.publicURL(), projectID, subscriberID, s.signUnsub(projectID, subscriberID))
 }
 
 type SendResult struct {
@@ -126,7 +135,7 @@ func classifyBounce(err error) *BounceError {
 	return &BounceError{Code: protoErr.Code, Message: protoErr.Msg}
 }
 
-func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject string) {
+func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject string, broadcastID uuid.NullUUID) {
 	_, _ = s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
@@ -135,6 +144,7 @@ func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, s
 		Subject:      subject,
 		Status:       "suppressed",
 		Error:        sql.NullString{String: "recipient on suppression list", Valid: true},
+		BroadcastID:  broadcastID,
 	})
 }
 
@@ -181,7 +191,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, sub.Email) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, template.Subject)
+		s.logSuppressed(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, template.Subject, uuid.NullUUID{})
 		return SendResult{Suppressed: 1}, nil
 	}
 
@@ -192,14 +202,14 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	unsubURL := s.unsubURL(pid.String(), sid.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	sendErr := s.trackAndSend(ctx, project, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL)
+	sendErr := s.trackAndSend(ctx, project, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL, uuid.NullUUID{})
 	if sendErr != nil {
 		return SendResult{Failed: 1}, sendErr
 	}
 	return SendResult{Sent: 1}, nil
 }
 
-func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage, segmentID string) (SendResult, error) {
+func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage, htmlFields []string, segmentID string) (SendResult, error) {
 	if err := requireAuthorizedProject(ctx, projectID); err != nil {
 		return SendResult{}, err
 	}
@@ -217,8 +227,8 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		return SendResult{}, errors.New("smtp not configured")
 	}
 
-	if !IsPublicURLReachable(s.publicURL) {
-		return SendResult{}, errors.New("PUBLIC_URL is not set to a publicly reachable URL. Newsletters need a working unsubscribe link before they can be sent. Set PUBLIC_URL in your .env to your public domain and restart the server")
+	if !IsPublicURLReachable(s.publicURL()) {
+		return SendResult{}, errors.New("your public URL is not set to a publicly reachable address. Newsletters need a working unsubscribe link before they can be sent. Set it under Settings → Instance")
 	}
 
 	tid, err := uuid.Parse(templateID)
@@ -267,11 +277,19 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		variablesJSON = []byte("{}")
 	}
 
+	htmlFieldsJSON := []byte("[]")
+	if len(htmlFields) > 0 {
+		if b, err := json.Marshal(htmlFields); err == nil {
+			htmlFieldsJSON = b
+		}
+	}
+
 	broadcast, err := s.queries.CreateBroadcast(ctx, db.CreateBroadcastParams{
 		ProjectID:       pid,
 		TemplateID:      tid,
 		Subject:         baseSubject,
 		Variables:       variablesJSON,
+		HtmlFields:      htmlFieldsJSON,
 		TotalRecipients: int32(total),
 	})
 	if err != nil {
@@ -333,7 +351,7 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, job.ProjectID, sub.Email) {
-		s.logSuppressed(ctx, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, broadcast.Subject)
+		s.logSuppressed(ctx, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, broadcast.Subject, uuid.NullUUID{UUID: broadcast.ID, Valid: true})
 		return BroadcastJobOutcomeSuppressed, nil
 	}
 
@@ -342,6 +360,12 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 		_ = json.Unmarshal(broadcast.Variables, &customVars)
 	}
 
+	var htmlFields []string
+	if len(broadcast.HtmlFields) > 0 {
+		_ = json.Unmarshal(broadcast.HtmlFields, &htmlFields)
+	}
+	htmlSet := stringSet(htmlFields)
+
 	body := ensureUnsubscribeFooter(template.HtmlBody)
 	subject := broadcast.Subject
 	if subject == "" {
@@ -349,8 +373,8 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 	}
 
 	for k, v := range customVars {
-		body = strings.ReplaceAll(body, "{{"+k+"}}", html.EscapeString(v))
-		subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
+		body = strings.ReplaceAll(body, "{{"+k+"}}", renderValue(v, htmlSet[k]))
+		subject = strings.ReplaceAll(subject, "{{"+k+"}}", subjectValue(v, htmlSet[k]))
 	}
 
 	body = replaceCustomVariables(body, sub, true)
@@ -362,7 +386,7 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 	unsubURL := s.unsubURL(job.ProjectID.String(), sub.ID.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	sendErr := s.trackAndSend(ctx, project, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, subject, body, unsubURL)
+	sendErr := s.trackAndSend(ctx, project, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, subject, body, unsubURL, uuid.NullUUID{UUID: broadcast.ID, Valid: true})
 	if sendErr == nil {
 		return BroadcastJobOutcomeSent, nil
 	}
@@ -420,14 +444,14 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, to) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject)
+		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, uuid.NullUUID{})
 		return ErrRecipientSuppressed
 	}
 
-	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "")
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "", uuid.NullUUID{})
 }
 
-func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string) error {
+func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string, htmlFields []string) error {
 	if err := requireAuthorizedProject(ctx, projectID); err != nil {
 		return err
 	}
@@ -456,7 +480,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, to) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, template.Subject)
+		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, template.Subject, uuid.NullUUID{})
 		return ErrRecipientSuppressed
 	}
 
@@ -465,9 +489,10 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	if subjectOverride != "" {
 		subject = subjectOverride
 	}
+	htmlSet := stringSet(htmlFields)
 	for key, val := range variables {
-		body = strings.ReplaceAll(body, "{{"+key+"}}", html.EscapeString(val))
-		subject = strings.ReplaceAll(subject, "{{"+key+"}}", val)
+		body = strings.ReplaceAll(body, "{{"+key+"}}", renderValue(val, htmlSet[key]))
+		subject = strings.ReplaceAll(subject, "{{"+key+"}}", subjectValue(val, htmlSet[key]))
 	}
 
 	var unsubscribeURL string
@@ -486,7 +511,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubscribeURL)
 	}
 
-	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL)
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL, uuid.NullUUID{})
 }
 
 type LogFilters struct {
@@ -652,7 +677,7 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 	return stats, nil
 }
 
-func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string) uuid.UUID {
+func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, broadcastID uuid.NullUUID) uuid.UUID {
 	logEntry, _ := s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
@@ -660,6 +685,7 @@ func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subs
 		ToEmail:      toEmail,
 		Subject:      subject,
 		Status:       "sent",
+		BroadcastID:  broadcastID,
 	})
 	s.cache.Delete(ctx, "stats:"+projectID.String())
 	return logEntry.ID
@@ -688,8 +714,8 @@ func (s *EmailService) markLogFailed(ctx context.Context, projectID, logID uuid.
 	s.markLogStatus(ctx, projectID, logID, "failed", sendErr)
 }
 
-func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string) error {
-	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject)
+func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string, broadcastID uuid.NullUUID) error {
+	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject, broadcastID)
 	body = s.injectTrackingPixel(body, logID)
 	body = s.rewriteLinksForTracking(body, logID)
 	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
@@ -753,7 +779,7 @@ func (s *EmailService) dispatchEmail(ctx context.Context, eventType string, proj
 }
 
 func (s *EmailService) injectTrackingPixel(body string, logID uuid.UUID) string {
-	pixel := fmt.Sprintf(`<img src="%s/t/%s.gif" width="1" height="1" style="display:none" />`, s.publicURL, logID.String())
+	pixel := fmt.Sprintf(`<img src="%s/t/%s.gif" width="1" height="1" style="display:none" />`, s.publicURL(), logID.String())
 	if strings.Contains(body, "</body>") {
 		return strings.Replace(body, "</body>", pixel+"</body>", 1)
 	}
@@ -774,7 +800,7 @@ func (s *EmailService) verifyClickToken(logID, rawURL, token string) bool {
 func (s *EmailService) clickURL(logID uuid.UUID, rawURL string) string {
 	encoded := base64.RawURLEncoding.EncodeToString([]byte(rawURL))
 	sig := s.signClickToken(logID.String(), rawURL)
-	return fmt.Sprintf("%s/c/%s/%s.%s", s.publicURL, logID.String(), encoded, sig)
+	return fmt.Sprintf("%s/c/%s/%s.%s", s.publicURL(), logID.String(), encoded, sig)
 }
 
 func shortURLHash(rawURL string) string {
@@ -819,7 +845,7 @@ func (s *EmailService) rewriteLinksForTracking(body string, logID uuid.UUID) str
 		if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
 			return
 		}
-		if strings.HasPrefix(trimmed, s.publicURL+"/unsubscribe/") || strings.HasPrefix(trimmed, s.publicURL+"/c/") || strings.HasPrefix(trimmed, s.publicURL+"/t/") {
+		if strings.HasPrefix(trimmed, s.publicURL()+"/unsubscribe/") || strings.HasPrefix(trimmed, s.publicURL()+"/c/") || strings.HasPrefix(trimmed, s.publicURL()+"/t/") {
 			return
 		}
 		sel.SetAttr("href", s.clickURL(logID, trimmed))
@@ -1054,6 +1080,31 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 	}
 
 	return client.Quit()
+}
+
+func stringSet(keys []string) map[string]bool {
+	if len(keys) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		set[k] = true
+	}
+	return set
+}
+
+func renderValue(val string, asHTML bool) string {
+	if asHTML {
+		return richtext.Sanitize(val)
+	}
+	return html.EscapeString(val)
+}
+
+func subjectValue(val string, asHTML bool) string {
+	if asHTML {
+		return richtext.PlainText(val)
+	}
+	return val
 }
 
 func replaceVariables(body string, sub db.Subscriber) string {

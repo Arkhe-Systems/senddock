@@ -1,6 +1,6 @@
 # Audit log API <Badge type="warning" text="Pro" />
 
-Read the per-project audit log — every sensitive action with actor, timestamp and metadata. Pro-gated: without a valid `SENDDOCK_LICENSE_KEY` this endpoint returns `402 Payment Required`. See the [Audit log guide](../guide/audit-log) for the catalog of tracked actions.
+Read the per-project audit log — every sensitive action with actor, timestamp and metadata. Pro-gated: without a valid Pro license this endpoint returns `402 Payment Required`. See the [Audit log guide](../guide/audit-log) for the catalog of tracked actions.
 
 Cookie auth only on this endpoint — the audit log isn't readable via API key, the actor identity is mandatory and a project-scoped API key has none.
 

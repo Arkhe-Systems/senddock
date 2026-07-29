@@ -66,7 +66,6 @@ curl -fsSL https://raw.githubusercontent.com/arkhe-systems/senddock/main/docker-
 cat > .env <<EOF
 POSTGRES_PASSWORD=$(openssl rand -base64 32)
 JWT_SECRET=$(openssl rand -hex 32)
-PUBLIC_URL=https://your-domain.com
 EOF
 
 docker compose up -d
@@ -83,11 +82,14 @@ For Dokploy, reverse-proxy setups, Cloudflare Tunnel, source builds, license act
 ## Features
 
 - **Projects** — separate sending domains and subscriber lists for each product, brand, or client.
-- **Subscribers** — single add, CSV/JSON bulk import, bulk actions (update, delete), status segmentation (active / pending / unsubscribed).
+- **Subscribers** — single add, CSV bulk import (JSON via the API), bulk actions (change status, tags, delete), status segmentation (active / pending / unsubscribed).
 - **Templates** — Handlebars-based with dynamic variables, visual editor (GrapesJS) and code editor (CodeMirror).
 - **Campaigns** — broadcast to your full list, scheduled sends, send-to-segment, draft and resume.
+- **Rich-text send** — a Text/Rich toggle per template variable, so a `{{content}}` block can carry sanitized formatted HTML without hand-writing markup.
+- **Analytics (free)** — a tabbed, charted dashboard (Overview, Campaigns, Audience, Engagement) with date ranges, per-campaign breakdowns and a weekday × hour click heatmap.
 - **Transactional API** — `POST /send` with template or raw HTML, batch send, API keys per project.
 - **Deliverability essentials** — open tracking pixel, click tracking with HMAC-signed redirects, RFC 8058 one-click unsubscribe, suppressions and bounces.
+- **Pro tier** — a **Deliverability** dashboard (SPF/DKIM/DMARC health, per-provider accept/bounce/open/spam rates), a dynamic **Report builder** (pivots, segment filters, CSV export), and a per-project **audit log**.
 - **SMTP test** — verify your SMTP settings before sending anything.
 - **Rate limiting** — per-project (Redis-backed) and per-IP (global) limiters.
 - **Security** — JWT auth via HttpOnly cookies, refresh-token rotation, encrypted SMTP credentials, bcrypt password hashing.
@@ -103,7 +105,7 @@ For Dokploy, reverse-proxy setups, Cloudflare Tunnel, source builds, license act
 | ![Projects](docs/public/screenshots/projects.png) | ![Editor](docs/public/screenshots/editor.png) |
 | **Project dashboard** — subscribers, templates, campaigns, SMTP. | **Visual editor** — drag-and-drop email composition with GrapesJS. |
 | ![Campaigns](docs/public/screenshots/campaigns.png) | ![Analytics](docs/public/screenshots/analytics.png) |
-| **Campaigns** — broadcast to your list or schedule for later. | **Analytics (Pro)** — opens-over-time, top templates, top links. |
+| **Campaigns** — broadcast to your list or schedule for later. | **Analytics (free)** — tabbed dashboard: overview, campaigns, audience, engagement. |
 
 ---
 
@@ -128,7 +130,7 @@ Both modes use the same BYO-SMTP model — Cloud removes the infrastructure work
 | You upgrade the app | `docker compose pull` or one-click in UI | Automatic |
 | Backups, monitoring, uptime | Your responsibility | Handled |
 | Data location | Your server, your jurisdiction | EU (Frankfurt) |
-| Pro features (Analytics, Audit log) | Pro license required | Bundled from Starter tier upward |
+| Pro features (Deliverability, Reports, Audit log) | Pro license required | Bundled from Starter tier upward |
 | Team features (multi-user, roles) | Team license required | Bundled from Growth tier upward |
 
 ---
@@ -140,7 +142,7 @@ Both modes use the same BYO-SMTP model — Cloud removes the infrastructure work
 - **Engineers and indie hackers** who already have SMTP figured out (AWS SES, Postmark, Postal, your own Postfix) and want a clean dashboard + API instead of building one themselves.
 - **Newsletter publishers and agencies** who refuse to pay $135/mo to Mailchimp for the privilege of managing a subscriber list.
 - **Privacy-conscious teams** who need subscriber data to live on their own infrastructure (EU strict residency, healthcare, government, white-label client work).
-- **Self-hosting enthusiasts** looking for a modern alternative to Listmonk with Pro analytics, A/B testing, and a polished UI.
+- **Self-hosting enthusiasts** looking for a modern alternative to Listmonk with real analytics, deliverability insights, and a polished UI.
 
 **SendDock is *not* for:**
 
@@ -172,11 +174,14 @@ SendDock is **open-core**. The free Core binary in this repo is a complete, prod
 - Custom fields, tags, and segments for subscriber targeting
 - Open & click tracking, one-click unsubscribe (RFC 8058)
 - Webhooks — full management UI and REST API (CRUD, pause/resume, delivery history) with HMAC signing and retries
+- Analytics — tabbed dashboard (overview, campaigns, audience, engagement) with charts, date ranges, per-campaign breakdowns and a click heatmap
+- Rich-text send — per-variable Text/Rich toggle with server-side sanitization
 - Per-project rate limits, encrypted SMTP credentials, JWT auth
 - One-click updates via bundled Watchtower
 
 **Pro** (license-gated, included in cloud)
-- Analytics dashboard — funnel, opens-over-time, top templates, top clicked links, trend pills, segment filter
+- Deliverability — domain health (SPF/DKIM/DMARC), per-provider accept/bounce/open/spam rates, spam-complaint ingestion
+- Report builder — dimensions/measures, 1–2 dimension pivots, segment filters, saved reports, CSV export
 - Audit log — who did what, when, from where
 - Roadmap: team members & roles, SMTP failover, SSO/LDAP, white-label
 

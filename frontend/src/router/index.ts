@@ -8,6 +8,7 @@ interface SetupStatus {
   setup_required: boolean
   deployment_mode: string
   public_url: string
+  session_idle_timeout_minutes: number
 }
 
 const router = createRouter({
@@ -55,6 +56,12 @@ const router = createRouter({
       path: '/billing',
       name: 'billing',
       component: () => import('@/views/billing/BillingView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/instance',
+      name: 'instance',
+      component: () => import('@/views/instance/InstanceView.vue'),
       meta: { requiresAuth: true },
     },
     {
@@ -113,6 +120,11 @@ const router = createRouter({
           component: () => import('@/views/project/AnalyticsSection.vue'),
         },
         {
+          path: 'reports',
+          name: 'project-reports',
+          component: () => import('@/views/project/ReportsSection.vue'),
+        },
+        {
           path: 'webhooks',
           name: 'project-webhooks',
           component: () => import('@/views/project/WebhooksSection.vue'),
@@ -145,6 +157,9 @@ router.beforeEach(async (to) => {
       app.setupRequired = status.setup_required
       app.deploymentMode = status.deployment_mode
       app.publicUrl = status.public_url || ''
+      if (status.session_idle_timeout_minutes > 0) {
+        app.sessionIdleTimeoutMinutes = status.session_idle_timeout_minutes
+      }
     } catch {
       app.setupRequired = false
     }
@@ -161,6 +176,10 @@ router.beforeEach(async (to) => {
 
   if (to.name === 'register' && app.deploymentMode === 'self-hosted') {
     return { name: 'login' }
+  }
+
+  if (to.name === 'instance' && app.deploymentMode === 'cloud') {
+    return { name: 'dashboard' }
   }
 
   if (to.name === 'setup') return

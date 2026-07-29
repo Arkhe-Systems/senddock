@@ -192,7 +192,7 @@ onMounted(async () => {
                             <div class="border-t border-zinc-800 my-1"></div>
                             <button v-if="activeWorkspace" @click="router.push(`/workspaces/${activeWorkspace.id}/members`); showWorkspaceMenu = false; mobileNavOpen = false"
                                 class="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition cursor-pointer">
-                                Manage members
+                                Manage workspace
                             </button>
                             <button @click="showCreateWorkspaceModal = true; showWorkspaceMenu = false"
                                 class="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition cursor-pointer">
@@ -232,10 +232,10 @@ onMounted(async () => {
                     <div v-if="projectStore.projects.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <RouterLink v-for="project in projectStore.projects" :key="project.id"
                             :to="`/projects/${project.id}`"
-                            class="block bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:border-zinc-600 hover:bg-zinc-800/50 transition cursor-pointer group">
+                            class="flex flex-col h-full bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:border-zinc-600 hover:bg-zinc-800/50 transition cursor-pointer group">
                             <h3 class="text-white font-semibold group-hover:text-white">{{ project.name }}</h3>
                             <p v-if="project.description" class="text-sm text-zinc-500 mt-1 line-clamp-2">{{ project.description }}</p>
-                            <div class="flex items-center justify-between mt-4 pt-3 border-t border-zinc-800">
+                            <div class="flex items-center justify-between mt-auto pt-4 border-t border-zinc-800">
                                 <span class="text-xs text-zinc-600">
                                     {{ new Date(project.created_at).toLocaleDateString() }}
                                 </span>

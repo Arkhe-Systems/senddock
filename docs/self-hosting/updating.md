@@ -37,9 +37,9 @@ What happens:
 
 What is preserved:
 
-- `pgdata` volume (subscribers, templates, projects, logs, campaigns, API keys, audit log)
+- `pgdata` volume (subscribers, templates, projects, logs, campaigns, API keys, audit log, **and — on self-hosted — your public URL, session timeout and activated license key**, which now live in the database)
 - `redisdata` volume (caches; not critical, will rebuild)
-- `.env` (secrets, license key, configuration)
+- `.env` (secrets and configuration; the public URL and license key are deprecated here — see [Instance settings](/guide/instance-settings))
 
 Pin the version in `docker-compose.yml` to control update timing:
 

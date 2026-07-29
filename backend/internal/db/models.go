@@ -49,6 +49,7 @@ type Broadcast struct {
 	SuppressedCount int32
 	StartedAt       time.Time
 	FinishedAt      sql.NullTime
+	HtmlFields      json.RawMessage
 }
 
 type BroadcastJob struct {
@@ -103,6 +104,16 @@ type EmailLog struct {
 	SentAt       time.Time
 	OpenedAt     sql.NullTime
 	ClickedAt    sql.NullTime
+	BroadcastID  uuid.NullUUID
+	ComplainedAt sql.NullTime
+}
+
+type InstanceSetting struct {
+	ID                        bool
+	PublicUrl                 string
+	SessionIdleTimeoutMinutes int32
+	UpdatedAt                 time.Time
+	LicenseKeyEncrypted       string
 }
 
 type Project struct {

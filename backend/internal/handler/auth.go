@@ -86,7 +86,15 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
-var secureCookies = os.Getenv("FRONTEND_URL") != "" && strings.HasPrefix(os.Getenv("FRONTEND_URL"), "https")
+var secureCookieResolver = func() bool {
+	return strings.HasPrefix(os.Getenv("FRONTEND_URL"), "https")
+}
+
+func SetSecureCookieResolver(fn func() bool) {
+	if fn != nil {
+		secureCookieResolver = fn
+	}
+}
 
 func setAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
 	http.SetCookie(w, &http.Cookie{
@@ -94,7 +102,7 @@ func setAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
 		Value:    tokens.AccessToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   secureCookies,
+		Secure:   secureCookieResolver(),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   900,
 	})
@@ -103,7 +111,7 @@ func setAuthCookies(w http.ResponseWriter, tokens service.AuthTokens) {
 		Value:    tokens.RefreshToken,
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   secureCookies,
+		Secure:   secureCookieResolver(),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   7200,
 	})

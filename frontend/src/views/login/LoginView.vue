@@ -6,14 +6,18 @@ import { useAppStore } from '@/stores/app'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
+import AppModal from '@/components/ui/AppModal.vue'
 import { ApiError } from '@/api/client'
 
 const route = useRoute()
 
 const reasonMessages: Record<string, string> = {
-    session_expired: "Your session has expired. Please sign in again."
+    session_expired: "Your session has expired. Please sign in again.",
+    idle_timeout: "You were signed out after a period of inactivity."
 }
 const reason = route.query.reason as string | undefined
+
+const showIdleModal = ref(reason === 'idle_timeout')
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -124,6 +128,13 @@ function backToLogin() {
             </div>
 
             <AppAlert v-if="reason && !twoFactorToken" :message="reasonMessages[reason] ?? ''" type="info" class="mb-4" />
+
+            <AppModal :show="showIdleModal" title="Signed out for inactivity" size="sm" @close="showIdleModal = false">
+                <p class="text-sm text-zinc-300">
+                    Your session was closed after a period of inactivity. Sign in again to pick up where you left off.
+                </p>
+                <AppButton class="w-full mt-5" @click="showIdleModal = false">Sign in again</AppButton>
+            </AppModal>
 
             <div v-if="needsVerification" class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                 Your account isn't activated yet. Check your email for the activation link.

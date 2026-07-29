@@ -2,12 +2,14 @@
 
 SendDock is an open-source, self-hostable email marketing and transactional email platform. You bring your own SMTP provider (Mailgun, SES, Postmark, Resend, your VPS, anything that speaks SMTP), point SendDock at it, and run unlimited sends from your own infrastructure with no per-email markup.
 
+![A project dashboard in SendDock](/screenshots/hero.png)
+
 ## The model
 
 - **Open core, AGPL-3.0.** The Community edition is fully usable without a license.
 - **API-first.** Every dashboard action has a REST endpoint. Cookie auth for the UI, per-project API keys (`Authorization: Bearer sk_...`) for everything else.
 - **Single-binary Go backend + Vue dashboard, deployed by Docker Compose.** One container for the app, Postgres for storage, Redis for rate limits.
-- **Pro and Team are tier flags on the same binary.** Set `SENDDOCK_LICENSE_KEY` and the validator unlocks the corresponding endpoints. No separate build.
+- **Pro and Team are tier flags on the same binary.** Activate a license from the dashboard (**Instance → License**) and the validator unlocks the corresponding endpoints. No separate build.
 
 ## How you use it
 
@@ -37,9 +39,11 @@ SendDock is an open-source, self-hostable email marketing and transactional emai
 | Scheduled campaigns | ✓ | ✓ | ✓ |
 | Single-user workspace | ✓ | ✓ | ✓ |
 | Basic stats endpoint | ✓ | ✓ | ✓ |
-| [Pro Analytics dashboard](./analytics) (funnel, opens-over-time, top templates, top links, trend pills, segment filter) | — | ✓ | ✓ |
+| [Analytics dashboard](./analytics) (Overview, Campaigns, Audience, Engagement tabs) | ✓ | ✓ | ✓ |
+| [Deliverability](./deliverability) (domain health, per-provider rates, spam rate) | — | ✓ | ✓ |
+| [Report builder](./reports) (pivots, segment filters, saved reports, CSV) | — | ✓ | ✓ |
 | [Audit log](./audit-log) | — | ✓ | ✓ |
-| [Multi-member workspaces](./workspaces) | — | — | ✓ |
+| [Multi-member workspaces](./members) | — | — | ✓ |
 | Roles: `owner`, `admin`, `developer`, `viewer` | — | — | ✓ |
 | Admin "Create user" flow | — | — | ✓ |
 
@@ -51,7 +55,7 @@ SendDock is an open-source, self-hostable email marketing and transactional emai
 | Pro | $9 | $90 |
 | Team | $29 | $290 |
 
-The license is checked against Lemon Squeezy on startup and re-validated periodically. With an empty `SENDDOCK_LICENSE_KEY` the binary stays in Community mode and Pro/Team endpoints return `402 Payment Required` until a valid key is set. See [Configuration](../self-hosting/configuration).
+On self-hosted you activate the license from the dashboard under **Instance → License** ([Instance settings](./instance-settings#pro-license)); it's stored in the database and validated against Lemon Squeezy, re-checked periodically. Without a key the binary stays in Community mode and Pro/Team endpoints return `402 Payment Required` until one is activated. See [Configuration](../self-hosting/configuration).
 
 ## License
 

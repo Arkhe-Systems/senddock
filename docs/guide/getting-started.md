@@ -1,77 +1,86 @@
 # Getting Started
 
-After installing SendDock (see [Installation](/self-hosting/installation)), open it in your browser.
+This is the guided tour: from a fresh install to your first sent email, every step done from the dashboard. Each step links to a deeper guide if you want the details.
 
-## Setup Screen
+Already installed? Open SendDock in your browser and follow along. If not, see [Installation](/self-hosting/installation) first.
 
-On first launch, SendDock detects there are no users and shows the setup screen. Create your admin account with name, email, and password. You'll be logged in automatically — and a default workspace named **My Workspace** is created for you behind the scenes (see [Workspaces](./workspaces) if you're on Team and want to invite members later).
+## 1. Create your admin account
 
-## Creating Your First Project
+On first launch SendDock sees there are no users and shows a **Setup** screen. Enter your name, email and a password — this becomes the owner account. You're logged in automatically, and a default workspace named **My Workspace** is created for you.
 
-1. From the dashboard, click **+ New Project**
-2. Give it a name and optional description
-3. Click **Create Project**
+::: tip Teams
+Workspaces let you invite teammates with roles (a Team-tier feature). You can ignore them for now — everything below works in your default workspace. See [Workspaces](./workspaces) when you're ready.
+:::
 
-Once a project has sent some email, its **Overview** gives you an at-a-glance dashboard — totals, recent activity and a one-click composer:
+## 2. Create your first project
+
+A **project** is one sending identity — its own SMTP, subscribers, templates and logs. Most people start with one.
+
+From the dashboard, click **+ New Project**, give it a name (and an optional description), and click **Create Project**.
+
+![The New Project dialog](/screenshots/new-project-modal.png)
+
+Open the project and you land on its **Overview** — totals, recent activity and a one-click composer once you've sent something.
 
 ![A project Overview with send totals and recent activity](/screenshots/project-overview.png)
 
-## Configuring SMTP
+→ More in [Projects](./projects).
 
-Before you can send emails, configure your SMTP server:
+## 3. Connect your SMTP
 
-1. Open your project
-2. Go to **SMTP Settings** in the sidebar
-3. Enter your SMTP host, port, username, and password
-4. Optionally set a From Name and From Email
-5. Click **Save Settings**
-6. Click **Test Connection** to verify it works
+SendDock doesn't send mail itself — it relays through **your** SMTP provider (Mailgun, SES, Postmark, your own server…). Nothing sends until this is set.
 
-See [SMTP Setup](/guide/smtp) for provider-specific instructions.
+In the project sidebar, open **SMTP Settings**, fill in host, port, username and password, optionally a From name and address, then **Save**. Hit **Test Connection** to confirm it works.
 
-## Adding Subscribers
+![The SMTP settings form](/screenshots/smtp.png)
 
-Go to **Subscribers** in the sidebar:
+→ Provider-specific setup in [SMTP Setup](./smtp).
 
-- Click **+ Add Subscriber** to add manually
-- Or use the [API](/api/subscribers) to add them programmatically
+## 4. Add subscribers
 
-## Building a Template
+Open **Subscribers**. Add people the way that fits you:
 
-Go to **Templates** in the sidebar:
+- **+ Add Subscriber** — enter an email (and name, tags, custom fields) by hand.
+- **Import CSV** — bulk-import a list, mapping extra columns to [custom fields](./subscribers#custom-fields).
 
-1. Click **+ New Template**
-2. Use the **Code** tab to write HTML or the **Visual** tab for drag-and-drop
-3. Use variables like `{{name}}` and `{{email}}` for personalization
-4. The preview panel shows the rendered output in real time
-5. Click **Save**
+![The subscribers table with tags and custom fields](/screenshots/subscribers-fields-tags.png)
 
-## Sending Emails
+::: tip Developers
+You can also add and manage subscribers programmatically — see the [Subscribers API](/api/subscribers).
+:::
 
-You can send emails via the [API](/api/sending):
+→ More in [Subscribers](./subscribers).
 
-- **Send to subscriber** — send a template to a specific subscriber
-- **Broadcast** — send a template to all active subscribers
-- **Direct send** — send a one-off email to any address
+## 5. Build a template
 
-## Generating API Keys
+Open **Templates → + New Template**. Write your email in the **Code** tab (HTML) or the **Visual** tab (drag-and-drop blocks), and use variables like `{{name}}` or your own `{{custom.plan}}` for personalization. The preview updates live. **Save** when it looks right.
 
-To use the API from external applications:
+![The visual drag-and-drop template editor](/screenshots/editor.png)
 
-1. Open your project
-2. Go to **Settings** in the sidebar
-3. Under **API Keys**, click **+ Create Key**
-4. Copy the key immediately (it's only shown once)
+→ More in [Templates](./templates), including [rich-text variables](./templates#rich-html-variables-opt-in).
 
-Use it with `Authorization: Bearer sk_...` in your requests.
+## 6. Send your first email
 
-## Next Steps
+From the project **Overview**, click **Send Email**. Pick your template, fill in any variables, and choose who gets it — a **specific address** to test, or your **whole list** (optionally scoped to a [segment](./segments)).
 
-- [Your account & security](/guide/account) — enable 2FA, change password, view your plan
-- [Projects](/guide/projects) — managing multiple projects
-- [Subscribers](/guide/subscribers) — subscriber statuses and management
-- [Templates](/guide/templates) — code editor, visual editor, variables
-- [Email Sending](/guide/sending) — send, broadcast, direct send
-- [API Keys](/guide/api-keys) — authentication for external apps
-- [SMTP Setup](/guide/smtp) — provider-specific configuration
-- [Environment Variables](/guide/environment) — all configuration options
+![The Send Email composer](/screenshots/send-modal.png)
+
+That's the full loop. Everything after this — scheduling, analytics, deliverability — builds on these six steps.
+
+→ More in [Email Sending](./sending).
+
+## 7. (Optional) Get an API key
+
+If you want to drive SendDock from your own app — say, add a subscriber when someone signs up, or fire a transactional email — create a key under **Settings → API Keys → + Create Key**. Copy it once (it's shown only that one time) and send it as `Authorization: Bearer sk_...`.
+
+![Creating an API key in project settings](/screenshots/api-keys.png)
+
+→ More in [API Keys](./api-keys) and the [API reference](/api/authentication).
+
+## Where to next
+
+- [Campaigns](./campaigns) — schedule sends for later
+- [Analytics](./analytics) — opens, clicks, bounces and engagement
+- [Segments](./segments) — target subsets of your list
+- [Your account & security](./account) — enable 2FA, manage your plan
+- [Suppressions](./suppressions) & [Bounces](./bounces) — keep your list clean

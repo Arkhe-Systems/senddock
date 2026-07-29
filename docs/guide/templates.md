@@ -23,7 +23,11 @@ Write HTML directly with syntax highlighting powered by CodeMirror. A live previ
 
 ### Visual Editor
 
-Drag-and-drop email builder powered by GrapeJS. Available blocks:
+Drag-and-drop email builder powered by GrapeJS.
+
+![The visual drag-and-drop template editor](/screenshots/editor.png)
+
+Available blocks:
 
 **Layout:**
 - Container (600px max-width email wrapper)
@@ -77,19 +81,38 @@ Variables are replaced per recipient at send time.
 
 When SendDock substitutes a variable inside the template body, the value runs through `html.EscapeString` first. So if a recipient's name happens to be `Bob <script>alert(1)</script>`, the rendered email shows the literal text — the `<script>` tag is encoded as `&lt;script&gt;` and never executes.
 
-This applies to:
+This is the default, and it always applies to:
 
 - The four built-in variables (`{{name}}`, `{{email}}`, `{{subscriber_id}}`, `{{unsubscribe_url}}`).
 - Custom field values (<span v-pre>`{{custom.KEY}}`</span>).
-- Every key in the `data` / `variables` map you pass to a send or campaign.
+- Every escaped key in the `data` / `variables` map you pass to a send or campaign.
 
-The trade-off: you cannot inject HTML through a variable. If you genuinely need a dynamic chunk of HTML in your email (e.g. a different banner image per segment), build the HTML directly into the template body or split it into multiple templates rather than passing it as a variable.
+### Rich (HTML) variables — opt-in
+
+If you genuinely need a formatted chunk — a newsletter body with bold, lists and links behind a single <span v-pre>`{{content}}`</span> tag — you can mark a specific variable as **rich**. In the Send Email dialog, each variable field has a **Text / Rich** toggle; switch it to Rich and a small WYSIWYG editor replaces the plain input. On the API you pass the field names in an `html_fields` list.
+
+A rich value is **not** escaped — instead it runs through a strict HTML **sanitizer** (formatting and safe links survive; `<script>`, event handlers and unknown tags are stripped), then inserted as HTML. It's per-field and opt-in, so plain values stay escaped unless you deliberately choose otherwise.
+
+::: warning Subscriber data is never rich
+`{{name}}`, `{{email}}`, `{{subscriber_id}}` and every <span v-pre>`{{custom.KEY}}`</span> are **always escaped** — you cannot mark subscriber-sourced values as HTML. Only the values you type into the send are eligible to be rich.
+:::
+
+See [Email Sending → Rich-text variables](/guide/sending#rich-text-variables) for the full workflow.
 
 The subject line is **not** escaped (subject is plain text, not HTML), but it is also not allowed to introduce headers — newlines are stripped to prevent SMTP header injection.
+
+## Managing templates
+
+Back on the templates list, each row has two quick actions:
+
+- **Copy ID** — copies the template's UUID to your clipboard. You need it when sending through the [API](/api/sending) (the `template_id` field) or referencing the template from your own code.
+- **Delete** — removes the template. To avoid accidents you're asked to **type the template's name** to confirm. Deleting a template does not affect emails already sent with it; it only stops you from selecting it in future sends.
 
 ## Template library
 
 Beyond writing templates from scratch, SendDock ships with a community-maintained starter library. Click **★ Browse library** on the Templates page to open it.
+
+![The template library browser with categories](/screenshots/template-library.png)
 
 The library covers common email scenarios — welcome flows, monthly digests, single-story newsletters, product launches, changelogs, weekly link roundups, password resets, email verifications, and transactional receipts. Each template uses Handlebars variables (so the personalization works out of the box) and inline CSS (so it renders correctly in Outlook, Gmail and the rest).
 

@@ -1,5 +1,5 @@
-export const CHECKOUT_PRO = 'https://senddock.lemonsqueezy.com/checkout/buy/08756076-6890-4a78-ad53-2bcd15032360'
-export const CHECKOUT_TEAM = 'https://senddock.lemonsqueezy.com/checkout/buy/2f43c2fa-faa7-4ec9-b8cd-1faf44932219'
+export const CHECKOUT_PRO = 'https://senddock.lemonsqueezy.com/checkout/buy/b5b0d1f3-ca5c-4b47-9004-a044f693441d'
+export const CHECKOUT_TEAM = 'https://senddock.lemonsqueezy.com/checkout/buy/c265cb7e-f0a4-4b19-8ac7-dda9938d030f'
 
 export const LAUNCH_DISCOUNT_CODE = 'LAUNCH3FREE'
 export const LAUNCH_DISCOUNT_EXPIRES = '2026-05-10'

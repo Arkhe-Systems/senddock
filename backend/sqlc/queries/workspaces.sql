@@ -60,3 +60,7 @@ SELECT EXISTS (
     SELECT 1 FROM workspace_members
     WHERE workspace_id = $1 AND user_id = $2
 );
+
+-- name: CountOwnedWorkspacesByUser :one
+SELECT COUNT(*) FROM workspace_members
+WHERE user_id = $1 AND role = 'owner';

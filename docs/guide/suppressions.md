@@ -19,9 +19,10 @@ The list is **per-project**. Suppressing `user@example.com` in Project A does no
 | Source | Reason | When |
 |---|---|---|
 | **Hard bounce** (in-session 5xx, webhook ingest, IMAP poll) | `hard_bounce` | Automatically, see [Bounces](./bounces). |
+| **Spam complaint** (FBL / complaint webhook) | `complaint` | When a recipient reports spam, see [Deliverability](./deliverability#spam-complaint-rate). |
 | **Unsubscribe** (one-click or manual) | `unsubscribed` | When a subscriber clicks unsubscribe or you flip their status. |
 | **Manual add** | `manual` (or whatever reason you provide) | From the Suppressions tab or `POST /projects/{id}/suppressions`. |
-| **Bulk import** | `manual` | Pasting a list in the Suppressions tab or sending an array to the API. |
+| **Bulk import** | `manual` | Pasting a list — or uploading a file — in the Suppressions tab, or sending an array to the API. |
 
 Existing unsubscribed subscribers from before v0.6 were backfilled into the suppression list when you upgraded.
 
@@ -29,9 +30,9 @@ Existing unsubscribed subscribers from before v0.6 were backfilled into the supp
 
 In the project's **Suppressions** tab you can:
 
-- **Filter** by reason (`hard_bounce`, `unsubscribed`, `manual`, ...).
+- **Filter** by reason (`hard_bounce`, `complaint`, `unsubscribed`, `manual`, ...).
 - **Add** a single address with a reason.
-- **Bulk import** a list of addresses (one per line or comma-separated).
+- **Bulk import** a list of addresses — paste them (one per line or comma-separated) or **choose a file** to upload.
 - **Remove** an entry — useful if you confirmed the bounce was a typo or the user wants back in.
 
 ## API

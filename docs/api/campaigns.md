@@ -26,7 +26,7 @@ POST /api/v1/projects/{id}/campaigns
 | `subject` | string | No | Overrides the template's stored subject for this campaign only. |
 | `variables` | object | No | Map of `string → string` injected into the template body in addition to per-subscriber `{{name}}` and `{{email}}`. |
 
-The deployment must have `PUBLIC_URL` configured (or `FRONTEND_URL` as fallback) — campaigns inject unsubscribe links and SendDock refuses to schedule one without a known public URL.
+The deployment must have a public URL configured under **Instance** — campaigns inject unsubscribe links and SendDock refuses to schedule one without a known public URL.
 
 **Response** `201`
 
