@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-// parseWindow reads the from/to/granularity query params shared by every
-// analytics endpoint. It writes the error response itself and returns ok=false
-// on bad input, so callers can just bail.
 func parseWindow(w http.ResponseWriter, r *http.Request) (from, to time.Time, granularity string, ok bool) {
 	now := time.Now().UTC()
 	to = now

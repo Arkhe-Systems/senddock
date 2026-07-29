@@ -7,7 +7,6 @@ const props = defineProps<{
     labels: string[]
     values: number[]
     colors?: string[]
-    // '0%' turns the doughnut into a pie.
     cutout?: string
 }>()
 
@@ -16,7 +15,7 @@ const data = computed(() => ({
     datasets: [{
         data: props.values,
         backgroundColor: props.colors ?? seriesPalette,
-        borderColor: '#18181b', // zinc-900, matches card bg for clean segment gaps
+        borderColor: '#18181b',
         borderWidth: 2,
     }],
 }))

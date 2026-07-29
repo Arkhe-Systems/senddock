@@ -4,13 +4,9 @@ import { computed } from 'vue'
 const props = defineProps<{
     label: string
     value: string | number
-    // Percent change vs the previous period. Positive is not always "good"
-    // (e.g. failures), so invertGood flips the colour without flipping the sign.
     trend?: number | null
     invertGood?: boolean
     hint?: string
-    // Colours the value itself by an absolute threshold (e.g. spam rate),
-    // independent of the trend arrow.
     tone?: 'good' | 'warn' | 'bad'
 }>()
 

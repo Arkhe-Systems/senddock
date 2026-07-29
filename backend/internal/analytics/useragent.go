@@ -2,9 +2,6 @@ package analytics
 
 import "strings"
 
-// deviceClass buckets a user-agent into desktop / mobile / tablet / unknown.
-// This is a coarse heuristic, not a full UA parser — enough to answer "are my
-// readers on phones or desktops" without pulling in a dependency.
 func deviceClass(ua string) string {
 	s := strings.ToLower(ua)
 	if s == "" {
@@ -20,9 +17,6 @@ func deviceClass(ua string) string {
 	}
 }
 
-// mailClient identifies the reading environment from a user-agent. Open/click
-// user-agents are usually the proxy or webmail that fetched the pixel, so the
-// useful signal is Apple Mail Privacy, Gmail, Outlook, Yahoo, or a plain browser.
 func mailClient(ua string) string {
 	s := strings.ToLower(ua)
 	switch {

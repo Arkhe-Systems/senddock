@@ -35,7 +35,6 @@ const TABS: { key: Tab; label: string; pro?: boolean }[] = [
     { key: 'deliverability', label: 'Deliverability', pro: true },
 ]
 
-// --- date window + segment filter (kept from the previous implementation) ---
 type Preset = '24h' | '7d' | '30d' | '90d' | '1y'
 const PRESETS: { value: Preset; label: string }[] = [
     { value: '24h', label: '24h' }, { value: '7d', label: '7d' },
@@ -75,10 +74,8 @@ const domainHealth = ref<DomainHealth | null>(null)
 const providers = ref<ProviderBreakdown | null>(null)
 
 function handleError(e: unknown) {
-    // The descriptive tabs are free; only deliverability can 402, and that path
-    // is gated by allowsPro before we ever fetch — so anything here is a real error.
     errorState.value = 'generic'
-    if (e instanceof ApiError) { /* keep last good data */ }
+    if (e instanceof ApiError) { }
 }
 
 async function loadCurrentTab() {
@@ -152,7 +149,6 @@ function exportCsv() {
     window.open(analytics.exportUrl(props.project.id), '_blank')
 }
 
-// --- overview formatting helpers ---
 function fmtBucket(iso: string): string {
     const d = new Date(iso)
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -163,7 +159,6 @@ function fmtDay(iso: string): string {
 }
 const rangeLabel = computed(() => (fromISO.value && toISO.value) ? `${fmtDay(fromISO.value)} – ${fmtDay(toISO.value)}` : '')
 function spamPct(v: number): string { return `${v.toFixed(2)}%` }
-// Gmail's threshold is 0.3%; treat 0.1% as the warning line.
 function spamTone(rate: number): 'good' | 'warn' | 'bad' {
     if (rate >= 0.3) return 'bad'
     if (rate >= 0.1) return 'warn'
@@ -209,7 +204,6 @@ const providerDonut = computed(() => {
     return { labels: p.providers.map((x) => x.provider), values: p.providers.map((x) => x.sent) }
 })
 
-// --- engagement views ---
 const engView = ref<'donut' | 'bars'>('donut')
 
 const funnelRows = computed(() => {
@@ -240,7 +234,6 @@ const activityLine = computed(() => {
     }
 })
 
-// --- broadcasts-in-flight polling (kept) ---
 let pollTimer: ReturnType<typeof setInterval> | null = null
 const inFlight = computed(() => overview.value?.broadcasts_in_flight ?? [])
 function progressPct(b: { total: number; sent: number; failed: number; suppressed: number }): number {
@@ -253,7 +246,7 @@ function startPolling() {
         if (tab.value !== 'overview') return
         try {
             overview.value = await analytics.overview(props.project.id, fromISO.value, toISO.value, selectedSegment.value || undefined)
-        } catch { /* keep last good data */ }
+        } catch { }
     }, 5000)
 }
 onBeforeUnmount(() => { if (pollTimer) clearInterval(pollTimer) })
@@ -308,7 +301,6 @@ onMounted(async () => {
             <AppAlert v-if="errorState === 'generic'" type="error" message="Could not load analytics. Try again." class="mb-4" />
             <AppLoader v-if="loading" message="Loading…" />
 
-            <!-- OVERVIEW -->
             <div v-else-if="tab === 'overview' && overview" class="space-y-6">
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                     <AppStatTile label="Sent" :value="overview.total_sent" :trend="trend(overview.total_sent, overview.previous.total_sent)" />
@@ -351,7 +343,6 @@ onMounted(async () => {
                 </div>
             </div>
 
-            <!-- CAMPAIGNS -->
             <div v-else-if="tab === 'campaigns'">
                 <div class="flex justify-end mb-3">
                     <button @click="exportCsv" class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-300 hover:text-white transition">Export CSV</button>
@@ -400,7 +391,6 @@ onMounted(async () => {
                 </div>
             </div>
 
-            <!-- AUDIENCE -->
             <div v-else-if="tab === 'audience' && audience" class="space-y-6">
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <AppStatTile label="Active" :value="audience.active_total" />
@@ -415,7 +405,6 @@ onMounted(async () => {
                 </div>
             </div>
 
-            <!-- ENGAGEMENT -->
             <div v-else-if="tab === 'engagement' && engagement" class="space-y-6">
                 <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                     <p class="text-sm font-semibold text-white mb-3">Engagement funnel</p>
@@ -479,7 +468,6 @@ onMounted(async () => {
                 </div>
             </div>
 
-            <!-- DELIVERABILITY (Pro) -->
             <div v-else-if="tab === 'deliverability'" class="space-y-6">
                 <AppProPaywall v-if="!licenseStore.allowsPro"
                     title="Deliverability is a Pro feature"

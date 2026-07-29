@@ -28,7 +28,6 @@ const schema = ref<ReportSchema | null>(null)
 const loading = ref(false)
 const error = ref('')
 
-// --- builder state ---
 const dataset = ref('subscribers')
 const measure = ref('count')
 const dim1 = ref('status')
@@ -71,7 +70,6 @@ const config = computed<ReportConfig>(() => {
 
 const result = ref<RunResult | null>(null)
 
-// keep selections valid when the dataset changes
 watch(dataset, () => {
     measure.value = measures.value[0]?.key ?? 'count'
     dim1.value = dims.value[0]?.key ?? 'status'
@@ -102,7 +100,6 @@ async function runReport() {
     }
 }
 
-// --- render helpers ---
 const measureLabel = computed(() => measures.value.find(m => m.key === measure.value)?.label ?? measure.value)
 
 const oneDim = computed(() => result.value?.rows ?? [])
@@ -152,7 +149,6 @@ function csvCell(s: string): string {
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-// --- saved reports ---
 const saveModalOpen = ref(false)
 const saveName = ref('')
 const editingId = ref('')
@@ -161,7 +157,6 @@ const deleteTarget = ref<SavedReport | null>(null)
 function loadReport(rep: SavedReport) {
     const c = rep.config
     dataset.value = c.dataset
-    // set after dataset watch has a chance to reset — use nextTick-free direct assign
     measure.value = c.measure
     dim1.value = c.dimensions[0] ?? 'status'
     dim2.value = c.dimensions[1] ?? ''
@@ -233,7 +228,6 @@ onMounted(async () => {
             description="Compose custom reports over your subscribers and email events, with pivots, filters and saved views." />
 
         <template v-else-if="schema">
-            <!-- saved reports bar -->
             <div class="flex flex-wrap items-center gap-2 mb-4">
                 <select v-model="editingId" @change="() => { const r = savedReports.find(s => s.id === editingId); if (r) loadReport(r) }"
                     class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none">
@@ -248,7 +242,6 @@ onMounted(async () => {
                 <AppButton size="sm" variant="secondary" @click="exportCsv">Export CSV</AppButton>
             </div>
 
-            <!-- builder -->
             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 <label class="block">
                     <span class="text-xs text-zinc-500 uppercase tracking-wide">Dataset</span>
@@ -304,12 +297,10 @@ onMounted(async () => {
                 </label>
             </div>
 
-            <!-- result -->
             <AppAlert v-if="error" type="error" :message="error" class="mb-4" />
             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 min-h-[16rem]">
                 <AppLoader v-if="loading" message="Running…" />
 
-                <!-- pivot (2 dims) -->
                 <template v-else-if="isPivot && pivot">
                     <StackedBarChart v-if="viz === 'bar'" :labels="pivotSeries.labels" :series="pivotSeries.series" />
                     <LineChart v-else-if="viz === 'line' || viz === 'area'" :labels="pivotSeries.labels" :series="pivotSeries.series" />
@@ -331,7 +322,6 @@ onMounted(async () => {
                     </div>
                 </template>
 
-                <!-- single dimension -->
                 <template v-else-if="oneDim.length">
                     <DonutChart v-if="viz === 'donut' || viz === 'pie'" :labels="singleSeries.labels" :values="singleSeries.values" :cutout="viz === 'pie' ? '0%' : undefined" />
                     <BarChart v-else-if="viz === 'bar'" :labels="singleSeries.labels" :values="singleSeries.values" horizontal />

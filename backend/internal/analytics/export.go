@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// Export streams the per-campaign table as CSV — the affordance a paying user
-// expects for taking the numbers into a spreadsheet.
 func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := h.authorizedProjectFromRequest(w, r)
 	if !ok {
@@ -41,7 +39,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		c, err := scanCampaign(rows)
 		if err != nil {
-			return // headers already sent; nothing better to do than stop
+			return
 		}
 		_ = cw.Write([]string{
 			c.BroadcastID, c.Subject, c.Status, c.StartedAt, c.FinishedAt,

@@ -22,10 +22,6 @@ func NewComplaintWebhookHandler(queries *db.Queries, suppressions *service.Suppr
 	return &ComplaintWebhookHandler{queries: queries, suppressions: suppressions}
 }
 
-// Receive ingests a spam complaint (feedback loop) from an ESP. It mirrors the
-// bounce webhook — same per-project token — but records the complaint as an
-// overlay (complained_at) instead of a terminal status, since a complaint means
-// the mail was delivered and then reported, not that it failed.
 func (h *ComplaintWebhookHandler) Receive(w http.ResponseWriter, r *http.Request) {
 	pid, err := uuid.Parse(r.PathValue("projectId"))
 	if err != nil {

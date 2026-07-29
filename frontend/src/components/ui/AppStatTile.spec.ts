@@ -22,7 +22,6 @@ describe('AppStatTile', () => {
     })
 
     it('colours a rising metric red when invertGood is set', () => {
-        // Bounce rate going up is bad, so the same upward trend must read red.
         const w = mount(AppStatTile, { props: { label: 'Bounce rate', value: '3%', trend: 5, invertGood: true } })
         expect(w.html()).toContain('text-red-400')
     })

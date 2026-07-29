@@ -34,15 +34,11 @@ func policies() (*bluemonday.Policy, *bluemonday.Policy) {
 	return htmlPolicy, plainPolicy
 }
 
-// Sanitize returns email-safe HTML: formatting and links survive, scripts,
-// event handlers, styles and unknown tags are stripped.
 func Sanitize(s string) string {
 	html, _ := policies()
 	return html.Sanitize(s)
 }
 
-// PlainText strips every tag, leaving only the text. Used where HTML makes no
-// sense, such as the subject line.
 func PlainText(s string) string {
 	_, plain := policies()
 	return plain.Sanitize(s)

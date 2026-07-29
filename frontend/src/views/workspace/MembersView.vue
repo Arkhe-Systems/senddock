@@ -208,8 +208,6 @@ async function confirmRename() {
 
 const showDelete = ref(false)
 const deleteLoading = ref(false)
-// Only offer delete to an owner, and never for their last workspace (the
-// backend also refuses if it still has projects).
 const canDelete = computed(() => isOwner.value && workspaceStore.workspaces.length > 1)
 
 async function confirmDelete() {

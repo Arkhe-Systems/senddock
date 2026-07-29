@@ -100,12 +100,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     function engagement(projectID: string, from: string, to: string) {
         return api<Engagement>(`${base(projectID)}/engagement?${windowParams(from, to)}`)
     }
-    // Export is a file download, so it goes straight to the URL rather than through api().
     function exportUrl(projectID: string): string {
         return `${getApiBase()}${base(projectID)}/export`
     }
 
-    // Deliverability lives under its own (Pro-gated) base, not /analytics.
     const deliverabilityBase = (projectID: string) => `/projects/${projectID}/deliverability`
     function domainHealth(projectID: string) {
         return api<DomainHealth>(`${deliverabilityBase(projectID)}/domain-health`)

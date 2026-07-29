@@ -12,9 +12,6 @@ export default defineConfig({
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
   ],
   markdown: {
-    // Inline code containing `{{ ... }}` (e.g. template merge tags like
-    // `{{name}}`) would otherwise be parsed by Vue as an interpolation and
-    // render empty. Emit those spans with `v-pre` so they render literally.
     config(md) {
       const original = md.renderer.rules.code_inline
       md.renderer.rules.code_inline = (tokens, idx, options, env, self) => {

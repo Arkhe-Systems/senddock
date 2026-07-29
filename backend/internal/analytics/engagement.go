@@ -39,11 +39,6 @@ type Engagement struct {
 	Heatmap []HeatCell         `json:"heatmap"`
 }
 
-// Engagement breaks recorded clicks down by device and mail client (parsed from
-// email_clicks.user_agent), plus a sent→opened→clicked funnel, an opens/clicks
-// time series, and a click heatmap by weekday and hour. The heatmap is built
-// from clicks, not opens: click timestamps are real, while Apple MPP prefetches
-// opens at delivery time so their hour is unreliable.
 func (h *Handler) Engagement(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := h.authorizedProjectFromRequest(w, r)
 	if !ok {
@@ -196,8 +191,6 @@ func (h *Handler) clickHeatmap(ctx context.Context, projectID string, from, to t
 	return cells, rows.Err()
 }
 
-// sortedBreakdown turns a count map into a slice ordered by count desc, then
-// label, so the output is stable.
 func sortedBreakdown(counts map[string]int64) []Breakdown {
 	out := make([]Breakdown, 0, len(counts))
 	for label, count := range counts {

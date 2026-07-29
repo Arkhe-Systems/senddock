@@ -11,22 +11,22 @@ import (
 )
 
 type CampaignStat struct {
-	BroadcastID       string  `json:"broadcast_id"`
-	Subject           string  `json:"subject"`
-	Status            string  `json:"status"`
-	StartedAt         string  `json:"started_at"`
-	FinishedAt        string  `json:"finished_at,omitempty"`
-	TotalRecipients   int64   `json:"total_recipients"`
-	Sent              int64   `json:"sent"`
-	Failed            int64   `json:"failed"`
-	Bounced           int64   `json:"bounced"`
-	Opened            int64   `json:"opened"`
-	Clicked           int64   `json:"clicked"`
-	AcceptancePct float64 `json:"acceptance_pct"`
-	BounceRatePct     float64 `json:"bounce_rate_pct"`
-	OpenRatePct       float64 `json:"open_rate_pct"`
-	ClickRatePct      float64 `json:"click_rate_pct"`
-	ClickToOpenPct    float64 `json:"click_to_open_pct"`
+	BroadcastID     string  `json:"broadcast_id"`
+	Subject         string  `json:"subject"`
+	Status          string  `json:"status"`
+	StartedAt       string  `json:"started_at"`
+	FinishedAt      string  `json:"finished_at,omitempty"`
+	TotalRecipients int64   `json:"total_recipients"`
+	Sent            int64   `json:"sent"`
+	Failed          int64   `json:"failed"`
+	Bounced         int64   `json:"bounced"`
+	Opened          int64   `json:"opened"`
+	Clicked         int64   `json:"clicked"`
+	AcceptancePct   float64 `json:"acceptance_pct"`
+	BounceRatePct   float64 `json:"bounce_rate_pct"`
+	OpenRatePct     float64 `json:"open_rate_pct"`
+	ClickRatePct    float64 `json:"click_rate_pct"`
+	ClickToOpenPct  float64 `json:"click_to_open_pct"`
 }
 
 type CampaignDetail struct {
@@ -46,8 +46,6 @@ const campaignSelect = `
 	LEFT JOIN email_logs l ON l.broadcast_id = b.id
 `
 
-// Campaigns lists every broadcast in the project with its per-campaign
-// engagement, computed from the email_logs.broadcast_id link.
 func (h *Handler) Campaigns(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := h.authorizedProjectFromRequest(w, r)
 	if !ok {
@@ -87,7 +85,6 @@ func (h *Handler) Campaigns(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"campaigns": campaigns})
 }
 
-// Campaign returns one broadcast's stats plus its top clicked links.
 func (h *Handler) Campaign(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := h.authorizedProjectFromRequest(w, r)
 	if !ok {
@@ -143,7 +140,6 @@ func (h *Handler) Campaign(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, detail)
 }
 
-// rowScanner is satisfied by both *sql.Row and *sql.Rows.
 type rowScanner interface {
 	Scan(dest ...any) error
 }

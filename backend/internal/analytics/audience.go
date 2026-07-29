@@ -16,19 +16,16 @@ type AudienceBucket struct {
 }
 
 type Audience struct {
-	From             time.Time        `json:"from"`
-	To               time.Time        `json:"to"`
-	Granularity      string           `json:"granularity"`
-	ActiveTotal      int64            `json:"active_total"`
-	UnsubscribedTotal int64           `json:"unsubscribed_total"`
-	AddedInRange     int64            `json:"added_in_range"`
-	UnsubInRange     int64            `json:"unsubscribed_in_range"`
-	Series           []AudienceBucket `json:"series"`
+	From              time.Time        `json:"from"`
+	To                time.Time        `json:"to"`
+	Granularity       string           `json:"granularity"`
+	ActiveTotal       int64            `json:"active_total"`
+	UnsubscribedTotal int64            `json:"unsubscribed_total"`
+	AddedInRange      int64            `json:"added_in_range"`
+	UnsubInRange      int64            `json:"unsubscribed_in_range"`
+	Series            []AudienceBucket `json:"series"`
 }
 
-// Audience shows how the subscriber list grew and shrank over the window:
-// sign-ups minus unsubscribes per bucket, with a running net total. Turns the
-// audience side of analytics from a single number into a trend.
 func (h *Handler) Audience(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := h.authorizedProjectFromRequest(w, r)
 	if !ok {
@@ -73,7 +70,6 @@ func (h *Handler) Audience(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Merge the two bucket maps over a stable ordered key set.
 	buckets := map[string]bool{}
 	for b := range added {
 		buckets[b] = true
