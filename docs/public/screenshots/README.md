@@ -14,7 +14,19 @@ Use a clean demo dataset (10–20 fake subscribers, 2–3 templates, 1 finished 
 | `projects.png` | Same overview, but slightly different angle (or a cleaner zoom). | `/projects/{id}` Overview tab |
 | `editor.png` | Template editor in Visual tab with a decent-looking email loaded (header, body, CTA, footer). | `/projects/{id}` Templates → open a template |
 | `campaigns.png` | Campaigns list with at least one completed broadcast and one scheduled. | `/projects/{id}` Campaigns tab |
-| `analytics.png` | Pro analytics dashboard — funnel, opens-over-time chart. Requires `SENDDOCK_LICENSE_KEY` set for the dev instance. | `/projects/{id}/analytics` |
+| `analytics.png` | Analytics dashboard (now **free** — no license needed). Overview tab with the KPI tiles and the opens/clicks chart. | `/projects/{id}/analytics` |
+
+## v0.8 captures (new)
+
+These are referenced by the refreshed docs and don't exist yet. Same house style as above (1440×900, dark, trimmed, < 500 KB).
+
+| Filename | What to capture | Where | Notes |
+|---|---|---|---|
+| `analytics-overview.png` | The Analytics **Overview** tab: KPI tiles (incl. Acceptance and Spam rate), trend pills, the opens/clicks time series, send-status donut. | `/projects/{id}/analytics` | Free. Use an instance with real sends so the tiles aren't zero. |
+| `send-rich-text.png` | The **Send Email** modal with a variable toggled to **Rich** — the WYSIWYG toolbar visible and a bit of formatted content (a bold word + a bullet list) in the editor. | `/projects/{id}` Overview → **Send Email** | Free. Needs a template with a custom `{{placeholder}}` and SMTP configured (so the button shows). |
+| `instance-settings.png` | The **Instance** settings screen: Public URL field, Session timeout, and the License section. | dashboard → **Instance** | **Self-host mode only** — this screen is hidden when `CLOUD=true`. Capture from a self-hosted (non-cloud) dev instance. |
+| `deliverability.png` | The **Deliverability** tab: domain-health pass/warn/fail rows + the per-provider table with rates. | `/projects/{id}/analytics` → Deliverability | **Pro** — needs a license/plan active so it isn't the paywall. |
+| `reports.png` | The **Reports** builder mid-report: dataset/measure/dimension controls on the left, a chart or pivot preview on the right. | `/projects/{id}/reports` | **Pro** — needs a license/plan active. |
 
 ## Tips
 
