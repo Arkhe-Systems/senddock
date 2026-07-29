@@ -103,7 +103,7 @@ For Dokploy, reverse-proxy setups, Cloudflare Tunnel, source builds, license act
 | | |
 |---|---|
 | ![Projects](docs/public/screenshots/projects.png) | ![Editor](docs/public/screenshots/editor.png) |
-| **Project dashboard** — subscribers, templates, campaigns, SMTP. | **Visual editor** — drag-and-drop email composition with GrapesJS. |
+| **Workspace dashboard** — organize projects, each its own sending identity. | **Visual editor** — drag-and-drop email composition with GrapesJS. |
 | ![Campaigns](docs/public/screenshots/campaigns.png) | ![Analytics](docs/public/screenshots/analytics.png) |
 | **Campaigns** — broadcast to your list or schedule for later. | **Analytics (free)** — tabbed dashboard: overview, campaigns, audience, engagement. |
 
