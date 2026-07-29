@@ -22,7 +22,25 @@ A report is five choices, and the preview re-runs live as you change them:
 4. **Filter** *(optional)* — scope to a [segment](/guide/segments). For the email dataset this limits events to that segment's members.
 5. **Visualization** — table, pivot matrix, bar, stacked bar, line, area, donut or pie.
 
-A quick example: *Subscribers, count, by `custom.plan`* as a donut answers "how many subscribers do I have on each plan?" Add a second dimension — *by `custom.plan` × status* — and it becomes a pivot.
+A quick example: *Subscribers, count, by `custom.plan`* as a donut answers "how many subscribers do I have on each plan?" Add a second dimension — *by `provider` × send time* — and it becomes a pivot.
+
+## Visualizations
+
+The same query renders as whatever chart fits the question — switch it live from the **Chart** dropdown. A single dimension can be a **bar**, **donut**, **pie**, **line**, **area** or plain **table**; two dimensions unlock the **pivot matrix** and stacked/multi-series charts.
+
+**Donut** — a composition, e.g. subscribers by plan:
+
+![A report drawn as a donut chart](/screenshots/reports-donut.png)
+
+**Area / line** — a trend over time, e.g. emails sent per week:
+
+![A report drawn as an area chart over time](/screenshots/reports-area.png)
+
+**Pivot** — a two-dimension matrix, e.g. open rate by provider across months:
+
+![A two-dimension report drawn as a pivot table](/screenshots/reports-pivot.png)
+
+...and **bar** (shown above), **stacked bar**, **pie** and a raw **table** round out the set. Pick the one that makes your point.
 
 ## Saving & exporting
 
