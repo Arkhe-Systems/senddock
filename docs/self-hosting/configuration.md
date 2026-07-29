@@ -108,7 +108,7 @@ A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tr
     <marker id="lm-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.7"/></marker>
   </defs>
   <g style="font-family: ui-sans-serif, system-ui, sans-serif">
-    <g transform="translate(290,20)"><rect x="0" y="0" width="180" height="50" rx="25" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="24" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">SENDDOCK_LICENSE_KEY</text><text x="90" y="40" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">checked at startup</text></g>
+    <g transform="translate(290,20)"><rect x="0" y="0" width="180" height="50" rx="25" fill="none" stroke="currentColor" stroke-opacity="0.95" stroke-width="1.6"/><text x="90" y="24" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">License key</text><text x="90" y="40" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">activated in the dashboard</text></g>
     <path d="M 380 70 L 380 110 L 150 110 L 150 218" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#lm-a)"/>
     <text x="262" y="100" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor" fill-opacity="0.7">empty</text>
     <path d="M 380 70 L 380 218" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none" marker-end="url(#lm-a)"/>
@@ -123,9 +123,9 @@ A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tr
   </g>
 </svg>
 
-| `SENDDOCK_LICENSE_KEY` | What unlocks |
+| License state | What unlocks |
 |---|---|
-| empty | **Community** — Pro features locked, Team features locked. |
+| none | **Community** — Pro features locked, Team features locked. |
 | valid Pro key | Pro features unlocked (Deliverability, Reports, Audit log). Team features stay locked. |
 | valid Team key | Pro and Team features unlocked. |
 | invalid / revoked | Locked after the next validation tick (24h grace from the last successful check). |

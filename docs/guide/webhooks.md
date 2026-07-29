@@ -248,4 +248,4 @@ If you want to inspect what SendDock is sending without writing a handler, point
 
 ## Licensing
 
-Webhooks are entirely part of Core — the management UI, the CRUD API, the dispatcher, signing and retries are all available for free with no `SENDDOCK_LICENSE_KEY`, on both self-hosted and cloud deployments. There is nothing to unlock.
+Webhooks are entirely part of Core — the management UI, the CRUD API, the dispatcher, signing and retries are all available for free with no Pro license, on both self-hosted and cloud deployments. There is nothing to unlock.

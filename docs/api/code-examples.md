@@ -671,7 +671,7 @@ All errors return JSON of the shape `{"error": "human-readable message"}` with t
 |---|---|
 | `400` | Body fails validation. The error string usually points at the offending field. |
 | `401` | Missing / wrong API key. Cookie session expired and refresh failed. |
-| `402` | Pro feature requested without a valid `SENDDOCK_LICENSE_KEY`. |
+| `402` | Pro feature requested without a valid Pro license. |
 | `403` | The authenticated user / API key doesn't own this project. |
 | `404` | Project / template / subscriber not found. |
 | `409` | Duplicate (e.g. subscriber email already exists). |
