@@ -162,7 +162,7 @@ If you want the dashboard's **"Update now"** button to work (so you never have t
 |---|---|
 | none | Free tier — Core features only (projects, subscribers, custom fields, tags, segments, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, suppression list, [webhooks](/guide/webhooks), and the [Analytics dashboard](/guide/analytics)). |
 | valid Pro key | Pro tier — adds [Deliverability](/guide/deliverability), the [Report builder](/guide/reports) and the [audit log](/guide/audit-log). |
-| valid Team key | Team tier — Pro features plus [multi-user workspaces with roles](/guide/workspaces) and admin user creation. |
+| valid Team key | Team tier — Pro features plus [multi-user workspaces with roles](/guide/members) and admin user creation. |
 
 The image is the same in all cases; the license just toggles the gated routes. On self-hosted you **activate the key from the dashboard** under **Instance → License** ([Instance settings](/guide/instance-settings#pro-license)) — it's stored in the database and applies immediately. The `SENDDOCK_LICENSE_KEY` env var still works but is deprecated (imported once on boot, removed in v0.9). Read the full tier matrix on the [pricing page](https://senddock.dev/#pricing) or in [Configuration → Plans and licensing](/self-hosting/configuration#plans-and-licensing).
 

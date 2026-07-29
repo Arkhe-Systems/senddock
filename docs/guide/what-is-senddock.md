@@ -43,7 +43,7 @@ SendDock is an open-source, self-hostable email marketing and transactional emai
 | [Deliverability](./deliverability) (domain health, per-provider rates, spam rate) | — | ✓ | ✓ |
 | [Report builder](./reports) (pivots, segment filters, saved reports, CSV) | — | ✓ | ✓ |
 | [Audit log](./audit-log) | — | ✓ | ✓ |
-| [Multi-member workspaces](./workspaces) | — | — | ✓ |
+| [Multi-member workspaces](./members) | — | — | ✓ |
 | Roles: `owner`, `admin`, `developer`, `viewer` | — | — | ✓ |
 | Admin "Create user" flow | — | — | ✓ |
 

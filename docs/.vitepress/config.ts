@@ -82,11 +82,12 @@ export default defineConfig({
           ],
         },
         {
-          text: 'Pro Features',
+          text: 'Pro & Team',
           items: [
             { text: 'Deliverability', link: '/guide/deliverability' },
             { text: 'Reports', link: '/guide/reports' },
             { text: 'Audit Log', link: '/guide/audit-log' },
+            { text: 'Members & roles', link: '/guide/members' },
           ],
         },
         {
