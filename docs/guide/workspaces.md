@@ -69,6 +69,8 @@ If the email isn't registered, the form returns "no SendDock account uses that e
 
 For self-hosted, public registration is disabled — so the *only* way for a new teammate to get an account is for an owner to create it:
 
+![Creating a user and assigning a role](/screenshots/team-create-user.png)
+
 1. `+ Create user` → email + name + temporary password + role.
 2. SendDock creates the user account, hashes the password, and adds them to the workspace at the chosen role in a single transaction.
 3. Pass the temporary password to the user out of band (1Password, signed message, in person). They can change it later.
