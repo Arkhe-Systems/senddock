@@ -4,7 +4,7 @@ The Analytics tabs answer fixed questions. **Reports** lets you ask your own —
 
 It's a Pro section in the project sidebar: **Project → Reports**.
 
-![Report builder](/screenshots/reports.png)
+![The report builder showing email volume by provider, split by status, as a stacked bar](/screenshots/reports.png)
 
 ## Building a report
 
@@ -32,15 +32,15 @@ The same query renders as whatever chart fits the question — switch it live fr
 
 ![A report drawn as a donut chart](/screenshots/reports-donut.png)
 
-**Area / line** — a trend over time, e.g. emails sent per week:
+**Area / line** — a multi-series trend over time. Add a second dimension and each value becomes its own series — here, sends per provider, week by week:
 
-![A report drawn as an area chart over time](/screenshots/reports-area.png)
+![A multi-series area chart, one series per provider over time](/screenshots/reports-area.png)
 
 **Pivot** — a two-dimension matrix, e.g. open rate by provider across months:
 
 ![A two-dimension report drawn as a pivot table](/screenshots/reports-pivot.png)
 
-...and **bar** (shown above), **stacked bar**, **pie** and a raw **table** round out the set. Pick the one that makes your point.
+The **stacked bar** at the top of this page (email volume per provider, split by status) and the **pie** and raw **table** round out the set. Pick the one that makes your point.
 
 ## Saving & exporting
 
