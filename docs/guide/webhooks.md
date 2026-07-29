@@ -221,6 +221,9 @@ From the dashboard:
 
 1. Open a project, click **Webhooks** in the sidebar.
 2. **New webhook**: paste your endpoint URL, pick which event types to subscribe to (all by default), submit.
+
+![Creating a webhook — URL and event selection](/screenshots/new-webhook-modal.png)
+
 3. The signing secret appears **once** on creation. Copy it — you cannot retrieve it again later. If you lose it, delete the webhook and create a new one.
 4. Each row offers **Pause/Resume**, **Delete**, and **Deliveries** — the latter opens a panel showing the most recent delivery attempts with status, attempt count, last HTTP code, and error message if any.
 

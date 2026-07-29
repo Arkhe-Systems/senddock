@@ -20,6 +20,14 @@ The dashboard is split into five tabs. The first four are open; the last is Pro.
 
 All the chart math runs server-side; the dashboard just renders what each tab's endpoint returns.
 
+The **Audience** tab charts list growth — sign-ups and unsubscribes over time:
+
+![The Audience tab — subscriber growth over time](/screenshots/analytics-audience.png)
+
+The **Engagement** tab shows the open/click funnel, a device and mail-client breakdown, and a weekday × hour click heatmap:
+
+![The Engagement tab — funnel, devices and mail clients](/screenshots/analytics-engagement.png)
+
 ## Date ranges
 
 A toolbar at the top lets you pick the window, and it applies to every tab:

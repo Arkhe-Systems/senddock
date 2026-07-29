@@ -23,7 +23,11 @@ Write HTML directly with syntax highlighting powered by CodeMirror. A live previ
 
 ### Visual Editor
 
-Drag-and-drop email builder powered by GrapeJS. Available blocks:
+Drag-and-drop email builder powered by GrapeJS.
+
+![The visual drag-and-drop template editor](/screenshots/editor.png)
+
+Available blocks:
 
 **Layout:**
 - Container (600px max-width email wrapper)
@@ -107,6 +111,8 @@ Back on the templates list, each row has two quick actions:
 ## Template library
 
 Beyond writing templates from scratch, SendDock ships with a community-maintained starter library. Click **★ Browse library** on the Templates page to open it.
+
+![The template library browser with categories](/screenshots/template-library.png)
 
 The library covers common email scenarios — welcome flows, monthly digests, single-story newsletters, product launches, changelogs, weekly link roundups, password resets, email verifications, and transactional receipts. Each template uses Handlebars variables (so the personalization works out of the box) and inline CSS (so it renders correctly in Outlook, Gmail and the rest).
 

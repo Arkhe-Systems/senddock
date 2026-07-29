@@ -25,6 +25,9 @@ Campaigns let you schedule email broadcasts for a future time. Instead of sendin
 
 From the **Newsletters** tab in your project, click **+ New Campaign**, then:
 
+![The New Campaign dialog](/screenshots/new-campaign-modal.png)
+
+
 1. **Name** the campaign (for your own reference in the list).
 2. Pick a **template**.
 3. Optionally **override the subject**.

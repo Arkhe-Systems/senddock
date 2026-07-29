@@ -10,6 +10,8 @@ Subscribers are the people who receive your emails. Each subscriber belongs to a
 
 Go to **Subscribers** in the project sidebar and click **+ Add Subscriber**. Enter an email and an optional name — and, right there in the same dialog, add **tags** and fill in any **[custom fields](#custom-fields)** the project defines, so the subscriber lands fully populated in one step.
 
+![The Add Subscriber dialog with tags and custom fields](/screenshots/add-subscriber-modal.png)
+
 ### Via the API
 
 For programmatic ingestion of multiple subscribers (e.g. from a CRM sync, an existing user database, or a CSV upload in your own UI), use [`POST /api/v1/projects/{id}/subscribers/import`](/api/subscribers#bulk-import) — it accepts both cookie auth and `Authorization: Bearer sk_...` API keys, takes a top-level JSON array, and runs every row through the same email validation as the dashboard import.
@@ -33,6 +35,8 @@ For waitlist forms on landing pages, use the public [`/waitlist` endpoint](/api/
 ## Import
 
 Bulk-import subscribers from a **CSV** file. Open the **Subscribers** tab, click **Import**, and either drop a `.csv` onto the dropzone or pick one with the file picker.
+
+![The CSV import dialog](/screenshots/import-modal.png)
 
 ### CSV format
 
