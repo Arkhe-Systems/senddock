@@ -7,7 +7,7 @@ SendDock is an open-source, self-hostable email marketing and transactional emai
 - **Open core, AGPL-3.0.** The Community edition is fully usable without a license.
 - **API-first.** Every dashboard action has a REST endpoint. Cookie auth for the UI, per-project API keys (`Authorization: Bearer sk_...`) for everything else.
 - **Single-binary Go backend + Vue dashboard, deployed by Docker Compose.** One container for the app, Postgres for storage, Redis for rate limits.
-- **Pro and Team are tier flags on the same binary.** Set `SENDDOCK_LICENSE_KEY` and the validator unlocks the corresponding endpoints. No separate build.
+- **Pro and Team are tier flags on the same binary.** Activate a license from the dashboard (**Instance → License**) and the validator unlocks the corresponding endpoints. No separate build.
 
 ## How you use it
 

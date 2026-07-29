@@ -50,7 +50,7 @@ The active workspace is remembered in your browser's `localStorage` (key `senddo
 
 ## Adding members <Badge type="warning" text="Team" />
 
-Member management is gated on a valid `SENDDOCK_LICENSE_KEY`. Without one, every workspace is a single-user surface — you can still create as many workspaces as you want to organize your projects, you just can't share them.
+Member management is gated on a valid **Team** license (activated under [Instance → License](/guide/instance-settings#pro-license)). Without one, every workspace is a single-user surface — you can still create as many workspaces as you want to organize your projects, you just can't share them.
 
 There are two paths to add a member, both from **Manage members**:
 
@@ -90,7 +90,7 @@ The same operation is available on the API as `DELETE /workspaces/{id}` with the
 
 ## Plans & licensing
 
-The license check is deployment-wide, not per-workspace. SendDock has two paid tiers, both unlocked through the same `SENDDOCK_LICENSE_KEY` (the validator decides which features the key entitles you to):
+The license check is deployment-wide, not per-workspace. SendDock has two paid tiers, both unlocked through the same license key (the validator decides which features the key entitles you to):
 
 | Plan | What it unlocks |
 |---|---|

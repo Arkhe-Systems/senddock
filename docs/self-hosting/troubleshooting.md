@@ -39,8 +39,7 @@ In other words: SendDock cannot deliver mail from a network that blocks outbound
 **Fix:**
 
 1. Put SendDock behind a real domain (reverse proxy + DNS — see [Reverse Proxy](/self-hosting/installation#reverse-proxy-https)).
-2. Set your public URL to `https://your-domain.com` under **Instance** in the dashboard (no trailing slash). It applies immediately.
-3. Restart the server.
+2. Set your public URL to `https://your-domain.com` under **Instance** in the dashboard (no trailing slash). It applies immediately — no restart. See [Instance settings](/guide/instance-settings#public-url).
 
 Single-recipient sends (`/send`) and `/send/batch` continue to work without a public URL, so transactional flows (password resets, contact-form notifications) do not require a public domain.
 

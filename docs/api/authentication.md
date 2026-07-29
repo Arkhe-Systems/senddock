@@ -90,7 +90,7 @@ GET /api/v1/me
 }
 ```
 
-`plan` is `"free"`, `"pro"` or `"team"` for self-host (derived from `SENDDOCK_LICENSE_KEY`); on cloud it's `"free"`, `"starter"`, `"growth"` or `"scale"`.
+`plan` is `"free"`, `"pro"` or `"team"` for self-host (from the license activated under **Instance → License**); on cloud it's `"free"`, `"starter"`, `"growth"` or `"scale"`.
 
 ### Change password
 

@@ -91,6 +91,7 @@ cat > .env <<EOF
 POSTGRES_PASSWORD=$(openssl rand -base64 32)
 JWT_SECRET=$(openssl rand -hex 32)
 SENDDOCK_PORT=8080
+# License is activated from the dashboard (Instance → License); this env var is deprecated.
 SENDDOCK_LICENSE_KEY=
 EOF
 ```
@@ -122,6 +123,7 @@ JWT_SECRET=change-me-openssl-rand-hex-32
 # SENDDOCK_PORT=8080
 
 # Pro / Team license key from senddock.dev. Empty = Community tier (free).
+# Deprecated on self-host: activate it from the dashboard (Instance -> License) instead. Removed in v0.9.
 SENDDOCK_LICENSE_KEY=
 
 # Per-IP request cap, rolling 60s window. Default 600. Only enforced with Redis.
@@ -156,13 +158,13 @@ If you want the dashboard's **"Update now"** button to work (so you never have t
 
 ### What you get
 
-| `SENDDOCK_LICENSE_KEY` | Behavior |
+| License | Behavior |
 |---|---|
-| empty | Free tier — Core features only (projects, subscribers, custom fields, tags, segments, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, suppression list, [webhooks](/guide/webhooks)). |
-| valid Pro key | Pro tier — adds the [Analytics dashboard](/guide/analytics) and the [audit log](/guide/audit-log). |
+| none | Free tier — Core features only (projects, subscribers, custom fields, tags, segments, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, suppression list, [webhooks](/guide/webhooks), and the [Analytics dashboard](/guide/analytics)). |
+| valid Pro key | Pro tier — adds [Deliverability](/guide/deliverability), the [Report builder](/guide/reports) and the [audit log](/guide/audit-log). |
 | valid Team key | Team tier — Pro features plus [multi-user workspaces with roles](/guide/workspaces) and admin user creation. |
 
-The image is the same in all cases. The license key, validated against a hosted endpoint, toggles the gated routes. Read the full tier matrix on the [pricing page](https://senddock.dev/#pricing) or in [Configuration → Plans and licensing](/self-hosting/configuration#plans-and-licensing).
+The image is the same in all cases; the license just toggles the gated routes. On self-hosted you **activate the key from the dashboard** under **Instance → License** ([Instance settings](/guide/instance-settings#pro-license)) — it's stored in the database and applies immediately. The `SENDDOCK_LICENSE_KEY` env var still works but is deprecated (imported once on boot, removed in v0.9). Read the full tier matrix on the [pricing page](https://senddock.dev/#pricing) or in [Configuration → Plans and licensing](/self-hosting/configuration#plans-and-licensing).
 
 ### Pinning a version in production
 
@@ -210,7 +212,7 @@ Windows users run the same `docker compose` command from PowerShell — no separ
 
 This path runs `docker-compose.prod.yml`, which builds the image locally instead of pulling the prebuilt one. To update later, `git pull && docker compose -f docker-compose.prod.yml up -d --build`. To reset, run `docker compose -f docker-compose.prod.yml down -v && rm .env` (**this deletes all data**, so use it only on test instances) and repeat the fresh-install steps above.
 
-The result is the **Core only** — Pro features (Analytics dashboard, Audit log) ship only in the official prebuilt image, not in source builds. Everything else, webhooks included, is in Core. To run Pro, use the prebuilt image (Options 1–3) with a license key.
+The result is the **Core only** — Pro features (Deliverability, Reports, Audit log) ship only in the official prebuilt image, not in source builds. Everything else, webhooks and the Analytics dashboard included, is in Core. To run Pro, use the prebuilt image (Options 1–3) with a license key.
 
 ### What gets started
 
