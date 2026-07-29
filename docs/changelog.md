@@ -16,7 +16,25 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 ## [Unreleased]
 
-_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+The v0.8 line: analytics graduates to free Core, self-host configuration moves into the dashboard, and the paid tier is redrawn around deliverability and reporting.
+
+### Added
+
+- **Analytics, rebuilt and free (Core).** The old single-endpoint funnel became a tabbed, charted dashboard — **Overview, Campaigns, Audience, Engagement** — with a date-range picker, per-campaign breakdowns (every email log is now tagged with its broadcast), a subscriber-growth view and a weekday×hour click **heatmap**. Bounces are recorded on the log, not just the suppression list.
+- **Instance settings in the dashboard (self-host).** The public URL, a configurable **session inactivity timeout** (5–1440 min) and the **Pro license key** are now set from **Instance** in the dashboard, stored in the database, applied live with no restart. See [Instance settings](./guide/instance-settings).
+- **Deliverability (Pro).** A new Analytics tab: domain health (SPF/DKIM/DMARC), a per-provider breakdown with acceptance/bounce/open/click rates, and a **spam-complaint rate** ingested from an FBL/complaint webhook.
+- **Report builder (Pro).** A dynamic builder over subscribers and email events — dimensions/measures, 1–2 dimension pivots, segment filters, saved reports and CSV export, backed by an allowlist-only query engine.
+- **Rich-text send.** The Send Email composer gained a **Text/Rich** toggle per template variable, backed by a WYSIWYG editor; rich values are sanitized server-side. On the API, mark fields via `html_fields`.
+- **Delete a workspace from the UI.** Owner-only, from the workspace manage screen; refused while the workspace still owns projects.
+
+### Changed
+
+- **Analytics moved Pro → Core.** The descriptive analytics suite is now free and ungated. The paid tier is now **Deliverability + Reports + Audit log + Team**.
+- **`DEPLOYMENT_MODE` → `CLOUD`.** The hosted flag is now a boolean `CLOUD`; the old string is still read until v0.9.
+
+### Deprecated
+
+- **`PUBLIC_URL` and `SENDDOCK_LICENSE_KEY` environment variables (self-host).** Both now live in the dashboard; a value left in the environment is imported once on boot and support for reading it is **removed in v0.9**.
 
 ## [0.7.0] — 2026-07-05
 

@@ -71,12 +71,12 @@ Open the avatar menu → **Billing**. What you see depends on whether you're sel
 
 ### Self-hosted
 
-- **Current plan** — Free, Pro or Team, computed from your `SENDDOCK_LICENSE_KEY`.
+- **Current plan** — Free, Pro or Team, from the license you've activated.
 - When a license is active: `expires_at` (when the subscription renews or lapses) and `last_check` (when the validator last reached Lemon Squeezy). The validator caches the last-good response for 24 h, so a brief network outage won't lock you out.
 - When no key is set: paywall cards for Pro ($9/mo) and Team ($29/mo) linking directly to Lemon Squeezy checkout.
 - A note clarifying that SendDock charges **only** for features. BYO SMTP means you pay your SMTP provider for delivery — never SendDock.
 
-To upgrade, click the checkout link, complete the purchase, then paste the key into `SENDDOCK_LICENSE_KEY` in `.env` and restart the container. The new tier unlocks on next license validation (within a minute).
+To upgrade, click the checkout link, complete the purchase, then activate the key from the dashboard under **Instance → License** — it's stored in the database and unlocks the new tier **immediately**, no restart. See [Instance settings → Pro license](./instance-settings#pro-license). (The old `SENDDOCK_LICENSE_KEY` env var still works but is deprecated; support ends in v0.9.)
 
 ### Cloud
 

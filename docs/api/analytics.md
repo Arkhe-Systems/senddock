@@ -1,8 +1,8 @@
-# Analytics API <Badge type="warning" text="Pro" />
+# Analytics API
 
-A single endpoint backs the entire Analytics dashboard. Cookie auth required.
+The endpoints behind the [Analytics dashboard](/guide/analytics). Cookie auth required.
 
-Returns `402 Payment Required` in cloud mode without a valid `SENDDOCK_LICENSE_KEY`. See [Analytics guide](/guide/analytics) for what each field is used for, and [Configuration → Pro license](/self-hosting/configuration#plans-and-licensing) for the license behavior.
+Analytics is **free** — part of Core, no license needed. (The one exception is the Deliverability tab, which has its own [Pro endpoints](./deliverability).) The `overview` endpoint below backs the Overview tab; the Campaigns, Audience and Engagement tabs each have a sibling endpoint under `…/analytics/…`, plus a CSV export.
 
 ## Overview
 
