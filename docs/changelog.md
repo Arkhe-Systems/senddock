@@ -16,6 +16,10 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 ## [Unreleased]
 
+_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+
+## [0.8.0] — 2026-07-28
+
 The v0.8 line: analytics graduates to free Core, self-host configuration moves into the dashboard, and the paid tier is redrawn around deliverability and reporting.
 
 ### Added
