@@ -52,6 +52,10 @@ If the backend process is killed mid-broadcast, the campaign stays in `sending`,
 
 No additional configuration is needed -- the worker starts automatically with the backend.
 
+## Per-campaign analytics
+
+Every email a campaign sends is tagged with its broadcast, so each campaign gets its own engagement breakdown — not just a global roll-up. Open **Project → Analytics → Campaigns** to see, per broadcast, how many were sent, opened and clicked and the resulting rates. See [Analytics](/guide/analytics#tabs).
+
 ## Tips
 
 - Use descriptive campaign names so you can identify them later in the list

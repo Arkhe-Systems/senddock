@@ -72,6 +72,7 @@ export default defineConfig({
             { text: 'Templates', link: '/guide/templates' },
             { text: 'Email Sending', link: '/guide/sending' },
             { text: 'Campaigns', link: '/guide/campaigns' },
+            { text: 'Analytics', link: '/guide/analytics' },
             { text: 'Suppressions', link: '/guide/suppressions' },
             { text: 'Bounces', link: '/guide/bounces' },
             { text: 'Webhooks', link: '/guide/webhooks' },
@@ -81,13 +82,15 @@ export default defineConfig({
         {
           text: 'Pro Features',
           items: [
-            { text: 'Analytics', link: '/guide/analytics' },
+            { text: 'Deliverability', link: '/guide/deliverability' },
+            { text: 'Reports', link: '/guide/reports' },
             { text: 'Audit Log', link: '/guide/audit-log' },
           ],
         },
         {
           text: 'Configuration',
           items: [
+            { text: 'Instance settings', link: '/guide/instance-settings' },
             { text: 'SMTP Setup', link: '/guide/smtp' },
             { text: 'Environment Variables', link: '/guide/environment' },
           ],
@@ -106,6 +109,7 @@ export default defineConfig({
             { text: 'Templates', link: '/api/templates' },
             { text: 'Email Sending', link: '/api/sending' },
             { text: 'Campaigns', link: '/api/campaigns' },
+            { text: 'Analytics', link: '/api/analytics' },
             { text: 'Suppressions', link: '/api/suppressions' },
             { text: 'Bounces', link: '/api/bounces' },
             { text: 'Webhooks', link: '/api/webhooks' },
@@ -115,7 +119,8 @@ export default defineConfig({
         {
           text: 'Pro API',
           items: [
-            { text: 'Analytics', link: '/api/analytics' },
+            { text: 'Deliverability', link: '/api/deliverability' },
+            { text: 'Reports', link: '/api/reports' },
             { text: 'Audit Log', link: '/api/audit-log' },
           ],
         },

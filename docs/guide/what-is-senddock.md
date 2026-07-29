@@ -37,7 +37,9 @@ SendDock is an open-source, self-hostable email marketing and transactional emai
 | Scheduled campaigns | ✓ | ✓ | ✓ |
 | Single-user workspace | ✓ | ✓ | ✓ |
 | Basic stats endpoint | ✓ | ✓ | ✓ |
-| [Pro Analytics dashboard](./analytics) (funnel, opens-over-time, top templates, top links, trend pills, segment filter) | — | ✓ | ✓ |
+| [Analytics dashboard](./analytics) (Overview, Campaigns, Audience, Engagement tabs) | ✓ | ✓ | ✓ |
+| [Deliverability](./deliverability) (domain health, per-provider rates, spam rate) | — | ✓ | ✓ |
+| [Report builder](./reports) (pivots, segment filters, saved reports, CSV) | — | ✓ | ✓ |
 | [Audit log](./audit-log) | — | ✓ | ✓ |
 | [Multi-member workspaces](./workspaces) | — | — | ✓ |
 | Roles: `owner`, `admin`, `developer`, `viewer` | — | — | ✓ |
@@ -51,7 +53,7 @@ SendDock is an open-source, self-hostable email marketing and transactional emai
 | Pro | $9 | $90 |
 | Team | $29 | $290 |
 
-The license is checked against Lemon Squeezy on startup and re-validated periodically. With an empty `SENDDOCK_LICENSE_KEY` the binary stays in Community mode and Pro/Team endpoints return `402 Payment Required` until a valid key is set. See [Configuration](../self-hosting/configuration).
+On self-hosted you activate the license from the dashboard under **Instance → License** ([Instance settings](./instance-settings#pro-license)); it's stored in the database and validated against Lemon Squeezy, re-checked periodically. Without a key the binary stays in Community mode and Pro/Team endpoints return `402 Payment Required` until one is activated. See [Configuration](../self-hosting/configuration).
 
 ## License
 

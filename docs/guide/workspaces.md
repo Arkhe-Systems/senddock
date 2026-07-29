@@ -77,9 +77,16 @@ Owners can change any member's role from the inline `Role` select in the members
 
 Removing a member revokes their access to every project in the workspace. The audit log records the action with the workspace ID and the affected user ID under `workspace.member_removed`.
 
-## Deleting a workspace
+## Renaming & deleting a workspace
 
-Open the workspace, hit `Manage members → Rename` to change name, or use the API to `DELETE /workspaces/{id}`. SendDock refuses if the workspace still owns any project — move or delete the projects first. This guard exists to make a workspace deletion non-destructive: data only goes away when you explicitly delete the projects yourself.
+Open the workspace from the dashboard's workspace switcher and choose **Manage workspace**. From that screen the **owner** can:
+
+- **Rename** the workspace.
+- **Delete** it — the red `Delete` button next to Rename. It's owner-only and hidden when it's your last workspace (so you're never left with none). A confirm dialog asks you to confirm before it goes.
+
+SendDock **refuses to delete a workspace that still owns any project** — move or delete the projects first. This guard makes deletion non-destructive: data only goes away when you explicitly delete the projects yourself. The deletion is recorded in the [audit log](/guide/audit-log) as `workspace.delete`.
+
+The same operation is available on the API as `DELETE /workspaces/{id}` with the identical guard.
 
 ## Plans & licensing
 
@@ -87,7 +94,7 @@ The license check is deployment-wide, not per-workspace. SendDock has two paid t
 
 | Plan | What it unlocks |
 |---|---|
-| **Pro** | Analytics dashboard, Audit log. |
+| **Pro** | Deliverability, Report builder, Audit log. (The Analytics dashboard is free in Core.) |
 | **Team** | Everything in Pro **plus** multi-member workspaces, role management and admin user creation. |
 
 Without any license, member management endpoints return `402 Payment Required` and the Members page renders a paywall card. The single-user flow stays free: you can still have multiple workspaces, organize your projects, and use Core features unchanged.
