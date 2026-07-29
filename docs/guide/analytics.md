@@ -59,6 +59,10 @@ If you don't see numbers you expect:
 2. Image proxies (Gmail's, Outlook's image cache) often pre-fetch the open pixel once on receipt, which inflates opens slightly. SendDock counts only the **first** open per email, so the inflation is bounded. The Engagement heatmap is built from **clicks**, not opens, precisely because clicks are far less affected by this.
 3. Click events are recorded only for links that go through the tracked redirect (`/c/{logId}/{...}`). Newsletters built in the Email Editor get this automatically; for raw HTML sends, see [Email Sending → Click tracking](/guide/sending#click-tracking).
 
+## Exporting
+
+The **Campaigns** tab has an **Export CSV** button that downloads the per-campaign breakdown for the current date range — handy for a spreadsheet or a report. It respects the window and segment filter you have selected.
+
 ## API
 
-Each tab is backed by its own endpoint under `…/analytics/…` (overview, campaigns, audience, engagement), plus a CSV export. See the [Analytics API reference](/api/analytics) for the full payload schemas.
+Each tab is backed by its own endpoint under `…/analytics/…` (overview, campaigns, audience, engagement), plus the CSV export above. See the [Analytics API reference](/api/analytics) for the full payload schemas.

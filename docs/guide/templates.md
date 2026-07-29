@@ -97,6 +97,13 @@ See [Email Sending → Rich-text variables](/guide/sending#rich-text-variables) 
 
 The subject line is **not** escaped (subject is plain text, not HTML), but it is also not allowed to introduce headers — newlines are stripped to prevent SMTP header injection.
 
+## Managing templates
+
+Back on the templates list, each row has two quick actions:
+
+- **Copy ID** — copies the template's UUID to your clipboard. You need it when sending through the [API](/api/sending) (the `template_id` field) or referencing the template from your own code.
+- **Delete** — removes the template. To avoid accidents you're asked to **type the template's name** to confirm. Deleting a template does not affect emails already sent with it; it only stops you from selecting it in future sends.
+
 ## Template library
 
 Beyond writing templates from scratch, SendDock ships with a community-maintained starter library. Click **★ Browse library** on the Templates page to open it.

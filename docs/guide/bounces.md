@@ -42,13 +42,13 @@ The endpoint accepts:
 - **Generic JSON** — `{"recipient": "user@example.com", "reason": "..."}` (or an array of those).
 - **Mailgun event payloads** — sent verbatim from a Mailgun event-data webhook with `event=permanent_failure` or `event=failed`.
 
-Configure the destination in your provider's UI to point to that URL. The bounce token is shown in the project's **Settings → Bounces** tab and can be rotated from the same screen.
+Configure the destination in your provider's UI to point to that URL. The bounce token is shown in the project's **Settings** page (Bounce webhook section) and can be rotated from the same screen.
 
 ### 3. IMAP poller
 
 For SMTP providers without webhooks (your own VPS, an old shared host), SendDock can scan a bounce mailbox over IMAP every 5 minutes.
 
-In **Settings → Bounces**, configure:
+In the project's **Settings** page, the **Bounce mailbox (IMAP)** section lets you configure:
 
 - IMAP host + port (TLS only)
 - Mailbox username + password

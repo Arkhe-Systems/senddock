@@ -31,11 +31,18 @@ In **Settings** you can:
 
 - Edit project name and description
 - Copy the project ID (for API usage)
-- Manage API keys
+- Manage [API keys](./api-keys) and [custom fields](./subscribers#custom-fields)
 - Configure the [bounce webhook](./bounces#2-public-webhook-endpoint) URL and IMAP poller
-- Delete the project (requires typing the project name to confirm)
+- Delete the project from the **danger zone** (requires typing the project name to confirm)
 
 Each project also gets its own tabs in the sidebar for [Suppressions](./suppressions), [Webhooks](./webhooks) and [Audit Log](./audit-log) (Pro) — they're scoped to the current project, not the workspace.
+
+### Deleting a project
+
+There are two ways to delete a project, both of which ask you to **type the project's name** to confirm (it's irreversible — subscribers, templates, logs and campaigns all go with it):
+
+- From the **dashboard**, hover a project card and click **Delete**.
+- From inside the project, **Settings → danger zone → Delete project**.
 
 ## API
 
