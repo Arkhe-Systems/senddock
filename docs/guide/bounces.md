@@ -2,6 +2,10 @@
 
 A **bounce** is when an email cannot be delivered. SendDock detects bounces three different ways and feeds all of them into the same project [suppression list](./suppressions), so a recipient that hard-bounces once stops receiving sends — without you having to do anything.
 
+![Email logs filtered to bounced messages](/screenshots/bounces.png)
+
+Bounced messages show up in the [email logs](./sending#email-logs) with a `bounced` status — filter the Logs view to **Bounced** to see them all.
+
 ## What gets classified as a bounce
 
 | Bounce type | What happens |
