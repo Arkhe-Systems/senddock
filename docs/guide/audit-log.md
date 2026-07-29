@@ -2,6 +2,8 @@
 
 The audit log records every sensitive action taken on a project — who did it, when, against what, and from which IP. Available on Pro and Team. Without a Pro license the endpoint and UI tab are hidden, and the underlying actions still happen, they just aren't recorded.
 
+![The audit log with filterable actions](/screenshots/audit-log.png)
+
 ## What gets recorded
 
 | Category | Actions |

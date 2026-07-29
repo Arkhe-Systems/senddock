@@ -2,6 +2,8 @@
 
 SendDock is an open-source, self-hostable email marketing and transactional email platform. You bring your own SMTP provider (Mailgun, SES, Postmark, Resend, your VPS, anything that speaks SMTP), point SendDock at it, and run unlimited sends from your own infrastructure with no per-email markup.
 
+![A project dashboard in SendDock](/screenshots/hero.png)
+
 ## The model
 
 - **Open core, AGPL-3.0.** The Community edition is fully usable without a license.

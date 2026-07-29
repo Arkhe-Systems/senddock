@@ -10,9 +10,13 @@ In a single-user (Free or Pro) install, you have one workspace with one or more 
 
 From the dashboard, click **+ New Project** and provide a name and optional description.
 
+![The New Project dialog](/screenshots/new-project-modal.png)
+
 ## Project Overview
 
-Each project dashboard shows:
+Open a project and you land on its **Overview** dashboard:
+
+![A project Overview with send totals and recent activity](/screenshots/project-overview.png)
 
 - **Total Emails** — total emails sent from this project
 - **Sent** — successfully delivered emails
@@ -26,6 +30,8 @@ Each project needs its own SMTP configuration to send emails. Go to **SMTP Setti
 See [SMTP Setup](/guide/smtp) for details.
 
 ## Project Settings
+
+![The project settings page](/screenshots/api-keys.png)
 
 In **Settings** you can:
 

@@ -2,6 +2,8 @@
 
 A workspace is a container for projects with its own list of members. Every project belongs to exactly one workspace, and authorization is scoped to membership: anyone in a workspace can use any project inside it, with the same permissions as anyone else in the same workspace.
 
+![The workspace management screen with members and roles](/screenshots/workspace-members.png)
+
 ## Why workspaces
 
 Before workspaces, every project was tied to its creator's user account and only that user could access it. That made teamwork impossible without sharing logins, and lumping unrelated projects under one user mixed transactional and marketing concerns — same suppression list, same logs, same rate limits.

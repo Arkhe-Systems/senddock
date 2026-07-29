@@ -2,6 +2,8 @@
 
 Per-user settings live on the **Account** and **Billing** pages, reachable from the avatar menu at the bottom of the sidebar. They cover password changes, two-factor authentication, recovery codes, and your license / plan.
 
+![The account and security page](/screenshots/account.png)
+
 ## Account page (`/account`)
 
 Open the avatar menu → **Account**. The page is split into three cards:
