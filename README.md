@@ -2,7 +2,7 @@
 
 <img src="docs/public/screenshots/hero.png" alt="SendDock" width="720">
 
-**The Mailchimp alternative that doesn't charge you per send.**
+**Email marketing you actually own.**
 
 Bring your own SMTP, own your subscriber data, send to unlimited contacts. Self-host in 60 seconds with Docker, or use the [managed cloud](https://senddock.dev). Open source under AGPL-3.0 — core-team-only development.
 
@@ -228,14 +228,6 @@ Prerequisites: Go 1.25+, Node 20+, Docker, [goose](https://github.com/pressly/go
 **Pull requests with code: not accepted on the official repository.** The reason is straightforward — SendDock has a paid Pro tier, and we are not comfortable monetizing volunteer code. The AGPL gives you full freedom to fork, modify, and run your own version with whatever changes you need.
 
 Questions, ideas, or want to show what you've built with SendDock? Open a [GitHub Discussion](https://github.com/arkhe-systems/senddock/discussions) or email **hello@senddock.dev**.
-
----
-
-## Star history
-
-If SendDock saves you money or pain, a star helps other people find the project.
-
-[![Star History Chart](https://api.star-history.com/svg?repos=arkhe-systems/senddock&type=Date)](https://star-history.com/#arkhe-systems/senddock&Date)
 
 ---
 
