@@ -2,8 +2,8 @@
 layout: home
 hero:
   name: SendDock
-  text: Open-source email marketing you own.
-  tagline: Self-hostable, API-first email platform built with Go and Vue.
+  text: One install. Every client, isolated.
+  tagline: Self-hosted, multi-tenant email marketing — each project its own sending identity (SMTP, domain, subscribers, analytics), all from one install you own. API-first, built with Go and Vue.
   actions:
     - theme: brand
       text: Install
@@ -15,6 +15,8 @@ hero:
       text: API Reference
       link: /api/authentication
 features:
+  - title: Isolated projects
+    details: Every project is its own sending identity — SMTP, domain, subscribers, templates, API keys and analytics — with no data bleed. Run every client, brand or app from one install.
   - title: Self-Hostable
     details: One command to deploy with Docker. Your data never leaves your servers.
   - title: API-First

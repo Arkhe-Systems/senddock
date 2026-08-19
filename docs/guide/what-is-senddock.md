@@ -1,6 +1,6 @@
 # What is SendDock
 
-SendDock is an open-source, self-hostable email marketing and transactional email platform. You bring your own SMTP provider (Mailgun, SES, Postmark, Resend, your VPS, anything that speaks SMTP), point SendDock at it, and run unlimited sends from your own infrastructure with no per-email markup.
+SendDock is an open-source, self-hosted email marketing and transactional platform built around **fully isolated projects**. Each project is its own sending identity — its own SMTP, sending domain, subscribers, templates, API keys and analytics — so one install runs every client, brand or app at once, with no data bleed between them. You bring your own SMTP provider (Mailgun, SES, Postmark, your VPS — anything that speaks SMTP), point SendDock at it, and run unlimited sends from your own infrastructure with no per-contact or per-email markup.
 
 ![A project dashboard in SendDock](/screenshots/hero.png)
 
