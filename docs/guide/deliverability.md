@@ -2,6 +2,10 @@
 
 Deliverability is a Pro tab inside **Project → Analytics**. Where the free tabs tell you *what happened* to your sends, Deliverability tells you *why* — whether your domain is set up to be trusted, and how each mailbox provider is actually treating your mail.
 
+::: tip Complaint handling is Core, not gated
+Ingesting spam complaints (the FBL/complaint webhook `POST /webhooks/complaints/{projectId}`), **auto-suppressing** the complainer, and the **complaint rate** shown in [Analytics](/guide/analytics) are all part of **Core** — reputation-critical work is never behind the license. This Pro tab layers the *per-provider* breakdown and domain-health analysis on top.
+:::
+
 ![Deliverability tab](/screenshots/deliverability.png)
 
 It has two halves: **domain health** and a **per-provider breakdown**.
