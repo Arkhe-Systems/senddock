@@ -22,6 +22,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/metrics"
 	"github.com/arkhe-systems/senddock/internal/richtext"
 	"github.com/arkhe-systems/senddock/internal/webhooks"
 	"github.com/google/uuid"
@@ -718,10 +719,13 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject, broadcastID)
 	body = s.injectTrackingPixel(body, logID)
 	body = s.rewriteLinksForTracking(body, logID)
+	metrics.EmailAttempt()
 	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
 
 	var bounce *BounceError
 	if errors.As(sendErr, &bounce) {
+		metrics.EmailFailed("bounce")
+		metrics.SMTPError(sendErr)
 		s.markLogStatus(ctx, projectID, logID, "bounced", sendErr)
 		if s.suppressions != nil {
 			source := fmt.Sprintf("smtp %d during rcpt: %s", bounce.Code, bounce.Message)
@@ -732,9 +736,12 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 	}
 
 	if sendErr != nil {
+		metrics.EmailFailed("error")
+		metrics.SMTPError(sendErr)
 		s.markLogFailed(ctx, projectID, logID, sendErr)
 		s.dispatchEmail(ctx, "email.failed", projectID, logID, to, subject, sendErr.Error())
 	} else {
+		metrics.EmailSent()
 		s.dispatchEmail(ctx, "email.sent", projectID, logID, to, subject, "")
 	}
 	return sendErr

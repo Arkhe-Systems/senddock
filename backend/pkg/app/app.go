@@ -18,6 +18,7 @@ import (
 	"github.com/arkhe-systems/senddock/internal/cache"
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/internal/handler"
+	"github.com/arkhe-systems/senddock/internal/metrics"
 	"github.com/arkhe-systems/senddock/internal/middleware"
 	"github.com/arkhe-systems/senddock/internal/service"
 	"github.com/arkhe-systems/senddock/internal/settings"
@@ -125,6 +126,7 @@ func New(cfg config.Config) (*App, error) {
 	a.suppressions = suppressionService
 	a.audit = service.NewAuditService(queries)
 	a.bouncePoller = service.NewBounceIMAPPoller(queries, a.conn, suppressionService, cfg.JWTSecret)
+	metrics.RegisterQueueDepth(a.conn)
 	a.watchtower = service.NewWatchtowerClient(cfg.WatchtowerURL, cfg.WatchtowerToken)
 	if a.watchtower != nil {
 		probeCtx, cancelProbe := context.WithTimeout(context.Background(), 5*time.Second)
@@ -285,6 +287,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	rootMux := http.NewServeMux()
 	rootMux.HandleFunc("GET /health", a.healthHandler)
+	rootMux.Handle("GET /metrics", metrics.Handler())
 	rootMux.Handle("/", wrapped)
 
 	a.server = &http.Server{

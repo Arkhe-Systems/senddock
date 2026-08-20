@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/metrics"
 	"github.com/arkhe-systems/senddock/internal/service"
 	"github.com/google/uuid"
 )
@@ -88,6 +89,8 @@ func (h *BounceWebhookHandler) Receive(w http.ResponseWriter, r *http.Request) {
 		ToEmail:   email,
 		Error:     sql.NullString{String: "bounce reported via webhook: " + reason, Valid: true},
 	})
+
+	metrics.BounceIngest("webhook")
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted", "email": email})

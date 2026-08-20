@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/metrics"
 	"github.com/google/uuid"
 )
 
@@ -145,6 +146,7 @@ func (s *Service) deliver(ctx context.Context, delivery db.WebhookDelivery) {
 	statusCode, sendErr := s.send(ctx, hook, delivery.Payload)
 
 	if sendErr == nil && statusCode >= 200 && statusCode < 300 {
+		metrics.WebhookDelivery("success")
 		_ = s.queries.MarkDeliverySuccess(ctx, db.MarkDeliverySuccessParams{
 			ID:             delivery.ID,
 			LastStatusCode: sql.NullInt32{Int32: int32(statusCode), Valid: true},
@@ -169,6 +171,7 @@ func (s *Service) deliver(ctx context.Context, delivery db.WebhookDelivery) {
 	}
 	nextAt := time.Now().Add(backoff[idx])
 
+	metrics.WebhookDelivery("retry")
 	_ = s.queries.MarkDeliveryRetry(ctx, db.MarkDeliveryRetryParams{
 		ID:             delivery.ID,
 		LastStatusCode: sql.NullInt32{Int32: int32(statusCode), Valid: statusCode > 0},
@@ -178,6 +181,7 @@ func (s *Service) deliver(ctx context.Context, delivery db.WebhookDelivery) {
 }
 
 func (s *Service) markFailed(ctx context.Context, id uuid.UUID, statusCode int, errMsg string) {
+	metrics.WebhookDelivery("failed")
 	_ = s.queries.MarkDeliveryFailed(ctx, db.MarkDeliveryFailedParams{
 		ID:             id,
 		LastStatusCode: sql.NullInt32{Int32: int32(statusCode), Valid: statusCode > 0},
