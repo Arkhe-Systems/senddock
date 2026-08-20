@@ -124,7 +124,7 @@ func New(cfg config.Config) (*App, error) {
 	a.broadcastWorker = service.NewBroadcastWorker(queries, emailService)
 	a.suppressions = suppressionService
 	a.audit = service.NewAuditService(queries)
-	a.bouncePoller = service.NewBounceIMAPPoller(queries, suppressionService, cfg.JWTSecret)
+	a.bouncePoller = service.NewBounceIMAPPoller(queries, a.conn, suppressionService, cfg.JWTSecret)
 	a.watchtower = service.NewWatchtowerClient(cfg.WatchtowerURL, cfg.WatchtowerToken)
 	if a.watchtower != nil {
 		probeCtx, cancelProbe := context.WithTimeout(context.Background(), 5*time.Second)

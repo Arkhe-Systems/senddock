@@ -11,20 +11,23 @@ import (
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/leader"
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 )
 
 type BounceIMAPPoller struct {
 	queries      *db.Queries
+	db           *sql.DB
 	suppressions *SuppressionService
 	encSecret    string
 	interval     time.Duration
 }
 
-func NewBounceIMAPPoller(queries *db.Queries, suppressions *SuppressionService, encSecret string) *BounceIMAPPoller {
+func NewBounceIMAPPoller(queries *db.Queries, conn *sql.DB, suppressions *SuppressionService, encSecret string) *BounceIMAPPoller {
 	return &BounceIMAPPoller{
 		queries:      queries,
+		db:           conn,
 		suppressions: suppressions,
 		encSecret:    encSecret,
 		interval:     5 * time.Minute,
@@ -51,6 +54,24 @@ func (p *BounceIMAPPoller) run(ctx context.Context) {
 }
 
 func (p *BounceIMAPPoller) tick(ctx context.Context) {
+	if p.db == nil {
+		p.poll(ctx)
+		return
+	}
+	ran, err := leader.TryRun(ctx, p.db, leader.KeyBounceIMAPPoller, func(ctx context.Context) error {
+		p.poll(ctx)
+		return nil
+	})
+	if err != nil {
+		log.Printf("bounce imap poller: advisory lock failed: %v", err)
+		return
+	}
+	if !ran {
+		return
+	}
+}
+
+func (p *BounceIMAPPoller) poll(ctx context.Context) {
 	projects, err := p.queries.ListProjectsWithBounceIMAP(ctx)
 	if err != nil {
 		log.Printf("bounce imap poller: list projects failed: %v", err)
