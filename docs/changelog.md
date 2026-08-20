@@ -24,7 +24,7 @@ Production hardening. Making SendDock honest to run at scale, keep, and observe.
 
 ### Added
 
-- **Safe multi-replica operation.** The IMAP bounce poller is now **leader-elected** with a Postgres session advisory lock, so only one replica polls each mailbox at a time. The scheduled-campaign worker, broadcast queue and webhook delivery were already coordinated (atomic claim / `FOR UPDATE SKIP LOCKED`) — the poller was the last unguarded loop. Running more than one instance no longer double-processes bounces.
+- **Safe multi-replica operation.** The IMAP bounce poller is now **leader-elected** with a Postgres session advisory lock, so only one replica polls each mailbox at a time. The scheduled-campaign worker, broadcast queue and webhook delivery were already coordinated (atomic claim / `FOR UPDATE SKIP LOCKED`) — the poller was the last unguarded loop. Running more than one instance no longer double-processes bounces. The container entrypoint also **retries migrations** instead of dying when two replicas race `goose up` against the same database.
 - **Observability for the send pipeline.** Logs are now **structured JSON** (`slog`), and a Prometheus **`GET /metrics`** endpoint exposes send attempts/sends/failures, SMTP errors by 4xx/5xx class, broadcast queue depth, webhook delivery outcomes, bounce/complaint ingest and poller tick duration. `/metrics` is unauthenticated by convention — scope it at the network layer. See [Monitoring](./self-hosting/monitoring).
 
 ### Docs
