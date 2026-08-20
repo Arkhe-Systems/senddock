@@ -16,7 +16,11 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 ## [Unreleased]
 
-The **0.8.1** line — production hardening. Making SendDock honest to run at scale, keep, and observe.
+_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+
+## [0.8.1] — 2026-08-20
+
+Production hardening. Making SendDock honest to run at scale, keep, and observe.
 
 ### Added
 

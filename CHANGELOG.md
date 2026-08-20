@@ -9,7 +9,11 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 ## [Unreleased]
 
-The **0.8.1** line — production hardening. Making SendDock honest to run at scale, keep, and observe.
+_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+
+## [0.8.1] — 2026-08-20
+
+Production hardening. Making SendDock honest to run at scale, keep, and observe.
 
 ### Added
 
