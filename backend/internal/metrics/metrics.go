@@ -2,12 +2,14 @@ package metrics
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"math"
 	"net/http"
 	"net/textproto"
+	"sync"
 	"time"
 
+	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -66,9 +68,6 @@ func ComplaintIngest() { complaintIngest.Inc() }
 func ObservePollerTick(d time.Duration) { pollerTickDuration.Observe(d.Seconds()) }
 
 func smtpClass(err error) string {
-	if err == nil {
-		return "none"
-	}
 	var protoErr *textproto.Error
 	if errors.As(err, &protoErr) {
 		switch {
@@ -81,18 +80,22 @@ func smtpClass(err error) string {
 	return "other"
 }
 
-func RegisterQueueDepth(conn *sql.DB) {
-	promauto.NewGaugeFunc(prometheus.GaugeOpts{
-		Name: "senddock_broadcast_queue_depth",
-		Help: "Broadcast jobs waiting or in flight (pending, retry, sending).",
-	}, func() float64 {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		var n float64
-		if err := conn.QueryRowContext(ctx, "SELECT count(*) FROM broadcast_jobs WHERE status IN ('pending','retry','sending')").Scan(&n); err != nil {
-			return 0
-		}
-		return n
+var queueDepthOnce sync.Once
+
+func RegisterQueueDepth(queries *db.Queries) {
+	queueDepthOnce.Do(func() {
+		promauto.NewGaugeFunc(prometheus.GaugeOpts{
+			Name: "senddock_broadcast_queue_depth",
+			Help: "Broadcast jobs waiting or in flight (pending, retry, sending).",
+		}, func() float64 {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			n, err := queries.CountActiveBroadcastJobs(ctx)
+			if err != nil {
+				return math.NaN()
+			}
+			return float64(n)
+		})
 	})
 }
 

@@ -32,10 +32,10 @@ If you're weighing self-hosted email, listmonk is the real alternative — and i
 | | listmonk | **SendDock** |
 |---|---|---|
 | Maturity | Years in production, proven at scale | Newer — launched 2026 |
-| Footprint | ~57 MB RAM, single binary | Go + Postgres + Redis |
+| Footprint | Single binary + Postgres, ~57 MB RAM | Go binary + Postgres + Redis |
 | Community & external PRs | Open contributions | Core-team development |
 | Multi-project isolation | Lists in one instance | **Per-project SMTP, domain, subscribers, keys & stats** |
-| Durable, resumable queue | — | **Per-recipient, resumes after a restart** |
+| Durable, resumable queue | Batch-level pause & resume | **Per-recipient, resumes after a restart** |
 | Custom fields | Untyped attributes | **Typed, validated on write** |
 | Signed webhooks | — | **HMAC-signed, in Core** |
 | UI & templating | Functional admin, code templates | **Modern dashboard + visual builder** |

@@ -11,7 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"log"
+	"log/slog"
 	"net"
 	"net/smtp"
 	"net/textproto"
@@ -116,10 +116,15 @@ var ErrRecipientSuppressed = errors.New("recipient is on the project suppression
 type BounceError struct {
 	Code    int
 	Message string
+	err     error
 }
 
 func (e *BounceError) Error() string {
 	return fmt.Sprintf("smtp bounce %d: %s", e.Code, e.Message)
+}
+
+func (e *BounceError) Unwrap() error {
+	return e.err
 }
 
 func classifyBounce(err error) *BounceError {
@@ -133,7 +138,7 @@ func classifyBounce(err error) *BounceError {
 	if protoErr.Code < 500 || protoErr.Code >= 600 {
 		return nil
 	}
-	return &BounceError{Code: protoErr.Code, Message: protoErr.Msg}
+	return &BounceError{Code: protoErr.Code, Message: protoErr.Msg, err: protoErr}
 }
 
 func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject string, broadcastID uuid.NullUUID) {
@@ -318,7 +323,7 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		return SendResult{}, fmt.Errorf("enqueue broadcast jobs: %w", err)
 	}
 
-	log.Printf("Broadcast %s enqueued: %d jobs for project %s", broadcast.ID, total, pid.String())
+	slog.Info("broadcast enqueued", "broadcast_id", broadcast.ID, "jobs", total, "project_id", pid.String())
 	bid := broadcast.ID
 	return SendResult{Sent: total, BroadcastID: &bid}, nil
 }
@@ -721,11 +726,13 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 	body = s.rewriteLinksForTracking(body, logID)
 	metrics.EmailAttempt()
 	sendErr := s.sendSMTP(project, to, subject, body, unsubscribeURL)
+	if sendErr != nil {
+		metrics.SMTPError(sendErr)
+	}
 
 	var bounce *BounceError
 	if errors.As(sendErr, &bounce) {
 		metrics.EmailFailed("bounce")
-		metrics.SMTPError(sendErr)
 		s.markLogStatus(ctx, projectID, logID, "bounced", sendErr)
 		if s.suppressions != nil {
 			source := fmt.Sprintf("smtp %d during rcpt: %s", bounce.Code, bounce.Message)
@@ -737,7 +744,6 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 
 	if sendErr != nil {
 		metrics.EmailFailed("error")
-		metrics.SMTPError(sendErr)
 		s.markLogFailed(ctx, projectID, logID, sendErr)
 		s.dispatchEmail(ctx, "email.failed", projectID, logID, to, subject, sendErr.Error())
 	} else {

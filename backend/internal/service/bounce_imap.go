@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"log"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -38,7 +37,7 @@ func NewBounceIMAPPoller(queries *db.Queries, conn *sql.DB, suppressions *Suppre
 
 func (p *BounceIMAPPoller) Start(ctx context.Context) {
 	go p.run(ctx)
-	log.Println("bounce imap poller: started")
+	slog.Info("bounce imap poller: started")
 }
 
 func (p *BounceIMAPPoller) run(ctx context.Context) {
@@ -56,20 +55,8 @@ func (p *BounceIMAPPoller) run(ctx context.Context) {
 }
 
 func (p *BounceIMAPPoller) tick(ctx context.Context) {
-	if p.db == nil {
-		p.poll(ctx)
-		return
-	}
-	ran, err := leader.TryRun(ctx, p.db, leader.KeyBounceIMAPPoller, func(ctx context.Context) error {
-		p.poll(ctx)
-		return nil
-	})
-	if err != nil {
-		log.Printf("bounce imap poller: advisory lock failed: %v", err)
-		return
-	}
-	if !ran {
-		return
+	if _, err := leader.TryRun(ctx, p.db, leader.KeyBounceIMAPPoller, p.poll); err != nil {
+		slog.Error("bounce imap poller: advisory lock failed", "error", err)
 	}
 }
 
@@ -79,12 +66,12 @@ func (p *BounceIMAPPoller) poll(ctx context.Context) {
 
 	projects, err := p.queries.ListProjectsWithBounceIMAP(ctx)
 	if err != nil {
-		log.Printf("bounce imap poller: list projects failed: %v", err)
+		slog.Error("bounce imap poller: list projects failed", "error", err)
 		return
 	}
 	for _, project := range projects {
 		if err := p.pollProject(ctx, project); err != nil {
-			log.Printf("bounce imap poller: project %s failed: %v", project.ID, err)
+			slog.Error("bounce imap poller: project poll failed", "project_id", project.ID, "error", err)
 		}
 	}
 }

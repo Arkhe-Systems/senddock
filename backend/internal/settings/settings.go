@@ -3,7 +3,7 @@ package settings
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/url"
 	"strings"
 	"sync"
@@ -100,7 +100,7 @@ func (p *Provider) Load(ctx context.Context, opts LoadOptions) error {
 			return err
 		}
 	case !opts.EnvWins && row.PublicUrl == "" && envPublicURL != "":
-		log.Println("DEPRECATION: PUBLIC_URL is now configured from the dashboard under Instance Settings. The value in your environment has been imported and support for it will be removed in v0.9.")
+		slog.Warn("DEPRECATION: PUBLIC_URL is now configured from the dashboard under Instance Settings. The value in your environment has been imported and support for it will be removed in v0.9.")
 		row, err = p.queries.SetInstancePublicURL(ctx, envPublicURL)
 		if err != nil {
 			return err
@@ -110,7 +110,7 @@ func (p *Provider) Load(ctx context.Context, opts LoadOptions) error {
 	envLicenseKey := strings.TrimSpace(opts.EnvLicenseKey)
 
 	if row.LicenseKeyEncrypted == "" && envLicenseKey != "" && p.cipher != nil {
-		log.Println("DEPRECATION: SENDDOCK_LICENSE_KEY is now configured from the dashboard under Instance Settings. The value in your environment has been imported and support for it will be removed in v0.9.")
+		slog.Warn("DEPRECATION: SENDDOCK_LICENSE_KEY is now configured from the dashboard under Instance Settings. The value in your environment has been imported and support for it will be removed in v0.9.")
 		sealed, err := p.cipher.Encrypt(envLicenseKey)
 		if err != nil {
 			return err
@@ -130,7 +130,7 @@ func (p *Provider) store(row db.InstanceSetting) {
 	if row.LicenseKeyEncrypted != "" && p.cipher != nil {
 		decrypted, err := p.cipher.Decrypt(row.LicenseKeyEncrypted)
 		if err != nil {
-			log.Printf("settings: stored license key could not be decrypted, treating it as unset: %v", err)
+			slog.Warn("settings: stored license key could not be decrypted, treating it as unset", "error", err)
 		} else {
 			key = decrypted
 		}

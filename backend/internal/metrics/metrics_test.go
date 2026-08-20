@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"net/textproto"
 	"strings"
@@ -48,10 +49,10 @@ func TestSMTPClass(t *testing.T) {
 		err  error
 		want string
 	}{
-		"nil":   {nil, "none"},
-		"5xx":   {&textproto.Error{Code: 550}, "5xx"},
-		"4xx":   {&textproto.Error{Code: 450}, "4xx"},
-		"plain": {errors.New("dial timeout"), "other"},
+		"5xx":     {&textproto.Error{Code: 550}, "5xx"},
+		"4xx":     {&textproto.Error{Code: 450}, "4xx"},
+		"wrapped": {fmt.Errorf("smtp rcpt to failed: %w", &textproto.Error{Code: 550, Msg: "user unknown"}), "5xx"},
+		"plain":   {errors.New("dial timeout"), "other"},
 	}
 	for name, c := range cases {
 		if got := smtpClass(c.err); got != c.want {

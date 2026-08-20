@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -60,7 +60,7 @@ func (s *Service) Enqueue(ctx context.Context, event Event) {
 		EventType: event.Type,
 	})
 	if err != nil {
-		log.Printf("webhooks: list active hooks failed: %v", err)
+		slog.Error("webhooks: list active hooks failed", "error", err)
 		return
 	}
 	if len(hooks) == 0 {
@@ -75,7 +75,7 @@ func (s *Service) Enqueue(ctx context.Context, event Event) {
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("webhooks: marshal payload failed: %v", err)
+		slog.Error("webhooks: marshal payload failed", "error", err)
 		return
 	}
 
@@ -86,14 +86,14 @@ func (s *Service) Enqueue(ctx context.Context, event Event) {
 			Payload:   body,
 		})
 		if err != nil {
-			log.Printf("webhooks: create delivery for %s failed: %v", h.ID, err)
+			slog.Error("webhooks: create delivery failed", "webhook_id", h.ID, "error", err)
 		}
 	}
 }
 
 func (s *Service) Start(ctx context.Context) {
 	go s.run(ctx)
-	log.Println("webhooks: dispatcher started")
+	slog.Info("webhooks: dispatcher started")
 }
 
 func (s *Service) run(ctx context.Context) {
@@ -113,7 +113,7 @@ func (s *Service) run(ctx context.Context) {
 func (s *Service) tick(ctx context.Context) {
 	deliveries, err := s.queries.ClaimPendingDeliveries(ctx, claimBatchSize)
 	if err != nil {
-		log.Printf("webhooks: claim pending failed: %v", err)
+		slog.Error("webhooks: claim pending failed", "error", err)
 		return
 	}
 	if len(deliveries) == 0 {

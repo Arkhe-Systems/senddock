@@ -60,6 +60,10 @@ SELECT COUNT(*) FROM broadcast_jobs
 WHERE broadcast_id = $1
   AND status IN ('pending', 'retry', 'sending');
 
+-- name: CountActiveBroadcastJobs :one
+SELECT COUNT(*) FROM broadcast_jobs
+WHERE status IN ('pending', 'retry', 'sending');
+
 -- name: ResetStuckSendingJobs :execrows
 UPDATE broadcast_jobs SET
     status = 'retry',

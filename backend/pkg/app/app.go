@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -83,7 +83,7 @@ func New(cfg config.Config) (*App, error) {
 		conn.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
-	log.Println("Connected to PostgreSQL")
+	slog.Info("connected to postgresql")
 
 	queries := db.New(conn)
 	redisCache := cache.NewRedis(cfg.RedisUrl)
@@ -126,21 +126,21 @@ func New(cfg config.Config) (*App, error) {
 	a.suppressions = suppressionService
 	a.audit = service.NewAuditService(queries)
 	a.bouncePoller = service.NewBounceIMAPPoller(queries, a.conn, suppressionService, cfg.JWTSecret)
-	metrics.RegisterQueueDepth(a.conn)
+	metrics.RegisterQueueDepth(queries)
 	a.watchtower = service.NewWatchtowerClient(cfg.WatchtowerURL, cfg.WatchtowerToken)
 	if a.watchtower != nil {
 		probeCtx, cancelProbe := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := a.watchtower.Ping(probeCtx); err != nil {
-			log.Printf("watchtower: probe failed (will retry on request): %v", err)
+			slog.Warn("watchtower probe failed, will retry on request", "error", err)
 		} else {
-			log.Printf("watchtower: reachable at %s", cfg.WatchtowerURL)
+			slog.Info("watchtower reachable", "url", cfg.WatchtowerURL)
 		}
 		cancelProbe()
 	}
 
 	recoveryCtx, cancelRecovery := context.WithTimeout(context.Background(), 5*time.Second)
 	if err := emailService.RecoverInProgressBroadcasts(recoveryCtx); err != nil {
-		log.Printf("broadcast recovery: %v", err)
+		slog.Error("broadcast recovery failed", "error", err)
 	}
 	cancelRecovery()
 
@@ -296,11 +296,12 @@ func (a *App) Run(ctx context.Context) error {
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
+		ErrorLog:     slog.NewLogLogger(slog.Default().Handler(), slog.LevelError),
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		log.Println("Server running:" + a.cfg.Port)
+		slog.Info("server running", "port", a.cfg.Port)
 		err := a.server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
@@ -311,7 +312,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		log.Println("Shutdown signal received, draining...")
+		slog.Info("shutdown signal received, draining")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		return a.server.Shutdown(shutdownCtx)
@@ -337,7 +338,7 @@ func (a *App) startDBHealthMonitor(ctx context.Context) {
 	if err := a.conn.PingContext(pingCtx); err == nil {
 		a.dbHealthLastSuccess.Store(time.Now().Unix())
 	} else {
-		log.Printf("startup db ping failed: %v", err)
+		slog.Error("startup db ping failed", "error", err)
 	}
 	cancel()
 
@@ -353,7 +354,7 @@ func (a *App) startDBHealthMonitor(ctx context.Context) {
 				err := a.conn.PingContext(pctx)
 				pcancel()
 				if err != nil {
-					log.Printf("background db ping failed: %v", err)
+					slog.Error("background db ping failed", "error", err)
 					continue
 				}
 				a.dbHealthLastSuccess.Store(time.Now().Unix())
@@ -614,9 +615,9 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.HandleFunc("POST /api/v1/auth/2fa", authHandler.VerifyTwoFactor)
 
 	if cfg.IsSelfHosted() {
-		log.Println("Mode: self-hosted (registration via setup screen + admin Create user)")
+		slog.Info("mode: self-hosted (registration via setup screen + admin Create user)")
 	} else {
-		log.Println("Mode: cloud (signup handled by cloud package)")
+		slog.Info("mode: cloud (signup handled by cloud package)")
 	}
 
 	mux.Handle("POST /api/v1/workspaces", authMW(http.HandlerFunc(workspaceHandler.Create)))
@@ -752,9 +753,9 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 			triggerCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
 			if err := a.watchtower.Trigger(triggerCtx); err != nil {
-				log.Printf("watchtower trigger failed: %v", err)
+				slog.Error("watchtower trigger failed", "error", err)
 			} else {
-				log.Println("watchtower trigger accepted")
+				slog.Info("watchtower trigger accepted")
 			}
 		}()
 
@@ -773,7 +774,7 @@ func (a *App) serveFrontend() {
 	}
 
 	if _, err := os.Stat(distPath); os.IsNotExist(err) {
-		log.Println("Frontend dist/ not found, skipping static file serving")
+		slog.Warn("frontend dist not found, skipping static file serving")
 		return
 	}
 
@@ -806,5 +807,5 @@ func (a *App) serveFrontend() {
 		w.Write(indexFile)
 	})
 
-	log.Println("Serving frontend from " + distPath)
+	slog.Info("serving frontend", "path", distPath)
 }
