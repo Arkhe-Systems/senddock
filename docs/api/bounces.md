@@ -9,7 +9,7 @@ There are two configurable sources, plus a public ingest endpoint that providers
 
 In-session SMTP detection (5xx on `RCPT TO`) needs no configuration and is always on.
 
-All `/api/v1/...` endpoints require either cookie auth or `Authorization: Bearer sk_...`. The public ingest at `/webhooks/bounces/{projectId}` uses a per-project token instead and is the only endpoint here that is **not** under `/api/v1`.
+All `/api/v1/...` endpoints on this page require **cookie auth** — bounce configuration is dashboard-managed, and project API keys cannot call it. The public ingest at `/webhooks/bounces/{projectId}` uses a per-project token instead and is the only endpoint here that is **not** under `/api/v1`.
 
 ## Get bounce IMAP config
 

@@ -290,5 +290,5 @@ GET /api/v1/projects/{id}/stats
 ```
 
 ```json
-{"total": 1520, "sent": 1500, "failed": 20, "opened": 980}
+{"total": 1520, "sent": 1480, "failed": 12, "bounced": 8, "suppressed": 20, "opened": 980}
 ```
