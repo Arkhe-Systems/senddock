@@ -103,6 +103,7 @@ export default defineConfig({
           text: 'API Reference',
           items: [
             { text: 'Authentication', link: '/api/authentication' },
+            { text: 'TypeScript SDK', link: '/api/sdk' },
             { text: 'Code examples', link: '/api/code-examples' },
             { text: 'Workspaces', link: '/api/workspaces' },
             { text: 'Projects', link: '/api/projects' },
