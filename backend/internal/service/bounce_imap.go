@@ -5,26 +5,30 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/leader"
+	"github.com/arkhe-systems/senddock/internal/metrics"
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 )
 
 type BounceIMAPPoller struct {
 	queries      *db.Queries
+	db           *sql.DB
 	suppressions *SuppressionService
 	encSecret    string
 	interval     time.Duration
 }
 
-func NewBounceIMAPPoller(queries *db.Queries, suppressions *SuppressionService, encSecret string) *BounceIMAPPoller {
+func NewBounceIMAPPoller(queries *db.Queries, conn *sql.DB, suppressions *SuppressionService, encSecret string) *BounceIMAPPoller {
 	return &BounceIMAPPoller{
 		queries:      queries,
+		db:           conn,
 		suppressions: suppressions,
 		encSecret:    encSecret,
 		interval:     5 * time.Minute,
@@ -33,7 +37,7 @@ func NewBounceIMAPPoller(queries *db.Queries, suppressions *SuppressionService, 
 
 func (p *BounceIMAPPoller) Start(ctx context.Context) {
 	go p.run(ctx)
-	log.Println("bounce imap poller: started")
+	slog.Info("bounce imap poller: started")
 }
 
 func (p *BounceIMAPPoller) run(ctx context.Context) {
@@ -51,14 +55,23 @@ func (p *BounceIMAPPoller) run(ctx context.Context) {
 }
 
 func (p *BounceIMAPPoller) tick(ctx context.Context) {
+	if _, err := leader.TryRun(ctx, p.db, leader.KeyBounceIMAPPoller, p.poll); err != nil {
+		slog.Error("bounce imap poller: advisory lock failed", "error", err)
+	}
+}
+
+func (p *BounceIMAPPoller) poll(ctx context.Context) {
+	start := time.Now()
+	defer func() { metrics.ObservePollerTick(time.Since(start)) }()
+
 	projects, err := p.queries.ListProjectsWithBounceIMAP(ctx)
 	if err != nil {
-		log.Printf("bounce imap poller: list projects failed: %v", err)
+		slog.Error("bounce imap poller: list projects failed", "error", err)
 		return
 	}
 	for _, project := range projects {
 		if err := p.pollProject(ctx, project); err != nil {
-			log.Printf("bounce imap poller: project %s failed: %v", project.ID, err)
+			slog.Error("bounce imap poller: project poll failed", "project_id", project.ID, "error", err)
 		}
 	}
 }
@@ -129,6 +142,7 @@ func (p *BounceIMAPPoller) pollProject(ctx context.Context, project db.Project) 
 			if p.suppressions != nil {
 				_, _ = p.suppressions.Add(ctx, project.ID, email, SuppressionReasonBounce, "imap dsn poll")
 			}
+			metrics.BounceIngest("imap")
 			_ = p.queries.MarkLatestLogBouncedByEmail(ctx, db.MarkLatestLogBouncedByEmailParams{
 				ProjectID: project.ID,
 				ToEmail:   email,
@@ -141,7 +155,10 @@ func (p *BounceIMAPPoller) pollProject(ctx context.Context, project db.Project) 
 	}
 
 	if processed > 0 {
-		log.Printf("bounce imap poller: project %s · %d/%d messages produced suppressions", project.ID, processed, len(uids))
+		slog.Info("bounce imap poller processed project",
+			"project_id", project.ID,
+			"messages_with_suppressions", processed,
+			"messages_total", len(uids))
 	}
 
 	storeFlags := imap.StoreFlags{Op: imap.StoreFlagsAdd, Silent: true, Flags: []imap.Flag{imap.FlagSeen}}

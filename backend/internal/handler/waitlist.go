@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/arkhe-systems/senddock/internal/service"
@@ -73,7 +73,7 @@ func (h *WaitlistHandler) Join(w http.ResponseWriter, r *http.Request) {
 				nil,
 			)
 			if err != nil {
-				log.Printf("Waitlist confirmation email failed for %s: %v", req.Email, err)
+				slog.Error("waitlist confirmation email failed", "email", req.Email, "error", err)
 			}
 		}()
 	}

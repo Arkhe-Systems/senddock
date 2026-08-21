@@ -11,6 +11,20 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 _Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
 
+## [0.8.1] — 2026-08-20
+
+Production hardening. Making SendDock honest to run at scale, keep, and observe.
+
+### Added
+
+- **Safe multi-replica operation.** The IMAP bounce poller is now **leader-elected** with a Postgres session advisory lock, so only one replica polls each mailbox at a time. The scheduled-campaign worker, broadcast queue and webhook delivery were already coordinated (atomic claim / `FOR UPDATE SKIP LOCKED`) — the poller was the last unguarded loop. Running more than one instance no longer double-processes bounces. The container entrypoint also **retries migrations** instead of dying when two replicas race `goose up` against the same database.
+- **Observability for the send pipeline.** Logs are now **structured JSON** (`slog`), and a Prometheus **`GET /metrics`** endpoint exposes send attempts/sends/failures, SMTP errors by 4xx/5xx class, broadcast queue depth, webhook delivery outcomes, bounce/complaint ingest and poller tick duration. `/metrics` is unauthenticated by convention — scope it at the network layer. See [Monitoring](https://docs.senddock.dev/self-hosting/monitoring).
+
+### Docs
+
+- **[Backups & Recovery](https://docs.senddock.dev/self-hosting/backups)** — a dedicated, discoverable page (previously buried inside Updating): scheduled `pg_dump`, off-site encryption, a clean-instance restore walkthrough, a rehearsed-restore recipe, and why a pre-update dump is the real rollback path.
+- **[Monitoring](https://docs.senddock.dev/self-hosting/monitoring)** — the metric catalog, a Prometheus scrape example and the JSON log format.
+
 ## [0.8.0] — 2026-07-28
 
 Analytics graduates to free Core, self-host configuration moves into the dashboard, and the paid tier is redrawn around deliverability and reporting.

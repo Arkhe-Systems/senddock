@@ -11,12 +11,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/arkhe-systems/senddock/internal/db"
+	"github.com/arkhe-systems/senddock/internal/metrics"
 	"github.com/google/uuid"
 )
 
@@ -59,7 +60,7 @@ func (s *Service) Enqueue(ctx context.Context, event Event) {
 		EventType: event.Type,
 	})
 	if err != nil {
-		log.Printf("webhooks: list active hooks failed: %v", err)
+		slog.Error("webhooks: list active hooks failed", "error", err)
 		return
 	}
 	if len(hooks) == 0 {
@@ -74,7 +75,7 @@ func (s *Service) Enqueue(ctx context.Context, event Event) {
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("webhooks: marshal payload failed: %v", err)
+		slog.Error("webhooks: marshal payload failed", "error", err)
 		return
 	}
 
@@ -85,14 +86,14 @@ func (s *Service) Enqueue(ctx context.Context, event Event) {
 			Payload:   body,
 		})
 		if err != nil {
-			log.Printf("webhooks: create delivery for %s failed: %v", h.ID, err)
+			slog.Error("webhooks: create delivery failed", "webhook_id", h.ID, "error", err)
 		}
 	}
 }
 
 func (s *Service) Start(ctx context.Context) {
 	go s.run(ctx)
-	log.Println("webhooks: dispatcher started")
+	slog.Info("webhooks: dispatcher started")
 }
 
 func (s *Service) run(ctx context.Context) {
@@ -112,7 +113,7 @@ func (s *Service) run(ctx context.Context) {
 func (s *Service) tick(ctx context.Context) {
 	deliveries, err := s.queries.ClaimPendingDeliveries(ctx, claimBatchSize)
 	if err != nil {
-		log.Printf("webhooks: claim pending failed: %v", err)
+		slog.Error("webhooks: claim pending failed", "error", err)
 		return
 	}
 	if len(deliveries) == 0 {
@@ -145,6 +146,7 @@ func (s *Service) deliver(ctx context.Context, delivery db.WebhookDelivery) {
 	statusCode, sendErr := s.send(ctx, hook, delivery.Payload)
 
 	if sendErr == nil && statusCode >= 200 && statusCode < 300 {
+		metrics.WebhookDelivery("success")
 		_ = s.queries.MarkDeliverySuccess(ctx, db.MarkDeliverySuccessParams{
 			ID:             delivery.ID,
 			LastStatusCode: sql.NullInt32{Int32: int32(statusCode), Valid: true},
@@ -169,6 +171,7 @@ func (s *Service) deliver(ctx context.Context, delivery db.WebhookDelivery) {
 	}
 	nextAt := time.Now().Add(backoff[idx])
 
+	metrics.WebhookDelivery("retry")
 	_ = s.queries.MarkDeliveryRetry(ctx, db.MarkDeliveryRetryParams{
 		ID:             delivery.ID,
 		LastStatusCode: sql.NullInt32{Int32: int32(statusCode), Valid: statusCode > 0},
@@ -178,6 +181,7 @@ func (s *Service) deliver(ctx context.Context, delivery db.WebhookDelivery) {
 }
 
 func (s *Service) markFailed(ctx context.Context, id uuid.UUID, statusCode int, errMsg string) {
+	metrics.WebhookDelivery("failed")
 	_ = s.queries.MarkDeliveryFailed(ctx, db.MarkDeliveryFailedParams{
 		ID:             id,
 		LastStatusCode: sql.NullInt32{Int32: int32(statusCode), Valid: statusCode > 0},

@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"runtime/debug"
 	"time"
 
@@ -28,20 +28,20 @@ func (w *CampaignWorker) Start() {
 			w.tick()
 		}
 	}()
-	log.Println("Campaign worker started (checking every 30s)")
+	slog.Info("campaign worker started", "interval", "30s")
 }
 
 func (w *CampaignWorker) tick() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("campaign worker tick panic: %v\n%s", r, debug.Stack())
+			slog.Error("campaign worker tick panic", "panic", r, "stack", string(debug.Stack()))
 		}
 	}()
 
 	ctx := context.Background()
 	campaigns, err := w.queries.GetPendingCampaigns(ctx)
 	if err != nil {
-		log.Printf("campaign worker: list pending failed: %v", err)
+		slog.Error("campaign worker: list pending failed", "error", err)
 		return
 	}
 
@@ -53,20 +53,20 @@ func (w *CampaignWorker) tick() {
 func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campaign) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("campaign %s: execute panic: %v\n%s", campaign.ID, r, debug.Stack())
+			slog.Error("campaign execute panic", "campaign_id", campaign.ID, "panic", r, "stack", string(debug.Stack()))
 		}
 	}()
 
 	claimed, err := w.queries.ClaimCampaignForExecution(ctx, campaign.ID)
 	if err != nil {
-		log.Printf("campaign %s: claim failed: %v", campaign.ID, err)
+		slog.Error("campaign claim failed", "campaign_id", campaign.ID, "error", err)
 		return
 	}
 	if claimed == 0 {
 		return
 	}
 
-	log.Printf("Executing campaign %s: %s", campaign.ID, campaign.Name)
+	slog.Info("executing campaign", "campaign_id", campaign.ID, "name", campaign.Name)
 
 	result, runErr := w.emailService.Broadcast(
 		WithSystemContext(ctx),
@@ -79,14 +79,14 @@ func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campai
 	)
 
 	if runErr != nil {
-		log.Printf("campaign %s: broadcast failed: %v", campaign.ID, runErr)
+		slog.Error("campaign broadcast failed", "campaign_id", campaign.ID, "error", runErr)
 		if err := w.queries.UpdateCampaignStatus(ctx, db.UpdateCampaignStatusParams{
 			ID:          campaign.ID,
 			Status:      "failed",
 			SentCount:   0,
 			FailedCount: 0,
 		}); err != nil {
-			log.Printf("campaign %s: marking failed: %v", campaign.ID, err)
+			slog.Error("campaign status update failed", "campaign_id", campaign.ID, "error", err)
 		}
 		return
 	}
@@ -96,8 +96,8 @@ func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campai
 			ID:          campaign.ID,
 			BroadcastID: uuid.NullUUID{UUID: *result.BroadcastID, Valid: true},
 		}); err != nil {
-			log.Printf("campaign %s: link to broadcast %s failed: %v", campaign.ID, *result.BroadcastID, err)
+			slog.Error("campaign link to broadcast failed", "campaign_id", campaign.ID, "broadcast_id", *result.BroadcastID, "error", err)
 		}
 	}
-	log.Printf("Campaign %s linked to broadcast %v (%d recipients enqueued)", campaign.ID, result.BroadcastID, result.Sent)
+	slog.Info("campaign linked to broadcast", "campaign_id", campaign.ID, "broadcast_id", result.BroadcastID, "recipients_enqueued", result.Sent)
 }

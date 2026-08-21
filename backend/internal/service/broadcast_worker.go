@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
+	"log/slog"
 	"runtime/debug"
 	"time"
 
@@ -29,21 +29,21 @@ func NewBroadcastWorker(queries *db.Queries, emailService *EmailService) *Broadc
 
 func (w *BroadcastWorker) Start(ctx context.Context) {
 	if rows, err := w.queries.ResetStuckSendingJobs(ctx); err != nil {
-		log.Printf("broadcast worker: reset stuck jobs failed: %v", err)
+		slog.Error("broadcast worker: reset stuck jobs failed", "error", err)
 	} else if rows > 0 {
-		log.Printf("broadcast worker: reset %d stuck 'sending' jobs to retry", rows)
+		slog.Warn("broadcast worker: reset stuck sending jobs to retry", "jobs", rows)
 	}
 
 	for i := 0; i < broadcastWorkerCount; i++ {
 		go w.run(ctx, i)
 	}
-	log.Printf("Broadcast worker started (%d goroutines)", broadcastWorkerCount)
+	slog.Info("broadcast worker started", "goroutines", broadcastWorkerCount)
 }
 
 func (w *BroadcastWorker) run(ctx context.Context, id int) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("broadcast worker %d: panic: %v\n%s", id, r, debug.Stack())
+			slog.Error("broadcast worker panic", "worker_id", id, "panic", r, "stack", string(debug.Stack()))
 			time.Sleep(5 * time.Second)
 			go w.run(ctx, id)
 		}
@@ -66,7 +66,7 @@ func (w *BroadcastWorker) run(ctx context.Context, id int) {
 			continue
 		}
 		if err != nil {
-			log.Printf("broadcast worker %d: claim failed: %v", id, err)
+			slog.Error("broadcast worker claim failed", "worker_id", id, "error", err)
 			select {
 			case <-ctx.Done():
 				return
@@ -82,14 +82,14 @@ func (w *BroadcastWorker) run(ctx context.Context, id int) {
 func (w *BroadcastWorker) processJob(ctx context.Context, job db.BroadcastJob) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("broadcast job %s: panic: %v\n%s", job.ID, r, debug.Stack())
+			slog.Error("broadcast job panic", "job_id", job.ID, "panic", r, "stack", string(debug.Stack()))
 			w.scheduleRetry(ctx, job, "panic during send")
 		}
 	}()
 
 	broadcast, err := w.queries.GetBroadcast(ctx, db.GetBroadcastParams{ID: job.BroadcastID, ProjectID: job.ProjectID})
 	if err != nil {
-		log.Printf("broadcast job %s: parent broadcast lookup failed: %v", job.ID, err)
+		slog.Error("broadcast job parent lookup failed", "job_id", job.ID, "error", err)
 		_ = w.queries.MarkBroadcastJobFailed(ctx, db.MarkBroadcastJobFailedParams{
 			ID:        job.ID,
 			LastError: "parent broadcast not found",
@@ -126,7 +126,7 @@ func (w *BroadcastWorker) processJob(ctx context.Context, job db.BroadcastJob) {
 				LastError: errMsg,
 			})
 			_ = w.queries.IncrementBroadcastFailed(ctx, job.BroadcastID)
-			log.Printf("broadcast job %s: failed after %d attempts: %s", job.ID, job.Attempts, errMsg)
+			slog.Error("broadcast job failed permanently", "job_id", job.ID, "attempts", job.Attempts, "error", errMsg)
 		} else {
 			w.scheduleRetry(ctx, job, errMsg)
 			return
@@ -139,20 +139,20 @@ func (w *BroadcastWorker) processJob(ctx context.Context, job db.BroadcastJob) {
 func (w *BroadcastWorker) checkBroadcastCompletion(ctx context.Context, broadcastID uuid.UUID) {
 	remaining, err := w.queries.CountBroadcastJobsRemaining(ctx, broadcastID)
 	if err != nil {
-		log.Printf("broadcast %s: completion check failed: %v", broadcastID, err)
+		slog.Error("broadcast completion check failed", "broadcast_id", broadcastID, "error", err)
 		return
 	}
 	if remaining > 0 {
 		return
 	}
 	if err := w.queries.MarkBroadcastCompleted(ctx, broadcastID); err != nil {
-		log.Printf("broadcast %s: mark completed failed: %v", broadcastID, err)
+		slog.Error("broadcast mark completed failed", "broadcast_id", broadcastID, "error", err)
 		return
 	}
 	if err := w.queries.MarkCampaignDoneFromBroadcast(ctx, broadcastID); err != nil {
-		log.Printf("broadcast %s: linked-campaign update failed: %v", broadcastID, err)
+		slog.Error("broadcast linked-campaign update failed", "broadcast_id", broadcastID, "error", err)
 	}
-	log.Printf("Broadcast %s completed", broadcastID)
+	slog.Info("broadcast completed", "broadcast_id", broadcastID)
 }
 
 func (w *BroadcastWorker) scheduleRetry(ctx context.Context, job db.BroadcastJob, errMsg string) {
@@ -163,10 +163,10 @@ func (w *BroadcastWorker) scheduleRetry(ctx context.Context, job db.BroadcastJob
 		ScheduledAt: nextAt,
 		LastError:   errMsg,
 	}); err != nil {
-		log.Printf("broadcast job %s: retry schedule failed: %v", job.ID, err)
+		slog.Error("broadcast job retry schedule failed", "job_id", job.ID, "error", err)
 		return
 	}
-	log.Printf("broadcast job %s: retry scheduled in %s (attempt %d, error: %s)", job.ID, backoff, job.Attempts, errMsg)
+	slog.Warn("broadcast job retry scheduled", "job_id", job.ID, "backoff", backoff.String(), "attempt", job.Attempts, "error", errMsg)
 }
 
 func backoffDuration(attempts int) time.Duration {

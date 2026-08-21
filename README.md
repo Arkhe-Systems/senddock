@@ -2,9 +2,9 @@
 
 <img src="docs/public/screenshots/hero.png" alt="SendDock" width="720">
 
-**Email marketing you actually own.**
+**One install. Every client, isolated.**
 
-Bring your own SMTP, own your subscriber data, send to unlimited contacts. Self-host in 60 seconds with Docker, or use the [managed cloud](https://senddock.dev). Open source under AGPL-3.0 — core-team-only development.
+Self-hosted email marketing where each project is its own sending identity — its own SMTP, domain, subscribers and analytics. Run every client, brand or app from one box you fully own. Bring your own SMTP, flat price, no per-contact fees. Self-host in 60 seconds with Docker, or use the [managed cloud](https://senddock.dev). Open source under AGPL-3.0 — core-team development.
 
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/arkhe-systems/senddock?color=brightgreen)](https://github.com/arkhe-systems/senddock/releases)
@@ -21,26 +21,27 @@ Bring your own SMTP, own your subscriber data, send to unlimited contacts. Self-
 
 ## Why SendDock
 
-Email marketing tools punish you for growing. Mailchimp charges $135/mo at 10k contacts. ConvertKit/Kit charges $104/mo at the same size. Both lock your subscriber list inside their UI and bill you per email or per contact, forever.
+Most email tools make you choose: a hosted SaaS you don't own (Mailchimp, Resend), or a self-hosted tool built for one big list (listmonk). SendDock is built differently — around **fully isolated projects**. Each project is its own sending identity: its own SMTP, sending domain, subscribers, templates, API keys and analytics, with no data bleed between them. One self-hosted install runs every client, brand or app at once.
 
-SendDock flips the model: you bring your own SMTP relay (AWS SES, Postmark, Postal, your own Postfix — anything that speaks SMTP), the app handles subscribers, templates, campaigns, tracking and analytics, and you pay $0 to the platform — no matter if you send 1 email or 1 million.
+You bring your own SMTP relay (AWS SES, Postmark, Postal, your own Postfix — anything that speaks SMTP), the app handles subscribers, templates, campaigns, tracking and analytics, and you pay a flat price — never per contact or per send, whether you send 1 email or 1 million.
 
-### How it compares
+### SendDock vs listmonk
 
-| | Mailchimp | Kit (ConvertKit) | Resend | **SendDock** |
-|---|---|---|---|---|
-| Monthly cost @ 10k subscribers | ~$135 | ~$104 | ~$35 | **$0** (+ SMTP) |
-| Self-hostable | — | — | — | **✓** |
-| Open source | — | — | — | **✓ (AGPL-3.0)** |
-| Bring your own SMTP | — | — | — | **✓** |
-| Per-email pricing | ✓ | — | ✓ | **No** |
-| You own subscriber data | — | — | — | **✓** |
-| Visual editor | ✓ | ✓ | — | **✓ (GrapesJS)** |
-| Transactional API | ✓ | — | ✓ | **✓** |
-| Open & click tracking | ✓ | ✓ | ✓ | **✓** |
-| One-click unsubscribe (RFC 8058) | ✓ | ✓ | ✓ | **✓** |
+If you're weighing self-hosted email, listmonk is the real alternative — and it's excellent: battle-tested for years, moving millions of emails on a tiny footprint, with an open community. Use it if you need **one big list on a lean box**. SendDock is the pick when you run email for **more than one** list, client or brand.
 
-> If you already pay AWS SES ($0.10 per 1,000 emails), sending 100k emails costs you **~$10/month total** with SendDock vs **~$135/month** with Mailchimp.
+| | listmonk | **SendDock** |
+|---|---|---|
+| Maturity | Years in production, proven at scale | Newer — launched 2026 |
+| Footprint | Single binary + Postgres, ~57 MB RAM | Go binary + Postgres + Redis |
+| Community & external PRs | Open contributions | Core-team development |
+| Multi-project isolation | Lists in one instance | **Per-project SMTP, domain, subscribers, keys & stats** |
+| Durable, resumable queue | Batch-level pause & resume | **Per-recipient, resumes after a restart** |
+| Custom fields | Untyped attributes | **Typed, validated on write** |
+| Signed webhooks | — | **HMAC-signed, in Core** |
+| UI & templating | Functional admin, code templates | **Modern dashboard + visual builder** |
+| Managed cloud option | Self-host only | **Self-host or managed cloud** |
+
+> Coming from a hosted tool like Mailchimp or Resend? The difference is simpler: with SendDock you **own it** — your data, your SMTP, and a flat price. On AWS SES ($0.10 per 1,000 emails), 100k emails costs ~$10/month total, with no per-contact fee on top.
 
 ---
 
@@ -139,10 +140,10 @@ Both modes use the same BYO-SMTP model — Cloud removes the infrastructure work
 
 **SendDock is built for:**
 
+- **Agencies and teams running more than one list** — manage every client or brand from a single install, each a fully isolated project with its own sending domain, SMTP, subscribers and analytics.
 - **Engineers and indie hackers** who already have SMTP figured out (AWS SES, Postmark, Postal, your own Postfix) and want a clean dashboard + API instead of building one themselves.
-- **Newsletter publishers and agencies** who refuse to pay $135/mo to Mailchimp for the privilege of managing a subscriber list.
 - **Privacy-conscious teams** who need subscriber data to live on their own infrastructure (EU strict residency, healthcare, government, white-label client work).
-- **Self-hosting enthusiasts** looking for a modern alternative to Listmonk with real analytics, deliverability insights, and a polished UI.
+- **Self-hosters** who want a modern take on Listmonk — real analytics, deliverability insights, typed data, and a polished UI.
 
 **SendDock is *not* for:**
 

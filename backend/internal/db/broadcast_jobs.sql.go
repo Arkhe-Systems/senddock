@@ -68,6 +68,18 @@ func (q *Queries) ClaimBroadcastJob(ctx context.Context) (BroadcastJob, error) {
 	return i, err
 }
 
+const countActiveBroadcastJobs = `-- name: CountActiveBroadcastJobs :one
+SELECT COUNT(*) FROM broadcast_jobs
+WHERE status IN ('pending', 'retry', 'sending')
+`
+
+func (q *Queries) CountActiveBroadcastJobs(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActiveBroadcastJobs)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countBroadcastJobsRemaining = `-- name: CountBroadcastJobsRemaining :one
 SELECT COUNT(*) FROM broadcast_jobs
 WHERE broadcast_id = $1

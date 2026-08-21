@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -27,7 +27,7 @@ func Load() Config {
 
 	isCloud := resolveCloud()
 	if !isCloud && strings.HasPrefix(publicURL, "http://localhost") {
-		log.Println("WARNING: the public URL points at localhost. Unsubscribe and tracking links in outgoing emails will not work outside this machine. Set it under Instance in the dashboard.")
+		slog.Warn("the public URL points at localhost; unsubscribe and tracking links in outgoing emails will not work outside this machine. Set it under Instance in the dashboard.")
 	}
 
 	return Config{
@@ -52,7 +52,7 @@ func getEnvInt64(key string, fallback int64) int64 {
 	}
 	n, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || n <= 0 {
-		log.Printf("Invalid %s=%q, using default %d", key, value, fallback)
+		slog.Warn("invalid environment value, using default", "key", key, "value", value, "default", fallback)
 		return fallback
 	}
 	return n
@@ -76,7 +76,7 @@ func resolveCloud() bool {
 	}
 
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("DEPLOYMENT_MODE")), "cloud") {
-		log.Println("DEPRECATION: DEPLOYMENT_MODE=cloud has been replaced by CLOUD=true and will stop being read in v0.9.")
+		slog.Warn("DEPRECATION: DEPLOYMENT_MODE=cloud has been replaced by CLOUD=true and will stop being read in v0.9.")
 		return true
 	}
 

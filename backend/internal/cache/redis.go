@@ -3,7 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -16,7 +16,7 @@ type Redis struct {
 func NewRedis(url string) *Redis {
 	opts, err := redis.ParseURL(url)
 	if err != nil {
-		log.Printf("Invalid REDIS_URL, caching disabled: %v", err)
+		slog.Warn("invalid REDIS_URL, caching disabled", "error", err)
 		return nil
 	}
 
@@ -26,11 +26,11 @@ func NewRedis(url string) *Redis {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		log.Printf("Redis connection failed, caching disabled: %v", err)
+		slog.Warn("redis connection failed, caching disabled", "error", err)
 		return nil
 	}
 
-	log.Println("Connected to Redis")
+	slog.Info("connected to redis")
 	return &Redis{client: client}
 }
 

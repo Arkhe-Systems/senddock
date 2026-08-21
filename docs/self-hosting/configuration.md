@@ -66,7 +66,7 @@ Before exposing to the internet:
 - [ ] Keep Redis enabled (it ships in the production composes); without it every rate limit is a no-op
 - [ ] Enable **two-factor authentication** on every account from **Settings → Account** — see [Your account & security](/guide/account#two-factor-authentication)
 - [ ] On Team workspaces, give each human a least-privilege role (`viewer` / `developer` / `admin`) instead of `owner`
-- [ ] Set up Postgres backups before going live — see [Backup & restore](/self-hosting/updating#backup-restore)
+- [ ] Set up Postgres backups before going live — see [Backups & Recovery](/self-hosting/backups)
 - [ ] Keep SendDock updated — the dashboard surfaces a yellow badge when a new release is available
 
 If anything misbehaves after going live, see [Troubleshooting](/self-hosting/troubleshooting).

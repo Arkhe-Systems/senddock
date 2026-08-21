@@ -219,77 +219,14 @@ Whatever orchestrator you use (Kubernetes, Nomad, plain systemd-with-podman), th
 
 ## Backup & restore
 
-While the update path itself is safe, a regular backup is the only thing standing between you and a corrupted volume, a fat-fingered `down -v`, or a host disk failure.
-
-### What to back up
-
-| What | Where it lives | Need it? |
-|---|---|---|
-| Postgres data | `pgdata` volume | **Yes** — subscribers, templates, projects, logs, campaigns, API keys, audit log, encrypted SMTP credentials. |
-| `.env` | Repo root on the host | **Yes** — `JWT_SECRET` rotates click-tracking + session tokens, `POSTGRES_PASSWORD` is needed to read the dump back. Losing `JWT_SECRET` invalidates every active session and every unsubscribe / tracking URL signed against it. |
-| `docker-compose.yml` | Repo root on the host | Helpful — captures any tag pin, port override, Watchtower wiring you've added. |
-| Redis data | `redisdata` volume | No — only caches and counters; rebuilds from the database on next boot. |
-
-### Take a snapshot
-
-```bash
-# Inside the compose dir
-docker compose exec -T postgres pg_dump -U senddock senddock \
-    > senddock-backup-$(date +%F).sql
-```
-
-For a smaller, faster restore use the custom format:
+Before you update, take a dump — it's the lowest-friction rollback path if a migration goes sideways.
 
 ```bash
 docker compose exec -T postgres pg_dump -U senddock -Fc senddock \
-    > senddock-backup-$(date +%F).dump
+    > senddock-pre-upgrade-$(date +%F).dump
 ```
 
-Whichever format you pick, also copy `.env` somewhere off-host the same day:
-
-```bash
-cp .env env-backup-$(date +%F).env
-```
-
-### Restore into a fresh install
-
-`.sql` (plain SQL):
-
-```bash
-cat senddock-backup-YYYY-MM-DD.sql | \
-    docker compose exec -T postgres psql -U senddock senddock
-```
-
-`.dump` (custom format) — `pg_restore` lets you parallelise and skip objects:
-
-```bash
-docker compose cp senddock-backup-YYYY-MM-DD.dump postgres:/tmp/in.dump
-docker compose exec postgres pg_restore -U senddock -d senddock --clean --if-exists -j 4 /tmp/in.dump
-```
-
-The restored database keeps every project, subscriber, template, suppression entry, and log row. Restart SendDock so any in-memory state reseeds.
-
-### Recommended cadence
-
-- **Daily** Postgres dump, retained 7 days locally + 30 days off-site (S3, Backblaze, or whatever bucket you trust).
-- **Weekly** full backup that also captures `.env` and `docker-compose.yml`.
-- **Before every upgrade** — a one-off dump labeled with the source and target version (`senddock-pre-0.6.5.sql`). This is the lowest-friction rollback path if a migration goes sideways.
-
-A minimal cron job on the host:
-
-```bash
-0 3 * * * cd /opt/senddock && docker compose exec -T postgres pg_dump -U senddock -Fc senddock > /var/backups/senddock/$(date +\%F).dump && find /var/backups/senddock -mtime +7 -delete
-```
-
-### Verify a backup actually restores
-
-The only thing worse than no backup is a backup you've never restored. Once a month, spin up a throwaway Postgres container, `pg_restore` the latest dump into it, and confirm the row counts match production. Five minutes that turn an untested artifact into a tested recovery path.
-
-### Off-site & encryption
-
-Local backups protect against application-level corruption — they don't protect against the whole host going away. Sync the daily dump to object storage with server-side encryption enabled (S3 SSE-S3 / SSE-KMS, Backblaze B2 default-at-rest, GCS CMEK). If your dataset is small enough and you don't want to manage object storage, `restic` or `rclone crypt` to any remote with client-side encryption works just as well.
-
-Encrypt before upload if regulation or sensitivity demands it — `gpg -c senddock-backup-$(date +%F).dump` or `age -p` against a passphrase you store outside the same provider.
+The full workflow — what to back up, scheduling, off-site encryption, restoring into a clean instance, and rehearsing the restore — lives on its own page: **[Backups & Recovery](./backups)**.
 
 ---
 
