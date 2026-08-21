@@ -2,6 +2,10 @@
 
 Copy-paste-ready snippets for the most common SendDock operations in **cURL, JavaScript (Node), Python, Java, C# and PHP**.
 
+::: tip Using TypeScript or JavaScript? Skip the boilerplate
+The official [TypeScript SDK](./sdk) wraps all of this in a typed client — auth, retries, timeouts and error handling included. `npm install @senddock/sdk`.
+:::
+
 Every example uses three placeholders — replace them once and the rest works:
 
 | Placeholder | What goes there |

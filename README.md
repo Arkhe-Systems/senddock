@@ -162,6 +162,7 @@ Both modes use the same BYO-SMTP model — Cloud removes the infrastructure work
 | [Updating](https://docs.senddock.dev/self-hosting/updating) | One-click and manual updates |
 | [Troubleshooting & FAQ](https://docs.senddock.dev/self-hosting/troubleshooting) | SMTP issues, common errors |
 | [API Reference](https://docs.senddock.dev/api/authentication) | All endpoints, auth, examples |
+| [TypeScript SDK](https://docs.senddock.dev/api/sdk) | `npm install @senddock/sdk` — typed client for the API |
 
 ---
 
