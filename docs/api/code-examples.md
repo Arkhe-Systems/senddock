@@ -218,7 +218,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 
 ## Batch send
 
-Send the same template to many recipients with per-recipient variables. Up to ~5,000 recipients per call is comfortable; for full lists use [Broadcast](#broadcast-to-all-subscribers).
+Send the same template to many recipients with per-recipient variables. Hard cap of **500 recipients per call** — the API rejects larger batches with a `400`. At 10 calls per minute per project that adds up to 5,000 recipients per minute; for full lists use [Broadcast](#broadcast-to-all-subscribers).
 
 ::: code-group
 
@@ -292,7 +292,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 
 :::
 
-The response is `{"sent": N, "failed": M}`. `failed` includes both SMTP rejections and recipients that were on the project's suppression list at send time.
+The response is `{"sent": N, "failed": M, "suppressed": K}`. Recipients on the project's suppression list are skipped without an SMTP attempt and counted separately in `suppressed` — they do **not** count toward `failed`.
 
 ## Broadcast to all subscribers
 
@@ -348,7 +348,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(["template_id" => "YOUR_TEMPLAT
 
 :::
 
-Returns `{"sent": N, "failed": M}` once delivery has been attempted for every active subscriber. Broadcast is rate-limited to **5 calls per minute per project** to prevent runaway sends.
+Returns `{"sent": N, "failed": M, "suppressed": K}` (`suppressed` omitted when zero) once the send has been enqueued for every active subscriber. Broadcast is rate-limited to **5 calls per hour per project** to prevent runaway sends.
 
 ## Add a subscriber
 
@@ -422,7 +422,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 ]));
 $body   = curl_exec($ch);
 $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-// Response: {"imported": n, "skipped": n, "errors": [...]}
+// Response: {"imported": n, "duplicates": n, "syntax_invalid": n, "no_mx": n, "disposable": n, "suppressed": n, "rejected": [...]}
 ```
 
 :::
@@ -679,8 +679,9 @@ All errors return JSON of the shape `{"error": "human-readable message"}` with t
 | `403` | The authenticated user / API key doesn't own this project. |
 | `404` | Project / template / subscriber not found. |
 | `409` | Duplicate (e.g. subscriber email already exists). |
-| `422` | The recipient is on the project's suppression list. The send is logged but no SMTP attempt happens. |
 | `429` | Rate limited. Honor `Retry-After` (in seconds). |
+
+A suppressed recipient is **not** an error: `/send` answers `200` with `{"message": "suppressed", "suppressed": 1}`, and batch/broadcast count those recipients in the `suppressed` field. The send is logged with status `suppressed` and no SMTP attempt happens.
 | `5xx` | Server error. Retry with backoff. |
 
 ## What's next
