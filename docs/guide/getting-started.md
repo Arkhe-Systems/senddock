@@ -63,6 +63,10 @@ Open **Templates → + New Template**. Write your email in the **Code** tab (HTM
 
 From the project **Overview**, click **Send Email**. Pick your template, fill in any variables, and choose who gets it — a **specific address** to test, or your **whole list** (optionally scoped to a [segment](./segments)).
 
+::: tip Testing on localhost? Direct sends work, broadcasts don't
+Sending is plain outbound SMTP, so a local install delivers **direct (single-recipient) emails** just fine — point it at your provider, or at a local catcher like [Mailpit](https://mailpit.axllent.org/) to see emails without sending anything real. What a local install refuses is **broadcasts and scheduled campaigns**: those embed an unsubscribe link built from your public URL, and a `localhost` link would be dead for recipients. Set a publicly reachable URL under **Instance** to unlock them — see [Email Sending](./sending#a-public-url-is-required-for-broadcasts-and-campaigns).
+:::
+
 ![The Send Email composer](/screenshots/send-modal.png)
 
 That's the full loop. Everything after this — scheduling, analytics, deliverability — builds on these six steps.

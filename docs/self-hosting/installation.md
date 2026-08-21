@@ -33,7 +33,7 @@ A single Docker container running the Go binary serves both the API and the Vue 
 
 - A Linux server (Ubuntu, Debian, etc.)
 - Docker and Docker Compose
-- A **publicly reachable domain** pointed at the server (required for unsubscribe links, broadcasts, and SMTP)
+- A **publicly reachable domain** pointed at the server (required for unsubscribe links, broadcasts, and SMTP). Evaluating on localhost first works without one — direct transactional sends function normally; only broadcasts and scheduled campaigns stay disabled until a public URL is set.
 - The server's network must allow **outbound TCP** on the SMTP port your provider uses (usually 465 or 587)
 
 That's it. Everything else is handled by Docker.
