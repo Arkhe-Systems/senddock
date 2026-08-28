@@ -16,7 +16,7 @@ func NewTemplateService(queries *db.Queries) *TemplateService {
 	return &TemplateService{queries: queries}
 }
 
-func (s *TemplateService) Create(ctx context.Context, projectID, name, subject, htmlBody, textBody string) (db.Template, error) {
+func (s *TemplateService) Create(ctx context.Context, projectID, name, subject, htmlBody, textBody, templateType string) (db.Template, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return db.Template{}, errors.New("invalid project id")
@@ -28,6 +28,7 @@ func (s *TemplateService) Create(ctx context.Context, projectID, name, subject, 
 		Subject:   subject,
 		HtmlBody:  htmlBody,
 		TextBody:  textBody,
+		Type:      templateType,
 	})
 }
 

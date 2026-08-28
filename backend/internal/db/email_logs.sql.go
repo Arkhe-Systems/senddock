@@ -33,6 +33,7 @@ AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
 AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
 AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%')
 AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $6::uuid)
+AND ($7::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $7::uuid)
 `
 
 type CountEmailLogsByProjectFilteredParams struct {
@@ -42,6 +43,7 @@ type CountEmailLogsByProjectFilteredParams struct {
 	Column4   time.Time
 	Column5   string
 	Column6   uuid.UUID
+	Column7   uuid.UUID
 }
 
 func (q *Queries) CountEmailLogsByProjectFiltered(ctx context.Context, arg CountEmailLogsByProjectFilteredParams) (int64, error) {
@@ -52,6 +54,7 @@ func (q *Queries) CountEmailLogsByProjectFiltered(ctx context.Context, arg Count
 		arg.Column4,
 		arg.Column5,
 		arg.Column6,
+		arg.Column7,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -121,9 +124,9 @@ func (q *Queries) CreateEmailClick(ctx context.Context, arg CreateEmailClickPara
 }
 
 const createEmailLog = `-- name: CreateEmailLog :one
-INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error, broadcast_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at
+INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error, broadcast_id, newsletter_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at, newsletter_id
 `
 
 type CreateEmailLogParams struct {
@@ -135,6 +138,7 @@ type CreateEmailLogParams struct {
 	Status       string
 	Error        sql.NullString
 	BroadcastID  uuid.NullUUID
+	NewsletterID uuid.NullUUID
 }
 
 func (q *Queries) CreateEmailLog(ctx context.Context, arg CreateEmailLogParams) (EmailLog, error) {
@@ -147,6 +151,7 @@ func (q *Queries) CreateEmailLog(ctx context.Context, arg CreateEmailLogParams) 
 		arg.Status,
 		arg.Error,
 		arg.BroadcastID,
+		arg.NewsletterID,
 	)
 	var i EmailLog
 	err := row.Scan(
@@ -163,12 +168,13 @@ func (q *Queries) CreateEmailLog(ctx context.Context, arg CreateEmailLogParams) 
 		&i.ClickedAt,
 		&i.BroadcastID,
 		&i.ComplainedAt,
+		&i.NewsletterID,
 	)
 	return i, err
 }
 
 const getEmailLog = `-- name: GetEmailLog :one
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at FROM email_logs WHERE id = $1 AND project_id = $2
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at, newsletter_id FROM email_logs WHERE id = $1 AND project_id = $2
 `
 
 type GetEmailLogParams struct {
@@ -193,6 +199,7 @@ func (q *Queries) GetEmailLog(ctx context.Context, arg GetEmailLogParams) (Email
 		&i.ClickedAt,
 		&i.BroadcastID,
 		&i.ComplainedAt,
+		&i.NewsletterID,
 	)
 	return i, err
 }
@@ -253,7 +260,7 @@ func (q *Queries) ListEmailClicksByLog(ctx context.Context, logID uuid.UUID) ([]
 }
 
 const listEmailLogsByProject = `-- name: ListEmailLogsByProject :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at, newsletter_id FROM email_logs
 WHERE project_id = $1
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3
@@ -288,6 +295,7 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 			&i.ClickedAt,
 			&i.BroadcastID,
 			&i.ComplainedAt,
+			&i.NewsletterID,
 		); err != nil {
 			return nil, err
 		}
@@ -303,7 +311,7 @@ func (q *Queries) ListEmailLogsByProject(ctx context.Context, arg ListEmailLogsB
 }
 
 const listEmailLogsByProjectExport = `-- name: ListEmailLogsByProjectExport :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at, newsletter_id FROM email_logs
 WHERE project_id = $1
 AND ($2::text = '' OR status = $2::text)
 AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
@@ -352,6 +360,7 @@ func (q *Queries) ListEmailLogsByProjectExport(ctx context.Context, arg ListEmai
 			&i.ClickedAt,
 			&i.BroadcastID,
 			&i.ComplainedAt,
+			&i.NewsletterID,
 		); err != nil {
 			return nil, err
 		}
@@ -367,13 +376,14 @@ func (q *Queries) ListEmailLogsByProjectExport(ctx context.Context, arg ListEmai
 }
 
 const listEmailLogsByProjectFiltered = `-- name: ListEmailLogsByProjectFiltered :many
-SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at FROM email_logs
+SELECT id, project_id, subscriber_id, template_id, to_email, subject, status, error, sent_at, opened_at, clicked_at, broadcast_id, complained_at, newsletter_id FROM email_logs
 WHERE project_id = $1
 AND ($4::text = '' OR status = $4::text)
 AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
 AND ($6::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $6)
 AND ($7::text = '' OR to_email ILIKE '%' || $7::text || '%' OR subject ILIKE '%' || $7::text || '%')
 AND ($8::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $8::uuid)
+AND ($9::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $9::uuid)
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3
 `
@@ -387,6 +397,7 @@ type ListEmailLogsByProjectFilteredParams struct {
 	Column6   time.Time
 	Column7   string
 	Column8   uuid.UUID
+	Column9   uuid.UUID
 }
 
 func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEmailLogsByProjectFilteredParams) ([]EmailLog, error) {
@@ -399,6 +410,7 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 		arg.Column6,
 		arg.Column7,
 		arg.Column8,
+		arg.Column9,
 	)
 	if err != nil {
 		return nil, err
@@ -421,6 +433,7 @@ func (q *Queries) ListEmailLogsByProjectFiltered(ctx context.Context, arg ListEm
 			&i.ClickedAt,
 			&i.BroadcastID,
 			&i.ComplainedAt,
+			&i.NewsletterID,
 		); err != nil {
 			return nil, err
 		}

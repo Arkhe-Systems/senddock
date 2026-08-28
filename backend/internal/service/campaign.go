@@ -18,7 +18,18 @@ func NewCampaignService(queries *db.Queries) *CampaignService {
 	return &CampaignService{queries: queries}
 }
 
-func (s *CampaignService) Create(ctx context.Context, projectID, templateID, name, subject string, scheduledAt time.Time, variables json.RawMessage) (db.Campaign, error) {
+func parseOptionalNewsletter(newsletterID string) (uuid.NullUUID, error) {
+	if newsletterID == "" {
+		return uuid.NullUUID{}, nil
+	}
+	nid, err := uuid.Parse(newsletterID)
+	if err != nil {
+		return uuid.NullUUID{}, errors.New("invalid newsletter id")
+	}
+	return uuid.NullUUID{UUID: nid, Valid: true}, nil
+}
+
+func (s *CampaignService) Create(ctx context.Context, projectID, templateID, name, subject string, scheduledAt time.Time, variables json.RawMessage, newsletterID string) (db.Campaign, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return db.Campaign{}, errors.New("invalid project id")
@@ -33,17 +44,23 @@ func (s *CampaignService) Create(ctx context.Context, projectID, templateID, nam
 		return db.Campaign{}, errors.New("scheduled time must be in the future")
 	}
 
+	nlid, err := parseOptionalNewsletter(newsletterID)
+	if err != nil {
+		return db.Campaign{}, err
+	}
+
 	return s.queries.CreateCampaign(ctx, db.CreateCampaignParams{
-		ProjectID:   pid,
-		TemplateID:  tid,
-		Name:        name,
-		Subject:     subject,
-		ScheduledAt: scheduledAt,
-		Variables:   variables,
+		ProjectID:    pid,
+		TemplateID:   tid,
+		Name:         name,
+		Subject:      subject,
+		ScheduledAt:  scheduledAt,
+		Variables:    variables,
+		NewsletterID: nlid,
 	})
 }
 
-func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, templateID, name, subject string, scheduledAt time.Time, variables json.RawMessage) (db.Campaign, error) {
+func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, templateID, name, subject string, scheduledAt time.Time, variables json.RawMessage, newsletterID string) (db.Campaign, error) {
 	cid, err := uuid.Parse(campaignID)
 	if err != nil {
 		return db.Campaign{}, errors.New("invalid campaign id")
@@ -63,14 +80,20 @@ func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, tem
 		return db.Campaign{}, errors.New("scheduled time must be in the future")
 	}
 
+	nlid, err := parseOptionalNewsletter(newsletterID)
+	if err != nil {
+		return db.Campaign{}, err
+	}
+
 	return s.queries.UpdateCampaign(ctx, db.UpdateCampaignParams{
-		ID:          cid,
-		ProjectID:   pid,
-		TemplateID:  tid,
-		Name:        name,
-		Subject:     subject,
-		ScheduledAt: scheduledAt,
-		Variables:   variables,
+		ID:           cid,
+		ProjectID:    pid,
+		TemplateID:   tid,
+		Name:         name,
+		Subject:      subject,
+		ScheduledAt:  scheduledAt,
+		Variables:    variables,
+		NewsletterID: nlid,
 	})
 }
 

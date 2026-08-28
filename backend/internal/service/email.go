@@ -104,6 +104,21 @@ func (s *EmailService) unsubURL(projectID, subscriberID string) string {
 	return fmt.Sprintf("%s/unsubscribe/%s/%s?t=%s", s.publicURL(), projectID, subscriberID, s.signUnsub(projectID, subscriberID))
 }
 
+func (s *EmailService) signUnsubNewsletter(projectID, subscriberID, newsletterID string) string {
+	mac := hmac.New(sha256.New, []byte(s.encSecret))
+	mac.Write([]byte(projectID + ":" + subscriberID + ":" + newsletterID))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func (s *EmailService) verifyUnsubNewsletterToken(projectID, subscriberID, newsletterID, token string) bool {
+	expected := s.signUnsubNewsletter(projectID, subscriberID, newsletterID)
+	return hmac.Equal([]byte(expected), []byte(token))
+}
+
+func (s *EmailService) unsubNewsletterURL(projectID, subscriberID, newsletterID string) string {
+	return fmt.Sprintf("%s/unsubscribe/%s/%s?n=%s&t=%s", s.publicURL(), projectID, subscriberID, newsletterID, s.signUnsubNewsletter(projectID, subscriberID, newsletterID))
+}
+
 type SendResult struct {
 	Sent        int        `json:"sent"`
 	Failed      int        `json:"failed"`
@@ -208,14 +223,14 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	unsubURL := s.unsubURL(pid.String(), sid.String())
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	sendErr := s.trackAndSend(ctx, project, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL, uuid.NullUUID{})
+	sendErr := s.trackAndSend(ctx, project, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, subject, body, unsubURL, uuid.NullUUID{}, uuid.NullUUID{})
 	if sendErr != nil {
 		return SendResult{Failed: 1}, sendErr
 	}
 	return SendResult{Sent: 1}, nil
 }
 
-func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage, htmlFields []string, segmentID string) (SendResult, error) {
+func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, subjectOverride string, campaignVars json.RawMessage, htmlFields []string, segmentID, newsletterID string) (SendResult, error) {
 	if err := requireAuthorizedProject(ctx, projectID); err != nil {
 		return SendResult{}, err
 	}
@@ -234,7 +249,7 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 	}
 
 	if !IsPublicURLReachable(s.publicURL()) {
-		return SendResult{}, errors.New("your public URL is not set to a publicly reachable address. Newsletters need a working unsubscribe link before they can be sent. Set it under Settings → Instance")
+		return SendResult{}, errors.New("your public URL is not set to a publicly reachable address. Broadcasts need a working unsubscribe link before they can be sent. Set it under Settings → Instance")
 	}
 
 	tid, err := uuid.Parse(templateID)
@@ -247,8 +262,35 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		return SendResult{}, errors.New("template not found")
 	}
 
+	if segmentID != "" && newsletterID != "" {
+		return SendResult{}, errors.New("choose either a segment or a newsletter, not both")
+	}
+
+	broadcastNewsletter := uuid.NullUUID{}
+	if newsletterID != "" {
+		nid, err := uuid.Parse(newsletterID)
+		if err != nil {
+			return SendResult{}, errors.New("invalid newsletter id")
+		}
+		if _, err := s.queries.GetNewsletterByID(ctx, db.GetNewsletterByIDParams{ID: nid, ProjectID: pid}); err != nil {
+			return SendResult{}, errors.New("newsletter not found")
+		}
+		broadcastNewsletter = uuid.NullUUID{UUID: nid, Valid: true}
+	}
+
 	recipients := make([]SubscriberRef, 0)
-	if segmentID != "" {
+	if newsletterID != "" {
+		subscribers, err := s.queries.ListActiveNewsletterSubscribers(ctx, db.ListActiveNewsletterSubscribersParams{
+			NewsletterID: broadcastNewsletter.UUID,
+			ProjectID:    pid,
+		})
+		if err != nil {
+			return SendResult{}, err
+		}
+		for _, sub := range subscribers {
+			recipients = append(recipients, SubscriberRef{ID: sub.ID, Email: sub.Email})
+		}
+	} else if segmentID != "" {
 		if s.segments == nil {
 			return SendResult{}, errors.New("segments not available")
 		}
@@ -297,6 +339,7 @@ func (s *EmailService) Broadcast(ctx context.Context, projectID, templateID, sub
 		Variables:       variablesJSON,
 		HtmlFields:      htmlFieldsJSON,
 		TotalRecipients: int32(total),
+		NewsletterID:    broadcastNewsletter,
 	})
 	if err != nil {
 		return SendResult{}, fmt.Errorf("create broadcast: %w", err)
@@ -390,9 +433,19 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 	subject = replaceVariablesSimple(subject, sub)
 
 	unsubURL := s.unsubURL(job.ProjectID.String(), sub.ID.String())
+	logNewsletter := uuid.NullUUID{}
+	if broadcast.NewsletterID.Valid {
+		if newsletter, err := s.queries.GetNewsletterByID(ctx, db.GetNewsletterByIDParams{ID: broadcast.NewsletterID.UUID, ProjectID: job.ProjectID}); err == nil {
+			unsubURL = s.unsubNewsletterURL(job.ProjectID.String(), sub.ID.String(), newsletter.ID.String())
+			logNewsletter = broadcast.NewsletterID
+			safeName := html.EscapeString(newsletter.Name)
+			body = strings.ReplaceAll(body, "{{newsletter_name}}", safeName)
+			subject = strings.ReplaceAll(subject, "{{newsletter_name}}", newsletter.Name)
+		}
+	}
 	body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubURL)
 
-	sendErr := s.trackAndSend(ctx, project, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, subject, body, unsubURL, uuid.NullUUID{UUID: broadcast.ID, Valid: true})
+	sendErr := s.trackAndSend(ctx, project, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, subject, body, unsubURL, uuid.NullUUID{UUID: broadcast.ID, Valid: true}, logNewsletter)
 	if sendErr == nil {
 		return BroadcastJobOutcomeSent, nil
 	}
@@ -409,7 +462,7 @@ func (s *EmailService) RecoverInProgressBroadcasts(ctx context.Context) error {
 	return s.queries.ReconcileStuckBroadcasts(ctx)
 }
 
-func (s *EmailService) ListBroadcasts(ctx context.Context, projectID string, limit, offset int32) ([]db.Broadcast, int64, error) {
+func (s *EmailService) ListBroadcasts(ctx context.Context, projectID string, limit, offset int32, statusFilter, newsletterFilter string) ([]db.Broadcast, int64, error) {
 	if err := requireAuthorizedProject(ctx, projectID); err != nil {
 		return nil, 0, err
 	}
@@ -418,16 +471,29 @@ func (s *EmailService) ListBroadcasts(ctx context.Context, projectID string, lim
 		return nil, 0, errors.New("invalid project id")
 	}
 
+	filterNewsletter := uuid.Nil
+	if newsletterFilter != "" {
+		if u, err := uuid.Parse(newsletterFilter); err == nil {
+			filterNewsletter = u
+		}
+	}
+
 	rows, err := s.queries.ListBroadcastsByProject(ctx, db.ListBroadcastsByProjectParams{
 		ProjectID: pid,
 		Limit:     limit,
 		Offset:    offset,
+		Column4:   strings.TrimSpace(statusFilter),
+		Column5:   filterNewsletter,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
 
-	count, _ := s.queries.CountBroadcastsByProject(ctx, pid)
+	count, _ := s.queries.CountBroadcastsByProject(ctx, db.CountBroadcastsByProjectParams{
+		ProjectID: pid,
+		Column2:   strings.TrimSpace(statusFilter),
+		Column3:   filterNewsletter,
+	})
 	return rows, count, nil
 }
 
@@ -454,7 +520,7 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 		return ErrRecipientSuppressed
 	}
 
-	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "", uuid.NullUUID{})
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, htmlBody, "", uuid.NullUUID{}, uuid.NullUUID{})
 }
 
 func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, templateID, to, subjectOverride string, variables map[string]string, htmlFields []string) error {
@@ -517,18 +583,19 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 		body = strings.ReplaceAll(body, "{{unsubscribe_url}}", unsubscribeURL)
 	}
 
-	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL, uuid.NullUUID{})
+	return s.trackAndSend(ctx, project, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, subject, body, unsubscribeURL, uuid.NullUUID{}, uuid.NullUUID{})
 }
 
 type LogFilters struct {
-	Status     string
-	From       string
-	To         string
-	Search     string
-	TemplateID string
+	Status       string
+	From         string
+	To           string
+	Search       string
+	TemplateID   string
+	NewsletterID string
 }
 
-func (f LogFilters) parse() (string, time.Time, time.Time, string, uuid.UUID) {
+func (f LogFilters) parse() (string, time.Time, time.Time, string, uuid.UUID, uuid.UUID) {
 	var fromTime, toTime time.Time
 	if f.From != "" {
 		if t, err := time.Parse(time.RFC3339, f.From); err == nil {
@@ -546,12 +613,18 @@ func (f LogFilters) parse() (string, time.Time, time.Time, string, uuid.UUID) {
 			tid = u
 		}
 	}
-	return strings.TrimSpace(f.Status), fromTime, toTime, strings.TrimSpace(f.Search), tid
+	nid := uuid.Nil
+	if f.NewsletterID != "" {
+		if u, err := uuid.Parse(f.NewsletterID); err == nil {
+			nid = u
+		}
+	}
+	return strings.TrimSpace(f.Status), fromTime, toTime, strings.TrimSpace(f.Search), tid, nid
 }
 
 func (f LogFilters) isEmpty() bool {
-	status, fromT, toT, search, tid := f.parse()
-	return status == "" && fromT.IsZero() && toT.IsZero() && search == "" && tid == uuid.Nil
+	status, fromT, toT, search, tid, nid := f.parse()
+	return status == "" && fromT.IsZero() && toT.IsZero() && search == "" && tid == uuid.Nil && nid == uuid.Nil
 }
 
 func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, offset int32, filters LogFilters) ([]db.EmailLog, int64, error) {
@@ -576,7 +649,7 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 		return logs, count, nil
 	}
 
-	status, fromT, toT, search, tid := filters.parse()
+	status, fromT, toT, search, tid, nid := filters.parse()
 
 	logs, err := s.queries.ListEmailLogsByProjectFiltered(ctx, db.ListEmailLogsByProjectFilteredParams{
 		ProjectID: pid,
@@ -587,6 +660,7 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 		Column6:   toT,
 		Column7:   search,
 		Column8:   tid,
+		Column9:   nid,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -599,6 +673,7 @@ func (s *EmailService) GetLogs(ctx context.Context, projectID string, limit, off
 		Column4:   toT,
 		Column5:   search,
 		Column6:   tid,
+		Column7:   nid,
 	})
 
 	return logs, count, nil
@@ -637,7 +712,7 @@ func (s *EmailService) ExportLogs(ctx context.Context, projectID string, filters
 	if err != nil {
 		return nil, errors.New("invalid project id")
 	}
-	status, fromT, toT, search, tid := filters.parse()
+	status, fromT, toT, search, tid, _ := filters.parse()
 	return s.queries.ListEmailLogsByProjectExport(ctx, db.ListEmailLogsByProjectExportParams{
 		ProjectID: pid,
 		Column2:   status,
@@ -683,7 +758,7 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 	return stats, nil
 }
 
-func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, broadcastID uuid.NullUUID) uuid.UUID {
+func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, broadcastID, newsletterID uuid.NullUUID) uuid.UUID {
 	logEntry, _ := s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
@@ -692,6 +767,7 @@ func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subs
 		Subject:      subject,
 		Status:       "sent",
 		BroadcastID:  broadcastID,
+		NewsletterID: newsletterID,
 	})
 	s.cache.Delete(ctx, "stats:"+projectID.String())
 	return logEntry.ID
@@ -720,8 +796,12 @@ func (s *EmailService) markLogFailed(ctx context.Context, projectID, logID uuid.
 	s.markLogStatus(ctx, projectID, logID, "failed", sendErr)
 }
 
-func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string, broadcastID uuid.NullUUID) error {
-	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject, broadcastID)
+func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject, body, unsubscribeURL string, broadcastID, newsletterID uuid.NullUUID) error {
+	logID := s.logPending(ctx, projectID, subscriberID, templateID, to, subject, broadcastID, newsletterID)
+	body = normalizeColumns(body)
+	if strings.Contains(strings.ToLower(body), "<style") {
+		body = inlineCSS(body)
+	}
 	body = s.injectTrackingPixel(body, logID)
 	body = s.rewriteLinksForTracking(body, logID)
 	metrics.EmailAttempt()
@@ -871,12 +951,23 @@ func (s *EmailService) rewriteLinksForTracking(body string, logID uuid.UUID) str
 }
 
 type UnsubscribeContext struct {
-	ProjectName string
-	Email       string
+	ProjectName    string
+	Email          string
+	NewsletterID   string
+	NewsletterName string
+	AllToken       string
+	PageHTML       string
 }
 
-func (s *EmailService) ResolveUnsubscribe(ctx context.Context, projectID, subscriberID, token string) (UnsubscribeContext, error) {
-	if !s.verifyUnsubToken(projectID, subscriberID, token) {
+func (s *EmailService) verifyAnyUnsubToken(projectID, subscriberID, newsletterID, token string) bool {
+	if newsletterID != "" {
+		return s.verifyUnsubNewsletterToken(projectID, subscriberID, newsletterID, token)
+	}
+	return s.verifyUnsubToken(projectID, subscriberID, token)
+}
+
+func (s *EmailService) ResolveUnsubscribe(ctx context.Context, projectID, subscriberID, newsletterID, token string) (UnsubscribeContext, error) {
+	if !s.verifyAnyUnsubToken(projectID, subscriberID, newsletterID, token) {
 		return UnsubscribeContext{}, errors.New("invalid token")
 	}
 
@@ -900,22 +991,45 @@ func (s *EmailService) ResolveUnsubscribe(ctx context.Context, projectID, subscr
 		return UnsubscribeContext{}, errors.New("project not found")
 	}
 
-	return UnsubscribeContext{ProjectName: project.Name, Email: sub.Email}, nil
+	result := UnsubscribeContext{ProjectName: project.Name, Email: sub.Email}
+	if project.UnsubscribeTemplateID.Valid {
+		if template, err := s.queries.GetTemplateByID(ctx, db.GetTemplateByIDParams{ID: project.UnsubscribeTemplateID.UUID, ProjectID: pid}); err == nil && template.Type == "page" && strings.TrimSpace(template.HtmlBody) != "" {
+			result.PageHTML = template.HtmlBody
+		}
+	}
+	if newsletterID != "" {
+		if nid, err := uuid.Parse(newsletterID); err == nil {
+			if newsletter, err := s.queries.GetNewsletterByID(ctx, db.GetNewsletterByIDParams{ID: nid, ProjectID: pid}); err == nil {
+				result.NewsletterID = newsletter.ID.String()
+				result.NewsletterName = newsletter.Name
+				result.AllToken = s.signUnsub(projectID, subscriberID)
+			}
+		}
+	}
+	return result, nil
 }
 
-func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID, token string) error {
-	if !s.verifyUnsubToken(projectID, subscriberID, token) {
-		return errors.New("invalid token")
+func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID, newsletterID, token string) (UnsubscribeContext, error) {
+	uctx, err := s.ResolveUnsubscribe(ctx, projectID, subscriberID, newsletterID, token)
+	if err != nil {
+		return UnsubscribeContext{}, err
 	}
 
 	sid, err := uuid.Parse(subscriberID)
 	if err != nil {
-		return errors.New("invalid subscriber id")
+		return UnsubscribeContext{}, errors.New("invalid subscriber id")
 	}
 
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
-		return errors.New("invalid project id")
+		return UnsubscribeContext{}, errors.New("invalid project id")
+	}
+
+	if uctx.NewsletterID != "" {
+		if _, err := s.unsubscribeFromNewsletter(ctx, pid, sid, uctx.NewsletterID); err != nil {
+			return UnsubscribeContext{}, err
+		}
+		return uctx, nil
 	}
 
 	sub, err := s.queries.UpdateSubscriberStatus(ctx, db.UpdateSubscriberStatusParams{
@@ -925,7 +1039,7 @@ func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID,
 		Column4:   "unsubscribed",
 	})
 	if err != nil {
-		return err
+		return UnsubscribeContext{}, err
 	}
 	if s.suppressions != nil {
 		_, _ = s.suppressions.Add(ctx, pid, sub.Email, SuppressionReasonUnsubscribe, "unsubscribe link click")
@@ -942,7 +1056,44 @@ func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID,
 			},
 		})
 	}
-	return nil
+	return uctx, nil
+}
+
+func (s *EmailService) unsubscribeFromNewsletter(ctx context.Context, pid, sid uuid.UUID, newsletterID string) (bool, error) {
+	nid, err := uuid.Parse(newsletterID)
+	if err != nil {
+		return false, errors.New("invalid newsletter id")
+	}
+	newsletter, err := s.queries.GetNewsletterByID(ctx, db.GetNewsletterByIDParams{ID: nid, ProjectID: pid})
+	if err != nil {
+		return false, nil
+	}
+	sub, err := s.queries.GetSubscriberByID(ctx, db.GetSubscriberByIDParams{ID: sid, ProjectID: pid})
+	if err != nil {
+		return false, errors.New("subscriber not found")
+	}
+	if err := s.queries.MarkNewsletterUnsubscribed(ctx, db.MarkNewsletterUnsubscribedParams{
+		SubscriberID: sid,
+		NewsletterID: nid,
+		ProjectID:    pid,
+	}); err != nil {
+		return false, err
+	}
+	if s.hooks != nil {
+		s.hooks.Enqueue(ctx, webhooks.Event{
+			Type:      "subscriber.newsletter_unsubscribed",
+			ProjectID: pid,
+			Data: map[string]any{
+				"subscriber_id":   sub.ID.String(),
+				"project_id":      pid.String(),
+				"newsletter_id":   newsletter.ID.String(),
+				"newsletter_name": newsletter.Name,
+				"email":           sub.Email,
+				"name":            sub.Name,
+			},
+		})
+	}
+	return true, nil
 }
 
 func (s *EmailService) TestSMTP(ctx context.Context, projectID string) error {
@@ -1153,6 +1304,55 @@ func replaceCustomVariables(text string, sub db.Subscriber, escape bool) string 
 		text = strings.ReplaceAll(text, "{{custom."+key+"}}", rendered)
 	}
 	return text
+}
+
+// normalizeColumns converts the editor's div-based columns (div[data-columns]
+// with display:table-cell children) into a real <table> so they render
+// side-by-side in every mail client. Templates without columns are returned
+// untouched.
+func normalizeColumns(body string) string {
+	if !strings.Contains(body, "data-columns") {
+		return body
+	}
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+	if err != nil {
+		return body
+	}
+	doc.Find("div[data-columns]").Each(func(_ int, sel *goquery.Selection) {
+		wrapperStyle, _ := sel.Attr("style")
+		wrapperStyle = strings.ReplaceAll(wrapperStyle, "display: table;", "")
+		wrapperStyle = strings.ReplaceAll(wrapperStyle, "display:table;", "")
+
+		var sb strings.Builder
+		sb.WriteString(`<table role="presentation" cellpadding="0" cellspacing="0"`)
+		if s := strings.TrimSpace(wrapperStyle); s != "" {
+			sb.WriteString(` style="` + s + `"`)
+		}
+		sb.WriteString("><tr>")
+
+		sel.Children().Each(func(_ int, cell *goquery.Selection) {
+			style, _ := cell.Attr("style")
+			style = strings.ReplaceAll(style, "display: table-cell;", "")
+			style = strings.ReplaceAll(style, "display:table-cell;", "")
+			sb.WriteString("<td")
+			if s := strings.TrimSpace(style); s != "" {
+				sb.WriteString(` style="` + s + `"`)
+			}
+			sb.WriteString(">")
+			if inner, err := cell.Html(); err == nil {
+				sb.WriteString(inner)
+			}
+			sb.WriteString("</td>")
+		})
+
+		sb.WriteString("</tr></table>")
+		sel.ReplaceWithHtml(sb.String())
+	})
+	out, err := doc.Html()
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 func inlineCSS(html string) string {

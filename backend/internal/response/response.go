@@ -10,16 +10,17 @@ import (
 )
 
 type Project struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
-	FromName    *string `json:"from_name"`
-	FromEmail   *string `json:"from_email"`
-	SmtpHost    *string `json:"smtp_host"`
-	SmtpPort    *int32  `json:"smtp_port"`
-	SmtpUser    *string `json:"smtp_user"`
-	CreatedAt   string  `json:"created_at"`
-	UpdatedAt   string  `json:"updated_at"`
+	ID                    string  `json:"id"`
+	Name                  string  `json:"name"`
+	Description           *string `json:"description"`
+	FromName              *string `json:"from_name"`
+	FromEmail             *string `json:"from_email"`
+	SmtpHost              *string `json:"smtp_host"`
+	SmtpPort              *int32  `json:"smtp_port"`
+	SmtpUser              *string `json:"smtp_user"`
+	CreatedAt             string  `json:"created_at"`
+	UpdatedAt             string  `json:"updated_at"`
+	UnsubscribeTemplateID *string `json:"unsubscribe_template_id"`
 }
 
 type Subscriber struct {
@@ -81,6 +82,7 @@ type Template struct {
 	TextBody  string `json:"text_body"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
+	Type      string `json:"type"`
 }
 
 type APIKey struct {
@@ -116,16 +118,17 @@ func nullTime(nt sql.NullTime) *string {
 
 func FromProject(p db.Project) Project {
 	return Project{
-		ID:          p.ID.String(),
-		Name:        p.Name,
-		Description: nullStr(p.Description),
-		FromName:    nullStr(p.FromName),
-		FromEmail:   nullStr(p.FromEmail),
-		SmtpHost:    nullStr(p.SmtpHost),
-		SmtpPort:    nullInt32(p.SmtpPort),
-		SmtpUser:    nullStr(p.SmtpUser),
-		CreatedAt:   p.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   p.UpdatedAt.Format(time.RFC3339),
+		ID:                    p.ID.String(),
+		Name:                  p.Name,
+		Description:           nullStr(p.Description),
+		FromName:              nullStr(p.FromName),
+		FromEmail:             nullStr(p.FromEmail),
+		SmtpHost:              nullStr(p.SmtpHost),
+		SmtpPort:              nullInt32(p.SmtpPort),
+		SmtpUser:              nullStr(p.SmtpUser),
+		CreatedAt:             p.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:             p.UpdatedAt.Format(time.RFC3339),
+		UnsubscribeTemplateID: nullUUIDString(p.UnsubscribeTemplateID),
 	}
 }
 
@@ -287,6 +290,7 @@ func FromTemplate(t db.Template) Template {
 		TextBody:  t.TextBody,
 		CreatedAt: t.CreatedAt.Format(time.RFC3339),
 		UpdatedAt: t.UpdatedAt.Format(time.RFC3339),
+		Type:      t.Type,
 	}
 }
 
@@ -397,34 +401,44 @@ func FromAPIKeys(keys []db.ApiKey) []APIKey {
 }
 
 type Campaign struct {
-	ID          string          `json:"id"`
-	ProjectID   string          `json:"project_id"`
-	TemplateID  string          `json:"template_id"`
-	Name        string          `json:"name"`
-	Subject     string          `json:"subject"`
-	Status      string          `json:"status"`
-	ScheduledAt string          `json:"scheduled_at"`
-	SentAt      *string         `json:"sent_at"`
-	SentCount   int32           `json:"sent_count"`
-	FailedCount int32           `json:"failed_count"`
-	CreatedAt   string          `json:"created_at"`
-	Variables   json.RawMessage `json:"variables"`
+	ID           string          `json:"id"`
+	ProjectID    string          `json:"project_id"`
+	TemplateID   string          `json:"template_id"`
+	Name         string          `json:"name"`
+	Subject      string          `json:"subject"`
+	Status       string          `json:"status"`
+	ScheduledAt  string          `json:"scheduled_at"`
+	SentAt       *string         `json:"sent_at"`
+	SentCount    int32           `json:"sent_count"`
+	FailedCount  int32           `json:"failed_count"`
+	CreatedAt    string          `json:"created_at"`
+	Variables    json.RawMessage `json:"variables"`
+	NewsletterID *string         `json:"newsletter_id"`
+}
+
+func nullUUIDString(v uuid.NullUUID) *string {
+	if !v.Valid {
+		return nil
+	}
+	s := v.UUID.String()
+	return &s
 }
 
 func FromCampaign(c db.Campaign) Campaign {
 	return Campaign{
-		ID:          c.ID.String(),
-		ProjectID:   c.ProjectID.String(),
-		TemplateID:  c.TemplateID.String(),
-		Name:        c.Name,
-		Subject:     c.Subject,
-		Status:      c.Status,
-		ScheduledAt: c.ScheduledAt.Format(time.RFC3339),
-		SentAt:      nullTime(c.SentAt),
-		SentCount:   c.SentCount,
-		FailedCount: c.FailedCount,
-		CreatedAt:   c.CreatedAt.Format(time.RFC3339),
-		Variables:   c.Variables,
+		ID:           c.ID.String(),
+		ProjectID:    c.ProjectID.String(),
+		TemplateID:   c.TemplateID.String(),
+		Name:         c.Name,
+		Subject:      c.Subject,
+		Status:       c.Status,
+		ScheduledAt:  c.ScheduledAt.Format(time.RFC3339),
+		SentAt:       nullTime(c.SentAt),
+		SentCount:    c.SentCount,
+		FailedCount:  c.FailedCount,
+		CreatedAt:    c.CreatedAt.Format(time.RFC3339),
+		Variables:    c.Variables,
+		NewsletterID: nullUUIDString(c.NewsletterID),
 	}
 }
 
@@ -449,6 +463,7 @@ type Broadcast struct {
 	SuppressedCount int32           `json:"suppressed_count"`
 	StartedAt       string          `json:"started_at"`
 	FinishedAt      *string         `json:"finished_at"`
+	NewsletterID    *string         `json:"newsletter_id"`
 }
 
 func FromBroadcast(b db.Broadcast) Broadcast {
@@ -465,6 +480,7 @@ func FromBroadcast(b db.Broadcast) Broadcast {
 		SuppressedCount: b.SuppressedCount,
 		StartedAt:       b.StartedAt.UTC().Format(time.RFC3339),
 		FinishedAt:      nullTime(b.FinishedAt),
+		NewsletterID:    nullUUIDString(b.NewsletterID),
 	}
 }
 
@@ -472,6 +488,62 @@ func FromBroadcasts(broadcasts []db.Broadcast) []Broadcast {
 	result := make([]Broadcast, len(broadcasts))
 	for i, b := range broadcasts {
 		result[i] = FromBroadcast(b)
+	}
+	return result
+}
+
+type Newsletter struct {
+	ID          string `json:"id"`
+	ProjectID   string `json:"project_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ActiveCount int64  `json:"active_count"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+func FromNewsletter(n db.Newsletter, activeCount int64) Newsletter {
+	return Newsletter{
+		ID:          n.ID.String(),
+		ProjectID:   n.ProjectID.String(),
+		Name:        n.Name,
+		Description: n.Description,
+		ActiveCount: activeCount,
+		CreatedAt:   n.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   n.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func FromNewsletters(rows []db.ListNewslettersByProjectRow) []Newsletter {
+	result := make([]Newsletter, len(rows))
+	for i, row := range rows {
+		result[i] = Newsletter{
+			ID:          row.ID.String(),
+			ProjectID:   row.ProjectID.String(),
+			Name:        row.Name,
+			Description: row.Description,
+			ActiveCount: row.ActiveCount,
+			CreatedAt:   row.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:   row.UpdatedAt.Format(time.RFC3339),
+		}
+	}
+	return result
+}
+
+type SubscriberNewsletter struct {
+	ID             string  `json:"id"`
+	Name           string  `json:"name"`
+	UnsubscribedAt *string `json:"unsubscribed_at"`
+}
+
+func FromSubscriberNewsletters(rows []db.ListSubscriberNewslettersRow) []SubscriberNewsletter {
+	result := make([]SubscriberNewsletter, len(rows))
+	for i, row := range rows {
+		result[i] = SubscriberNewsletter{
+			ID:             row.ID.String(),
+			Name:           row.Name,
+			UnsubscribedAt: nullTime(row.UnsubscribedAt),
+		}
 	}
 	return result
 }

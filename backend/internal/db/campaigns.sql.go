@@ -28,18 +28,19 @@ func (q *Queries) ClaimCampaignForExecution(ctx context.Context, id uuid.UUID) (
 }
 
 const createCampaign = `-- name: CreateCampaign :one
-INSERT INTO campaigns (project_id, template_id, name, subject, scheduled_at, variables)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id
+INSERT INTO campaigns (project_id, template_id, name, subject, scheduled_at, variables, newsletter_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id, newsletter_id
 `
 
 type CreateCampaignParams struct {
-	ProjectID   uuid.UUID
-	TemplateID  uuid.UUID
-	Name        string
-	Subject     string
-	ScheduledAt time.Time
-	Variables   json.RawMessage
+	ProjectID    uuid.UUID
+	TemplateID   uuid.UUID
+	Name         string
+	Subject      string
+	ScheduledAt  time.Time
+	Variables    json.RawMessage
+	NewsletterID uuid.NullUUID
 }
 
 func (q *Queries) CreateCampaign(ctx context.Context, arg CreateCampaignParams) (Campaign, error) {
@@ -50,6 +51,7 @@ func (q *Queries) CreateCampaign(ctx context.Context, arg CreateCampaignParams) 
 		arg.Subject,
 		arg.ScheduledAt,
 		arg.Variables,
+		arg.NewsletterID,
 	)
 	var i Campaign
 	err := row.Scan(
@@ -66,6 +68,7 @@ func (q *Queries) CreateCampaign(ctx context.Context, arg CreateCampaignParams) 
 		&i.Variables,
 		&i.Subject,
 		&i.BroadcastID,
+		&i.NewsletterID,
 	)
 	return i, err
 }
@@ -143,7 +146,7 @@ func (q *Queries) GetCampaignByID(ctx context.Context, arg GetCampaignByIDParams
 }
 
 const getPendingCampaigns = `-- name: GetPendingCampaigns :many
-SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id FROM campaigns
+SELECT id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id, newsletter_id FROM campaigns
 WHERE status = 'scheduled' AND scheduled_at <= NOW()
 ORDER BY scheduled_at ASC
 `
@@ -171,6 +174,7 @@ func (q *Queries) GetPendingCampaigns(ctx context.Context) ([]Campaign, error) {
 			&i.Variables,
 			&i.Subject,
 			&i.BroadcastID,
+			&i.NewsletterID,
 		); err != nil {
 			return nil, err
 		}
@@ -289,19 +293,21 @@ UPDATE campaigns SET
     template_id = $4,
     subject = $5,
     scheduled_at = $6,
-    variables = $7
+    variables = $7,
+    newsletter_id = $8
 WHERE id = $1 AND project_id = $2 AND status = 'scheduled'
-RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id
+RETURNING id, project_id, template_id, name, status, scheduled_at, sent_at, sent_count, failed_count, created_at, variables, subject, broadcast_id, newsletter_id
 `
 
 type UpdateCampaignParams struct {
-	ID          uuid.UUID
-	ProjectID   uuid.UUID
-	Name        string
-	TemplateID  uuid.UUID
-	Subject     string
-	ScheduledAt time.Time
-	Variables   json.RawMessage
+	ID           uuid.UUID
+	ProjectID    uuid.UUID
+	Name         string
+	TemplateID   uuid.UUID
+	Subject      string
+	ScheduledAt  time.Time
+	Variables    json.RawMessage
+	NewsletterID uuid.NullUUID
 }
 
 func (q *Queries) UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) (Campaign, error) {
@@ -313,6 +319,7 @@ func (q *Queries) UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) 
 		arg.Subject,
 		arg.ScheduledAt,
 		arg.Variables,
+		arg.NewsletterID,
 	)
 	var i Campaign
 	err := row.Scan(
@@ -329,6 +336,7 @@ func (q *Queries) UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) 
 		&i.Variables,
 		&i.Subject,
 		&i.BroadcastID,
+		&i.NewsletterID,
 	)
 	return i, err
 }

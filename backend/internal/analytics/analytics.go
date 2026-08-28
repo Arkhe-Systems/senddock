@@ -30,6 +30,7 @@ type Overview struct {
 	Granularity        string              `json:"granularity"`
 	RangeDays          int                 `json:"range_days"`
 	SegmentID          string              `json:"segment_id,omitempty"`
+	NewsletterID       string              `json:"newsletter_id,omitempty"`
 	TotalSent          int64               `json:"total_sent"`
 	TotalFailed        int64               `json:"total_failed"`
 	TotalBounced       int64               `json:"total_bounced"`
@@ -131,6 +132,14 @@ func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	newsletterID := strings.TrimSpace(r.URL.Query().Get("newsletter_id"))
+	if newsletterID != "" {
+		if _, err := uuid.Parse(newsletterID); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid newsletter_id")
+			return
+		}
+	}
+
 	var subIDs []uuid.UUID
 	segmentID := strings.TrimSpace(r.URL.Query().Get("segment_id"))
 	if segmentID != "" {
@@ -150,12 +159,13 @@ func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
 		subIDs = ids
 	}
 
-	overview, err := h.computeOverview(r.Context(), projectID, from, to, granularity, subIDs)
+	overview, err := h.computeOverview(r.Context(), projectID, from, to, granularity, subIDs, newsletterID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to compute analytics")
 		return
 	}
 	overview.SegmentID = segmentID
+	overview.NewsletterID = newsletterID
 
 	writeJSON(w, http.StatusOK, overview)
 }
@@ -247,7 +257,7 @@ func (h *Handler) authorizeProject(ctx context.Context, projectID, userID string
 	return nil
 }
 
-func (h *Handler) computeOverview(ctx context.Context, projectID string, from, to time.Time, granularity string, subIDs []uuid.UUID) (Overview, error) {
+func (h *Handler) computeOverview(ctx context.Context, projectID string, from, to time.Time, granularity string, subIDs []uuid.UUID, newsletterID string) (Overview, error) {
 	since := from
 	until := to
 	days := int(to.Sub(from).Hours()/24) + 1
@@ -268,9 +278,14 @@ func (h *Handler) computeOverview(ctx context.Context, projectID string, from, t
 	logFilter := ""
 	logArgs := []any{projectID, since, until}
 	if subIDs != nil {
-		logFilter = " AND subscriber_id = ANY($4)"
 		logArgs = append(logArgs, pq.Array(subIDs))
+		logFilter += fmt.Sprintf(" AND subscriber_id = ANY($%d)", len(logArgs))
 	}
+	if newsletterID != "" {
+		logArgs = append(logArgs, newsletterID)
+		logFilter += fmt.Sprintf(" AND newsletter_id = $%d", len(logArgs))
+	}
+	aliasedFilter := strings.ReplaceAll(strings.ReplaceAll(logFilter, " subscriber_id", " l.subscriber_id"), " newsletter_id", " l.newsletter_id")
 
 	statusRows, err := h.db.QueryContext(ctx, `
 		SELECT status, COUNT(*)
@@ -359,10 +374,7 @@ func (h *Handler) computeOverview(ctx context.Context, projectID string, from, t
 		return out, err
 	}
 
-	tplFilter := ""
-	if subIDs != nil {
-		tplFilter = " AND l.subscriber_id = ANY($4)"
-	}
+	tplFilter := aliasedFilter
 	tplRows, err := h.db.QueryContext(ctx, `
 		SELECT t.id, t.name, COUNT(l.*) AS sends
 		FROM email_logs l
@@ -393,8 +405,12 @@ func (h *Handler) computeOverview(ctx context.Context, projectID string, from, t
 		WHERE project_id = $1 AND status = 'active'`
 	subsArgs := []any{projectID}
 	if subIDs != nil {
-		subsQuery += " AND id = ANY($2)"
 		subsArgs = append(subsArgs, pq.Array(subIDs))
+		subsQuery += fmt.Sprintf(" AND id = ANY($%d)", len(subsArgs))
+	}
+	if newsletterID != "" {
+		subsArgs = append(subsArgs, newsletterID)
+		subsQuery += fmt.Sprintf(" AND id IN (SELECT subscriber_id FROM newsletter_subscriptions WHERE newsletter_id = $%d AND unsubscribed_at IS NULL)", len(subsArgs))
 	}
 	if err := h.db.QueryRowContext(ctx, subsQuery, subsArgs...).Scan(&out.ActiveSubscribers); err != nil {
 		return out, err
@@ -417,10 +433,7 @@ func (h *Handler) computeOverview(ctx context.Context, projectID string, from, t
 	}
 	out.ComplaintRatePct = ratePct(out.TotalComplained, out.TotalSent)
 
-	linkFilter := ""
-	if subIDs != nil {
-		linkFilter = " AND l.subscriber_id = ANY($4)"
-	}
+	linkFilter := aliasedFilter
 	linkRows, err := h.db.QueryContext(ctx, `
 		SELECT c.url, COUNT(*) AS clicks
 		FROM email_clicks c
@@ -474,7 +487,7 @@ func (h *Handler) computeOverview(ctx context.Context, projectID string, from, t
 	}
 
 	duration := until.Sub(since)
-	prev, err := h.periodMetrics(ctx, projectID, since.Add(-duration), since, subIDs)
+	prev, err := h.periodMetrics(ctx, projectID, since.Add(-duration), since, subIDs, newsletterID)
 	if err != nil {
 		return out, err
 	}
@@ -483,14 +496,18 @@ func (h *Handler) computeOverview(ctx context.Context, projectID string, from, t
 	return out, nil
 }
 
-func (h *Handler) periodMetrics(ctx context.Context, projectID string, since, until time.Time, subIDs []uuid.UUID) (PeriodMetrics, error) {
+func (h *Handler) periodMetrics(ctx context.Context, projectID string, since, until time.Time, subIDs []uuid.UUID, newsletterID string) (PeriodMetrics, error) {
 	var m PeriodMetrics
 
 	logFilter := ""
 	logArgs := []any{projectID, since, until}
 	if subIDs != nil {
-		logFilter = " AND subscriber_id = ANY($4)"
 		logArgs = append(logArgs, pq.Array(subIDs))
+		logFilter += fmt.Sprintf(" AND subscriber_id = ANY($%d)", len(logArgs))
+	}
+	if newsletterID != "" {
+		logArgs = append(logArgs, newsletterID)
+		logFilter += fmt.Sprintf(" AND newsletter_id = $%d", len(logArgs))
 	}
 
 	rows, err := h.db.QueryContext(ctx, `

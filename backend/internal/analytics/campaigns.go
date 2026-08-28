@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/arkhe-systems/senddock/pkg/auth"
@@ -56,12 +57,23 @@ func (h *Handler) Campaigns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nlFilter := ""
+	nlArgs := []any{}
+	if newsletterID := strings.TrimSpace(r.URL.Query().Get("newsletter_id")); newsletterID != "" {
+		if _, err := uuid.Parse(newsletterID); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid newsletter_id")
+			return
+		}
+		nlFilter = " AND b.newsletter_id = $4"
+		nlArgs = append(nlArgs, newsletterID)
+	}
+
 	rows, err := h.db.QueryContext(r.Context(), campaignSelect+`
-		WHERE b.project_id = $1 AND b.started_at >= $2 AND b.started_at < $3
+		WHERE b.project_id = $1 AND b.started_at >= $2 AND b.started_at < $3`+nlFilter+`
 		GROUP BY b.id
 		ORDER BY b.started_at DESC
 		LIMIT 200
-	`, projectID, from, to)
+	`, append([]any{projectID, from, to}, nlArgs...)...)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to load campaigns")
 		return

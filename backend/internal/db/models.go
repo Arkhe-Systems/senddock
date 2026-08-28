@@ -50,6 +50,7 @@ type Broadcast struct {
 	StartedAt       time.Time
 	FinishedAt      sql.NullTime
 	HtmlFields      json.RawMessage
+	NewsletterID    uuid.NullUUID
 }
 
 type BroadcastJob struct {
@@ -67,19 +68,20 @@ type BroadcastJob struct {
 }
 
 type Campaign struct {
-	ID          uuid.UUID
-	ProjectID   uuid.UUID
-	TemplateID  uuid.UUID
-	Name        string
-	Status      string
-	ScheduledAt time.Time
-	SentAt      sql.NullTime
-	SentCount   int32
-	FailedCount int32
-	CreatedAt   time.Time
-	Variables   json.RawMessage
-	Subject     string
-	BroadcastID uuid.NullUUID
+	ID           uuid.UUID
+	ProjectID    uuid.UUID
+	TemplateID   uuid.UUID
+	Name         string
+	Status       string
+	ScheduledAt  time.Time
+	SentAt       sql.NullTime
+	SentCount    int32
+	FailedCount  int32
+	CreatedAt    time.Time
+	Variables    json.RawMessage
+	Subject      string
+	BroadcastID  uuid.NullUUID
+	NewsletterID uuid.NullUUID
 }
 
 type EmailClick struct {
@@ -106,6 +108,7 @@ type EmailLog struct {
 	ClickedAt    sql.NullTime
 	BroadcastID  uuid.NullUUID
 	ComplainedAt sql.NullTime
+	NewsletterID uuid.NullUUID
 }
 
 type InstanceSetting struct {
@@ -114,6 +117,23 @@ type InstanceSetting struct {
 	SessionIdleTimeoutMinutes int32
 	UpdatedAt                 time.Time
 	LicenseKeyEncrypted       string
+}
+
+type Newsletter struct {
+	ID          uuid.UUID
+	ProjectID   uuid.UUID
+	Name        string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type NewsletterSubscription struct {
+	NewsletterID   uuid.UUID
+	SubscriberID   uuid.UUID
+	ProjectID      uuid.UUID
+	SubscribedAt   time.Time
+	UnsubscribedAt sql.NullTime
 }
 
 type Project struct {
@@ -140,6 +160,7 @@ type Project struct {
 	BounceImapFolder            string
 	BounceImapEnabled           bool
 	WorkspaceID                 uuid.UUID
+	UnsubscribeTemplateID       uuid.NullUUID
 }
 
 type RefreshToken struct {
@@ -204,6 +225,7 @@ type Template struct {
 	Variables json.RawMessage
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Type      string
 }
 
 type User struct {

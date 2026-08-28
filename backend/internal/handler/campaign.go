@@ -33,16 +33,17 @@ func (h *CampaignHandler) requirePublicURL(w http.ResponseWriter) bool {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(errorResponse{Error: "Your public URL is not set to a publicly reachable address. Newsletters need a working unsubscribe link before they can be scheduled. Set it under Settings → Instance"})
+	json.NewEncoder(w).Encode(errorResponse{Error: "Your public URL is not set to a publicly reachable address. Campaigns need a working unsubscribe link before they can be scheduled. Set it under Settings → Instance"})
 	return false
 }
 
 type createCampaignRequest struct {
-	TemplateID  string            `json:"template_id"`
-	Name        string            `json:"name"`
-	Subject     string            `json:"subject"`
-	ScheduledAt string            `json:"scheduled_at"`
-	Variables   map[string]string `json:"variables"`
+	TemplateID   string            `json:"template_id"`
+	Name         string            `json:"name"`
+	Subject      string            `json:"subject"`
+	ScheduledAt  string            `json:"scheduled_at"`
+	Variables    map[string]string `json:"variables"`
+	NewsletterID string            `json:"newsletter_id"`
 }
 
 func (h *CampaignHandler) verifyProjectOwner(r *http.Request) (string, error) {
@@ -92,7 +93,7 @@ func (h *CampaignHandler) Create(w http.ResponseWriter, r *http.Request) {
 		variablesJson = []byte("{}")
 	}
 
-	campaign, err := h.campaignService.Create(r.Context(), projectID, req.TemplateID, req.Name, req.Subject, scheduledAt, variablesJson)
+	campaign, err := h.campaignService.Create(r.Context(), projectID, req.TemplateID, req.Name, req.Subject, scheduledAt, variablesJson, req.NewsletterID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -191,7 +192,7 @@ func (h *CampaignHandler) Update(w http.ResponseWriter, r *http.Request) {
 		variablesJson = []byte("{}")
 	}
 
-	campaign, err := h.campaignService.Update(r.Context(), campaignID, projectID, req.TemplateID, req.Name, req.Subject, scheduledAt, variablesJson)
+	campaign, err := h.campaignService.Update(r.Context(), campaignID, projectID, req.TemplateID, req.Name, req.Subject, scheduledAt, variablesJson, req.NewsletterID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)

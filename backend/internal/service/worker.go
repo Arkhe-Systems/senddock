@@ -68,6 +68,10 @@ func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campai
 
 	slog.Info("executing campaign", "campaign_id", campaign.ID, "name", campaign.Name)
 
+	campaignNewsletter := ""
+	if campaign.NewsletterID.Valid {
+		campaignNewsletter = campaign.NewsletterID.UUID.String()
+	}
 	result, runErr := w.emailService.Broadcast(
 		WithSystemContext(ctx),
 		campaign.ProjectID.String(),
@@ -76,6 +80,7 @@ func (w *CampaignWorker) ExecuteCampaign(ctx context.Context, campaign db.Campai
 		campaign.Variables,
 		nil,
 		"",
+		campaignNewsletter,
 	)
 
 	if runErr != nil {

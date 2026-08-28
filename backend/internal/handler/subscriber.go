@@ -16,6 +16,7 @@ type SubscriberHandler struct {
 	subscriberService *service.SubscriberService
 	projectService    *service.ProjectService
 	Audit             *service.AuditService
+	Newsletters       *service.NewsletterService
 }
 
 func NewSubscriberHandler(subscriberService *service.SubscriberService, projectService *service.ProjectService) *SubscriberHandler {
@@ -149,7 +150,7 @@ func (h *SubscriberHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	subscribers, err := h.subscriberService.ListByProject(r.Context(), projectID, limit, offset)
+	subscribers, err := h.subscriberService.ListByProject(r.Context(), projectID, limit, offset, r.URL.Query().Get("status"), r.URL.Query().Get("tag"), r.URL.Query().Get("newsletter_id"))
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -157,7 +158,7 @@ func (h *SubscriberHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, _ := h.subscriberService.CountByProject(r.Context(), projectID)
+	count, _ := h.subscriberService.CountByProject(r.Context(), projectID, r.URL.Query().Get("status"), r.URL.Query().Get("tag"), r.URL.Query().Get("newsletter_id"))
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -250,6 +251,7 @@ type bulkActionRequest struct {
 	Action        string   `json:"action"`
 	Status        string   `json:"status,omitempty"`
 	Tags          []string `json:"tags,omitempty"`
+	NewsletterID  string   `json:"newsletter_id,omitempty"`
 	SubscriberIDs []string `json:"subscriber_ids"`
 }
 
@@ -355,6 +357,22 @@ func (h *SubscriberHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = h.subscriberService.BulkRemoveTags(r.Context(), projectID, req.SubscriberIDs, req.Tags)
+	case "add_newsletter":
+		if h.Newsletters == nil || req.NewsletterID == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: "newsletter_id is required"})
+			return
+		}
+		err = h.Newsletters.BulkAdd(r.Context(), projectID, req.NewsletterID, req.SubscriberIDs)
+	case "remove_newsletter":
+		if h.Newsletters == nil || req.NewsletterID == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errorResponse{Error: "newsletter_id is required"})
+			return
+		}
+		err = h.Newsletters.BulkRemove(r.Context(), projectID, req.NewsletterID, req.SubscriberIDs)
 	default:
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)

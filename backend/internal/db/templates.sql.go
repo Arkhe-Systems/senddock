@@ -23,9 +23,9 @@ func (q *Queries) CountTemplatesByProject(ctx context.Context, projectID uuid.UU
 }
 
 const createTemplate = `-- name: CreateTemplate :one
-INSERT INTO templates (project_id, name, subject, html_body, text_body)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, project_id, name, subject, html_body, text_body, variables, created_at, updated_at
+INSERT INTO templates (project_id, name, subject, html_body, text_body, type)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, project_id, name, subject, html_body, text_body, variables, created_at, updated_at, type
 `
 
 type CreateTemplateParams struct {
@@ -34,6 +34,7 @@ type CreateTemplateParams struct {
 	Subject   string
 	HtmlBody  string
 	TextBody  string
+	Type      string
 }
 
 func (q *Queries) CreateTemplate(ctx context.Context, arg CreateTemplateParams) (Template, error) {
@@ -43,6 +44,7 @@ func (q *Queries) CreateTemplate(ctx context.Context, arg CreateTemplateParams) 
 		arg.Subject,
 		arg.HtmlBody,
 		arg.TextBody,
+		arg.Type,
 	)
 	var i Template
 	err := row.Scan(
@@ -55,6 +57,7 @@ func (q *Queries) CreateTemplate(ctx context.Context, arg CreateTemplateParams) 
 		&i.Variables,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Type,
 	)
 	return i, err
 }
@@ -74,7 +77,7 @@ func (q *Queries) DeleteTemplate(ctx context.Context, arg DeleteTemplateParams) 
 }
 
 const getTemplateByID = `-- name: GetTemplateByID :one
-SELECT id, project_id, name, subject, html_body, text_body, variables, created_at, updated_at FROM templates WHERE id = $1 AND project_id = $2
+SELECT id, project_id, name, subject, html_body, text_body, variables, created_at, updated_at, type FROM templates WHERE id = $1 AND project_id = $2
 `
 
 type GetTemplateByIDParams struct {
@@ -95,12 +98,13 @@ func (q *Queries) GetTemplateByID(ctx context.Context, arg GetTemplateByIDParams
 		&i.Variables,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Type,
 	)
 	return i, err
 }
 
 const listTemplatesByProject = `-- name: ListTemplatesByProject :many
-SELECT id, project_id, name, subject, html_body, text_body, variables, created_at, updated_at FROM templates
+SELECT id, project_id, name, subject, html_body, text_body, variables, created_at, updated_at, type FROM templates
 WHERE project_id = $1
 ORDER BY updated_at DESC
 `
@@ -124,6 +128,7 @@ func (q *Queries) ListTemplatesByProject(ctx context.Context, projectID uuid.UUI
 			&i.Variables,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Type,
 		); err != nil {
 			return nil, err
 		}
@@ -146,7 +151,7 @@ UPDATE templates SET
     text_body = $6,
     updated_at = NOW()
 WHERE id = $1 AND project_id = $2
-RETURNING id, project_id, name, subject, html_body, text_body, variables, created_at, updated_at
+RETURNING id, project_id, name, subject, html_body, text_body, variables, created_at, updated_at, type
 `
 
 type UpdateTemplateParams struct {
@@ -178,6 +183,7 @@ func (q *Queries) UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) 
 		&i.Variables,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Type,
 	)
 	return i, err
 }

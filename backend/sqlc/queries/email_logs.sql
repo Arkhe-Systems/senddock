@@ -1,6 +1,6 @@
 -- name: CreateEmailLog :one
-INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error, broadcast_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO email_logs (project_id, subscriber_id, template_id, to_email, subject, status, error, broadcast_id, newsletter_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: MarkLatestLogBouncedByEmail :exec
@@ -35,6 +35,7 @@ AND ($5::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $5)
 AND ($6::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $6)
 AND ($7::text = '' OR to_email ILIKE '%' || $7::text || '%' OR subject ILIKE '%' || $7::text || '%')
 AND ($8::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $8::uuid)
+AND ($9::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $9::uuid)
 ORDER BY sent_at DESC
 LIMIT $2 OFFSET $3;
 
@@ -45,7 +46,8 @@ AND ($2::text = '' OR status = $2::text)
 AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
 AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
 AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%')
-AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $6::uuid);
+AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $6::uuid)
+AND ($7::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $7::uuid);
 
 -- name: ListEmailLogsByProjectExport :many
 SELECT * FROM email_logs

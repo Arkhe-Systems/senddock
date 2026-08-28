@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
+	"github.com/arkhe-systems/senddock/pkg/auth"
 )
 
 type TemplateHandler struct {
@@ -29,6 +29,7 @@ type createTemplateRequest struct {
 	Subject  string `json:"subject"`
 	HtmlBody string `json:"html_body"`
 	TextBody string `json:"text_body"`
+	Type     string `json:"type"`
 }
 
 type updateTemplateRequest struct {
@@ -66,7 +67,18 @@ func (h *TemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template, err := h.templateService.Create(r.Context(), projectID, req.Name, req.Subject, req.HtmlBody, req.TextBody)
+	templateType := req.Type
+	if templateType == "" {
+		templateType = "email"
+	}
+	if templateType != "email" && templateType != "page" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "type must be email or page"})
+		return
+	}
+
+	template, err := h.templateService.Create(r.Context(), projectID, req.Name, req.Subject, req.HtmlBody, req.TextBody, templateType)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -236,7 +248,7 @@ func (h *TemplateHandler) LibraryUse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template, err := h.templateService.Create(r.Context(), projectID, entry.Name, "", html, "")
+	template, err := h.templateService.Create(r.Context(), projectID, entry.Name, "", html, "", "email")
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)

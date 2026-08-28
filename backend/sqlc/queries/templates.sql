@@ -1,6 +1,6 @@
 -- name: CreateTemplate :one
-INSERT INTO templates (project_id, name, subject, html_body, text_body)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO templates (project_id, name, subject, html_body, text_body, type)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: GetTemplateByID :one

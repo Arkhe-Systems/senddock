@@ -15,13 +15,14 @@ import (
 )
 
 var allowedWebhookEvents = map[string]bool{
-	"email.sent":              true,
-	"email.failed":            true,
-	"email.bounced":           true,
-	"email.opened":            true,
-	"email.clicked":           true,
-	"subscriber.created":      true,
-	"subscriber.unsubscribed": true,
+	"email.sent":                         true,
+	"email.failed":                       true,
+	"email.bounced":                      true,
+	"email.opened":                       true,
+	"email.clicked":                      true,
+	"subscriber.created":                 true,
+	"subscriber.unsubscribed":            true,
+	"subscriber.newsletter_unsubscribed": true,
 }
 
 type WebhookHandler struct {
