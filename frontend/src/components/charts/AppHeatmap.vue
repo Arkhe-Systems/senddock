@@ -39,7 +39,7 @@ function showTip(e: MouseEvent, d: number, h: number, count: number) {
     <div class="overflow-x-auto">
         <div class="inline-block">
             <div v-for="(row, d) in grid.m" :key="d" class="flex items-center gap-1 mb-1">
-                <span class="w-8 text-[10px] text-zinc-500 shrink-0">{{ days[d] }}</span>
+                <span class="w-8 text-[10px] text-zinc-400 shrink-0">{{ days[d] }}</span>
                 <div v-for="h in hours" :key="h"
                     class="w-3.5 h-3.5 rounded-sm shrink-0 hover:ring-1 hover:ring-white/40"
                     :style="cellStyle(row[h] ?? 0)"
@@ -55,7 +55,7 @@ function showTip(e: MouseEvent, d: number, h: number, count: number) {
 
     <Teleport to="body">
         <div v-if="tip"
-            class="fixed z-50 pointer-events-none px-2 py-1 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-white whitespace-nowrap shadow-lg"
+            class="fixed z-50 pointer-events-none px-2 py-1 rounded-md bg-zinc-850 border border-zinc-700 text-xs text-white whitespace-nowrap shadow-lg"
             :style="{ left: tip.x + 12 + 'px', top: tip.y + 12 + 'px' }">
             {{ tip.text }}
         </div>

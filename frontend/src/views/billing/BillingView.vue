@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppButton from '@/components/ui/AppButton.vue'
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -90,7 +91,7 @@ onMounted(async () => {
             <header class="md:hidden sticky top-0 z-30 bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between gap-3">
                 <h1 class="text-base font-semibold text-white">Billing</h1>
                 <button type="button" @click="mobileNavOpen = !mobileNavOpen"
-                    class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                    class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-850 transition cursor-pointer"
                     :aria-expanded="mobileNavOpen" aria-label="Toggle navigation">
                     <svg v-if="!mobileNavOpen" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -110,7 +111,7 @@ onMounted(async () => {
                     ? 'fixed top-[57px] left-0 right-0 bottom-0 z-30 p-4 border-t overflow-y-auto'
                     : 'hidden'
             ]">
-                <RouterLink to="/dashboard" class="hidden md:inline-flex text-sm text-zinc-400 hover:text-white transition mb-6 items-center gap-1">
+                <RouterLink to="/dashboard" class="hidden md:inline-flex text-sm text-zinc-300 hover:text-white transition mb-6 items-center gap-1">
                     &larr; Projects
                 </RouterLink>
 
@@ -123,7 +124,7 @@ onMounted(async () => {
                 <div class="max-w-2xl mx-auto space-y-6">
                     <div>
                         <h2 class="text-2xl font-bold text-white">Billing</h2>
-                        <p class="text-sm text-zinc-500 mt-1">Your SendDock plan.</p>
+                        <p class="text-sm text-zinc-400 mt-1">Your SendDock plan.</p>
                     </div>
 
                     <p v-if="billingError" class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -133,7 +134,7 @@ onMounted(async () => {
                     <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
                         <div class="flex items-start justify-between gap-4 mb-4">
                             <div>
-                                <p class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Current plan</p>
+                                <p class="text-xs uppercase tracking-wide text-zinc-400 mb-1">Current plan</p>
                                 <p class="text-2xl font-bold text-white">{{ displayPlan }}</p>
                             </div>
                             <span :class="['text-[11px] uppercase tracking-wider px-2 py-1 rounded border whitespace-nowrap', tierBadgeClass]">
@@ -142,17 +143,17 @@ onMounted(async () => {
                         </div>
 
                         <button v-if="isCloud && cloudPlan !== 'free'" @click="manageSubscription" :disabled="portalLoading"
-                            class="px-4 py-2 text-sm font-medium border border-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50">
+                            class="px-4 py-2 text-sm font-medium border border-zinc-700 text-white rounded-lg hover:bg-zinc-850 transition cursor-pointer disabled:opacity-50">
                             {{ portalLoading ? 'Opening…' : 'Manage subscription' }}
                         </button>
 
                         <dl v-if="!isCloud && tier !== 'free'" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm border-t border-zinc-800 pt-4">
                             <div v-if="expiresLabel">
-                                <dt class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Expires</dt>
+                                <dt class="text-xs uppercase tracking-wide text-zinc-400 mb-1">Expires</dt>
                                 <dd class="text-white">{{ expiresLabel }}</dd>
                             </div>
                             <div v-if="checkedLabel">
-                                <dt class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Last checked</dt>
+                                <dt class="text-xs uppercase tracking-wide text-zinc-400 mb-1">Last checked</dt>
                                 <dd class="text-white">{{ checkedLabel }}</dd>
                             </div>
                         </dl>
@@ -161,7 +162,7 @@ onMounted(async () => {
                             License validation issue: {{ status?.reason }}
                         </div>
 
-                        <p v-if="!isCloud" class="text-xs text-zinc-500 mt-4">
+                        <p v-if="!isCloud" class="text-xs text-zinc-400 mt-4">
                             Manage your license key under
                             <RouterLink to="/instance" class="underline decoration-zinc-700 hover:text-zinc-300">Instance → License</RouterLink>.
                             Changes apply immediately.
@@ -175,25 +176,25 @@ onMounted(async () => {
                                 <p class="text-sm font-semibold text-white">{{ p.name }}</p>
                                 <p class="mt-1">
                                     <span class="text-2xl font-bold text-white">${{ p.monthly }}</span>
-                                    <span class="text-sm text-zinc-500">/mo</span>
+                                    <span class="text-sm text-zinc-400">/mo</span>
                                 </p>
-                                <p class="text-xs text-zinc-500 mt-1">{{ p.subs }}</p>
+                                <p class="text-xs text-zinc-400 mt-1">{{ p.subs }}</p>
                                 <ul class="mt-4 space-y-1.5 flex-1">
-                                    <li v-for="f in p.features" :key="f" class="text-xs text-zinc-400 flex items-start gap-1.5">
+                                    <li v-for="f in p.features" :key="f" class="text-xs text-zinc-300 flex items-start gap-1.5">
                                         <span class="text-emerald-400">✓</span> {{ f }}
                                     </li>
                                 </ul>
                                 <button v-if="p.tier === cloudPlan" disabled
-                                    class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-zinc-800 text-zinc-400 cursor-default">
+                                    class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-zinc-850 text-zinc-300 cursor-default">
                                     Current plan
                                 </button>
-                                <button v-else @click="upgrade(p.tier)" :disabled="checkoutLoading === p.tier"
-                                    class="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition cursor-pointer disabled:opacity-50">
+                                <AppButton size="md" v-else @click="upgrade(p.tier)" :disabled="checkoutLoading === p.tier"
+                                    class="mt-5">
                                     {{ checkoutLoading === p.tier ? 'Redirecting…' : 'Choose ' + p.name }}
-                                </button>
+                                </AppButton>
                             </div>
                         </div>
-                        <p class="text-xs text-zinc-500 text-center">Save 20% with annual billing — choose your cycle at checkout.</p>
+                        <p class="text-xs text-zinc-400 text-center">Save 20% with annual billing — choose your cycle at checkout.</p>
                     </div>
 
                     <div v-else-if="tier === 'free'" class="space-y-4">
@@ -207,7 +208,7 @@ onMounted(async () => {
                             description="Everything in Pro plus workspaces, member roles, approval workflows, A/B testing, segmentation and broadcast cancellation." />
                     </div>
 
-                    <p class="text-xs text-zinc-500 text-center">
+                    <p class="text-xs text-zinc-400 text-center">
                         SendDock is Bring Your Own SMTP — you only pay for SendDock features, not for emails sent.
                     </p>
                 </div>

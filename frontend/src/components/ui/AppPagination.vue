@@ -56,17 +56,17 @@ function onPageJump(e: Event) {
 
 <template>
     <div v-if="total > 0" class="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm">
-        <div class="flex items-center gap-2 text-zinc-500">
+        <div class="flex items-center gap-2 text-zinc-400">
             <label class="whitespace-nowrap">Per page</label>
             <select
                 :value="limit"
                 @change="onLimitChange"
-                class="px-2 py-1 bg-zinc-900 border border-zinc-800 rounded-md text-zinc-300 hover:text-white focus:outline-none focus:border-zinc-600 cursor-pointer">
+                class="px-2 py-1 bg-zinc-900 border border-zinc-800 rounded-md text-zinc-300 hover:text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
                 <option v-for="size in pageSizes" :key="size" :value="size">{{ size }}</option>
             </select>
         </div>
 
-        <div class="text-zinc-500 hidden sm:block">
+        <div class="text-zinc-400 hidden sm:block">
             Showing {{ rangeStart }}–{{ rangeEnd }} of {{ total }}
         </div>
 
@@ -74,11 +74,11 @@ function onPageJump(e: Event) {
             <button
                 @click="goPrev"
                 :disabled="isFirst"
-                class="text-zinc-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition">
+                class="text-zinc-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition">
                 ‹ Previous
             </button>
 
-            <div class="flex items-center gap-1.5 text-zinc-500">
+            <div class="flex items-center gap-1.5 text-zinc-400">
                 <span>Page</span>
                 <input
                     type="number"
@@ -87,14 +87,14 @@ function onPageJump(e: Event) {
                     :max="totalPages"
                     @change="onPageJump"
                     @keydown.enter.prevent="onPageJump($event)"
-                    class="w-12 px-1.5 py-0.5 text-center bg-zinc-900 border border-zinc-800 rounded-md text-zinc-300 focus:outline-none focus:border-zinc-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    class="w-12 px-1.5 py-0.5 text-center bg-zinc-900 border border-zinc-800 rounded-md text-zinc-300 focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                 <span>of {{ totalPages }}</span>
             </div>
 
             <button
                 @click="goNext"
                 :disabled="isLast"
-                class="text-zinc-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition">
+                class="text-zinc-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition">
                 Next ›
             </button>
         </div>

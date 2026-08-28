@@ -29,7 +29,7 @@ const trendGood = computed(() => {
 })
 
 const trendClass = computed(() => {
-    if (trendGood.value === null) return 'text-zinc-500'
+    if (trendGood.value === null) return 'text-zinc-400'
     return trendGood.value ? 'text-emerald-400' : 'text-red-400'
 })
 
@@ -42,7 +42,7 @@ const trendLabel = computed(() => {
 
 <template>
     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-        <p class="text-xs text-zinc-500 uppercase tracking-wide">{{ label }}</p>
+        <p class="text-xs text-zinc-400 uppercase tracking-wide">{{ label }}</p>
         <p :class="['text-2xl font-bold mt-1', valueClass]">{{ value }}</p>
         <div class="mt-1 flex items-center gap-2">
             <span v-if="hasTrend" :class="['text-xs font-medium', trendClass]">{{ trendLabel }}</span>

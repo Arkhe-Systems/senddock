@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppButton from '@/components/ui/AppButton.vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
@@ -37,14 +38,14 @@ const promoVisible = computed(() => props.tier === 'pro' && isLaunchPromoActive(
             {{ badgeLabel }}
         </div>
         <h2 class="text-base sm:text-lg font-semibold text-white mb-2">{{ title }}</h2>
-        <p class="text-sm text-zinc-400 mb-6 max-w-md mx-auto">{{ description }}</p>
+        <p class="text-sm text-zinc-300 mb-6 max-w-md mx-auto">{{ description }}</p>
 
         <template v-if="isCloud">
-            <button @click="router.push('/billing')"
-                class="inline-block px-5 py-2.5 text-sm font-semibold bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer mb-4">
+            <AppButton size="lg" @click="router.push('/billing')"
+                class="mb-4">
                 Upgrade to {{ cloudPlan }}
-            </button>
-            <p class="text-xs text-zinc-500 max-w-md mx-auto">
+            </AppButton>
+            <p class="text-xs text-zinc-400 max-w-md mx-auto">
                 Change your plan anytime from
                 <button @click="router.push('/billing')" class="underline decoration-zinc-700 hover:text-zinc-300 cursor-pointer">Billing</button>.
             </p>
@@ -53,11 +54,11 @@ const promoVisible = computed(() => props.tier === 'pro' && isLaunchPromoActive(
         <template v-else>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-4">
                 <a :href="buyHref" target="_blank" rel="noopener"
-                    class="inline-block px-5 py-2.5 text-sm font-semibold bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
+                    class="inline-block px-6 py-2.5 text-sm font-medium rounded-lg border border-emerald-500/45 bg-emerald-500/12 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/70 hover:text-emerald-200 transition cursor-pointer">
                     Subscribe to {{ tierLabel }} — {{ tierPrice }}
                 </a>
                 <a href="https://senddock.dev/#pricing" target="_blank" rel="noopener"
-                    class="inline-block px-3 py-2 text-xs text-zinc-400 hover:text-white transition">
+                    class="inline-block px-3 py-2 text-xs text-zinc-300 hover:text-white transition">
                     Compare plans →
                 </a>
             </div>
@@ -66,8 +67,8 @@ const promoVisible = computed(() => props.tier === 'pro' && isLaunchPromoActive(
                 🎁 Code <span class="font-mono">{{ LAUNCH_DISCOUNT_CODE }}</span> applied · 3 months free for the first 50 customers
             </p>
 
-            <p class="text-xs text-zinc-500 max-w-md mx-auto">
-                After payment you'll get a license key by email. Paste it under <span class="text-zinc-400">Instance → License</span> and it activates right away.
+            <p class="text-xs text-zinc-400 max-w-md mx-auto">
+                After payment you'll get a license key by email. Paste it under <span class="text-zinc-300">Instance → License</span> and it activates right away.
                 <a href="https://docs.senddock.dev/self-hosting/configuration#plans-licensing" target="_blank" rel="noopener" class="underline decoration-zinc-700 hover:text-zinc-300">Read the docs</a>.
             </p>
         </template>

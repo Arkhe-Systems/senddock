@@ -56,7 +56,7 @@ async function handleResend(){
                 </AppButton>
             </form>
 
-            <p class="text-center text-sm text-zinc-400 mt-6">
+            <p class="text-center text-sm text-zinc-300 mt-6">
                 Already have an account?
                 <RouterLink to="/login" class="text-white hover:text-zinc-300 underline">Sign in</RouterLink>
             </p>
@@ -69,14 +69,14 @@ async function handleResend(){
                         <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/>
                     </svg>
                 </div>
-                <p class="text-sm text-zinc-400">
+                <p class="text-sm text-zinc-300">
                     We sent an activation link to <span class="text-white">{{ email }}</span>. Click it to activate your account — the link expires in 24 hours.
                 </p>
                 <p v-if="resent" class="text-sm text-emerald-400">A new link is on its way.</p>
-                <button v-else type="button" @click="handleResend" class="text-sm text-zinc-400 hover:text-white underline cursor-pointer">
+                <button v-else type="button" @click="handleResend" class="text-sm text-zinc-300 hover:text-white underline cursor-pointer">
                     Didn't get it? Resend
                 </button>
-                <p class="text-sm text-zinc-400 pt-2 border-t border-zinc-800">
+                <p class="text-sm text-zinc-300 pt-2 border-t border-zinc-800">
                     <RouterLink to="/login" class="text-white hover:text-zinc-300 underline">Back to sign in</RouterLink>
                 </p>
             </div>
