@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import type { Project } from '@/stores/projects'
 import { useLicenseStore } from '@/stores/license'
 import { useSegmentStore } from '@/stores/segments'
+import { useNewsletterStore } from '@/stores/newsletters'
 import {
     useAnalyticsStore, type Overview, type CampaignStat, type CampaignDetail,
     type Audience, type Engagement, type DomainHealth, type ProviderBreakdown,
@@ -23,6 +24,7 @@ const props = defineProps<{ project: Project }>()
 
 const licenseStore = useLicenseStore()
 const segmentStore = useSegmentStore()
+const newsletterStore = useNewsletterStore()
 const analytics = useAnalyticsStore()
 
 type Tab = 'overview' | 'campaigns' | 'audience' | 'engagement' | 'deliverability'
@@ -61,6 +63,8 @@ function presetWindow(p: Preset): { from: Date; to: Date } {
 
 const selectedSegment = ref('')
 const segments = computed(() => segmentStore.segments(props.project.id))
+const selectedNewsletter = ref('')
+const newsletters = computed(() => newsletterStore.newsletters(props.project.id))
 
 const errorState = ref<'none' | 'generic'>('none')
 const loading = ref(false)
@@ -83,14 +87,14 @@ async function loadCurrentTab() {
     errorState.value = 'none'
     try {
         if (tab.value === 'overview') {
-            overview.value = await analytics.overview(props.project.id, fromISO.value, toISO.value, selectedSegment.value || undefined)
+            overview.value = await analytics.overview(props.project.id, fromISO.value, toISO.value, selectedSegment.value || undefined, selectedNewsletter.value || undefined)
         } else if (tab.value === 'campaigns') {
-            const res = await analytics.campaigns(props.project.id, fromISO.value, toISO.value)
+            const res = await analytics.campaigns(props.project.id, fromISO.value, toISO.value, selectedNewsletter.value || undefined)
             campaigns.value = res.campaigns
         } else if (tab.value === 'audience') {
             audience.value = await analytics.audience(props.project.id, fromISO.value, toISO.value)
         } else if (tab.value === 'engagement') {
-            engagement.value = await analytics.engagement(props.project.id, fromISO.value, toISO.value)
+            engagement.value = await analytics.engagement(props.project.id, fromISO.value, toISO.value, selectedNewsletter.value || undefined)
         } else if (tab.value === 'deliverability') {
             if (!licenseStore.allowsPro) return
             const [dh, pv] = await Promise.all([
@@ -254,6 +258,7 @@ onBeforeUnmount(() => { if (pollTimer) clearInterval(pollTimer) })
 onMounted(async () => {
     await licenseStore.fetch()
     segmentStore.fetchSegments(props.project.id)
+    newsletterStore.fetchNewsletters(props.project.id)
     applyPreset('30d')
     startPolling()
 })
@@ -263,23 +268,28 @@ onMounted(async () => {
     <div>
         <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
-                <h2 class="text-2xl font-bold text-white">Analytics</h2>
-                <p class="text-sm text-zinc-500 mt-1">Send performance, campaigns and audience</p>
+                <h2 class="text-xl font-semibold text-white">Analytics</h2>
+                <p class="text-sm text-zinc-400 mt-1">Send performance, campaigns and audience</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
+                <select v-if="newsletters.length" v-model="selectedNewsletter" @change="loadCurrentTab"
+                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer">
+                    <option value="">All project</option>
+                    <option v-for="n in newsletters" :key="n.id" :value="n.id">{{ n.name }}</option>
+                </select>
                 <select v-if="segments.length" v-model="selectedSegment" @change="loadCurrentTab"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-zinc-500 cursor-pointer">
+                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer">
                     <option value="">All subscribers</option>
                     <option v-for="s in segments" :key="s.id" :value="s.id">{{ s.name }}</option>
                 </select>
                 <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
                     <button v-for="p in PRESETS" :key="p.value" @click="applyPreset(p.value)"
-                        :class="['px-2.5 py-1 text-sm rounded-md transition', preset === p.value ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white']">
+                        :class="['px-2.5 py-1 text-sm rounded-md transition', preset === p.value ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-300 hover:text-white']">
                         {{ p.label }}
                     </button>
                 </div>
                 <div class="flex items-center gap-1 bg-zinc-900 border rounded-lg px-2 py-1"
-                    :class="preset === '' ? 'border-indigo-500/60' : 'border-zinc-800'">
+                    :class="preset === '' ? 'border-emerald-500/60' : 'border-zinc-800'">
                     <input type="date" v-model="customFrom" @change="applyCustomRange"
                         class="bg-transparent text-sm text-zinc-300 focus:outline-none [color-scheme:dark] cursor-pointer" aria-label="From date" />
                     <span class="text-zinc-600 text-xs">→</span>
@@ -292,7 +302,7 @@ onMounted(async () => {
         <div class="flex gap-1 border-b border-zinc-800 mb-6">
             <button v-for="t in TABS" :key="t.key" @click="switchTab(t.key)"
                 :class="['px-4 py-2 text-sm font-medium border-b-2 -mb-px transition flex items-center gap-1.5',
-                    tab === t.key ? 'border-indigo-400 text-white' : 'border-transparent text-zinc-400 hover:text-white']">
+                    tab === t.key ? 'border-emerald-500 text-white' : 'border-transparent text-zinc-300 hover:text-white']">
                 {{ t.label }}
                 <span v-if="t.pro" class="text-[9px] font-semibold tracking-wider uppercase px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">Pro</span>
             </button>
@@ -313,14 +323,14 @@ onMounted(async () => {
                 </div>
 
                 <div v-if="inFlight.length" class="space-y-2">
-                    <p class="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Sending now</p>
+                    <p class="text-xs font-semibold text-zinc-300 uppercase tracking-wide">Sending now</p>
                     <div v-for="b in inFlight" :key="b.id" class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
                         <div class="flex justify-between text-sm mb-1">
                             <span class="text-white truncate">{{ b.subject }}</span>
-                            <span class="text-zinc-400">{{ b.sent + b.failed + b.suppressed }}/{{ b.total }}</span>
+                            <span class="text-zinc-300">{{ b.sent + b.failed + b.suppressed }}/{{ b.total }}</span>
                         </div>
-                        <div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div class="h-full bg-indigo-400 transition-all" :style="{ width: progressPct(b) + '%' }"></div>
+                        <div class="h-1.5 bg-zinc-850 rounded-full overflow-hidden">
+                            <div class="h-full bg-[#3573d9] transition-all" :style="{ width: progressPct(b) + '%' }"></div>
                         </div>
                     </div>
                 </div>
@@ -347,10 +357,10 @@ onMounted(async () => {
                 <div class="flex justify-end mb-3">
                     <button @click="exportCsv" class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-300 hover:text-white transition">Export CSV</button>
                 </div>
-                <p v-if="!campaigns.length" class="text-sm text-zinc-500 py-8 text-center">No campaigns sent yet.</p>
+                <p v-if="!campaigns.length" class="text-sm text-zinc-400 py-8 text-center">No campaigns sent yet.</p>
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-sm">
-                        <thead class="text-zinc-500 text-xs uppercase tracking-wide border-b border-zinc-800">
+                        <thead class="text-zinc-400 text-xs uppercase tracking-wide border-b border-zinc-800">
                             <tr>
                                 <th class="text-left px-3 py-2">Campaign</th>
                                 <th class="text-right px-3 py-2">Recipients</th>
@@ -384,7 +394,7 @@ onMounted(async () => {
                         <AppStatTile label="Click-to-open" :value="pct(openCampaign.click_to_open_pct)" />
                     </div>
                     <div v-if="openCampaign.top_clicked_links.length">
-                        <p class="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Top links</p>
+                        <p class="text-xs font-semibold text-zinc-300 uppercase tracking-wide mb-2">Top links</p>
                         <BarChart :labels="openCampaign.top_clicked_links.map(l => l.url)"
                             :values="openCampaign.top_clicked_links.map(l => l.clicks)" horizontal />
                     </div>
@@ -412,10 +422,10 @@ onMounted(async () => {
                         <div v-for="row in funnelRows" :key="row.label">
                             <div class="flex justify-between text-xs mb-1">
                                 <span class="text-zinc-300">{{ row.label }}</span>
-                                <span class="text-zinc-400">{{ row.count }} · {{ row.pct.toFixed(1) }}%</span>
+                                <span class="text-zinc-300">{{ row.count }} · {{ row.pct.toFixed(1) }}%</span>
                             </div>
-                            <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                                <div class="h-full bg-indigo-400" :style="{ width: row.pct + '%' }"></div>
+                            <div class="h-2 bg-zinc-850 rounded-full overflow-hidden">
+                                <div class="h-full bg-[#3573d9]" :style="{ width: row.pct + '%' }"></div>
                             </div>
                         </div>
                     </div>
@@ -424,7 +434,7 @@ onMounted(async () => {
                 <div class="flex justify-end">
                     <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
                         <button v-for="v in (['donut', 'bars'] as const)" :key="v" @click="engView = v"
-                            :class="['px-2.5 py-1 text-xs rounded-md transition capitalize', engView === v ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white']">
+                            :class="['px-2.5 py-1 text-xs rounded-md transition capitalize', engView === v ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-300 hover:text-white']">
                             {{ v }}
                         </button>
                     </div>
@@ -441,30 +451,30 @@ onMounted(async () => {
                                 <tbody>
                                     <tr v-for="i in breakdownPct(group.items)" :key="i.label" class="border-b border-zinc-800/60 last:border-0">
                                         <td class="py-1.5 text-zinc-300">{{ i.label }}</td>
-                                        <td class="py-1.5 text-right text-zinc-400">{{ i.count }}</td>
-                                        <td class="py-1.5 text-right text-zinc-500 w-16">{{ i.pct.toFixed(1) }}%</td>
+                                        <td class="py-1.5 text-right text-zinc-300">{{ i.count }}</td>
+                                        <td class="py-1.5 text-right text-zinc-400 w-16">{{ i.pct.toFixed(1) }}%</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </template>
-                        <p v-else class="text-sm text-zinc-500 py-8 text-center">No click data yet.</p>
+                        <p v-else class="text-sm text-zinc-400 py-8 text-center">No click data yet.</p>
                     </div>
                 </div>
 
                 <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                     <p class="text-sm font-semibold text-white mb-3">Opens &amp; clicks over time</p>
                     <LineChart v-if="activityLine.labels.length" :labels="activityLine.labels" :series="activityLine.series" />
-                    <p v-else class="text-sm text-zinc-500 py-8 text-center">No activity in this range.</p>
+                    <p v-else class="text-sm text-zinc-400 py-8 text-center">No activity in this range.</p>
                 </div>
 
                 <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                     <div class="flex items-center justify-between mb-1 gap-3">
                         <p class="text-sm font-semibold text-white">Best time to engage</p>
-                        <span class="text-xs text-zinc-500 shrink-0">{{ rangeLabel }} · UTC</span>
+                        <span class="text-xs text-zinc-400 shrink-0">{{ rangeLabel }} · UTC</span>
                     </div>
-                    <p class="text-xs text-zinc-500 mb-3">Clicks aggregated by weekday and hour across the selected range — not specific dates. Based on clicks, since Apple MPP makes open times unreliable.</p>
+                    <p class="text-xs text-zinc-400 mb-3">Clicks aggregated by weekday and hour across the selected range — not specific dates. Based on clicks, since Apple MPP makes open times unreliable.</p>
                     <AppHeatmap v-if="engagement.heatmap.length" :cells="engagement.heatmap" />
-                    <p v-else class="text-sm text-zinc-500 py-8 text-center">No clicks in this range.</p>
+                    <p v-else class="text-sm text-zinc-400 py-8 text-center">No clicks in this range.</p>
                 </div>
             </div>
 
@@ -476,7 +486,7 @@ onMounted(async () => {
                     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                         <div class="flex items-center justify-between mb-3">
                             <p class="text-sm font-semibold text-white">Domain authentication</p>
-                            <span v-if="domainHealth" class="text-xs text-zinc-500">{{ domainHealth.domain }}</span>
+                            <span v-if="domainHealth" class="text-xs text-zinc-400">{{ domainHealth.domain }}</span>
                         </div>
                         <div v-if="domainHealth" class="space-y-3">
                             <div v-for="c in domainHealth.checks" :key="c.name"
@@ -485,8 +495,8 @@ onMounted(async () => {
                                     <span class="text-sm text-white font-medium w-16">{{ c.name }}</span>
                                     <AppStatusPill :status="c.status" />
                                 </div>
-                                <p class="text-xs text-zinc-400 mt-1">{{ c.detail }}</p>
-                                <p v-if="c.fix" class="text-xs text-zinc-500 mt-0.5">Fix: {{ c.fix }}</p>
+                                <p class="text-xs text-zinc-300 mt-1">{{ c.detail }}</p>
+                                <p v-if="c.fix" class="text-xs text-zinc-400 mt-0.5">Fix: {{ c.fix }}</p>
                             </div>
                         </div>
                     </div>
@@ -494,10 +504,10 @@ onMounted(async () => {
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div class="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                             <p class="text-sm font-semibold text-white mb-3">By provider</p>
-                            <p v-if="!providers || !providers.providers.length" class="text-sm text-zinc-500 py-8 text-center">No sends in this range.</p>
+                            <p v-if="!providers || !providers.providers.length" class="text-sm text-zinc-400 py-8 text-center">No sends in this range.</p>
                             <div v-else class="overflow-x-auto">
                                 <table class="w-full text-sm">
-                                    <thead class="text-zinc-500 text-xs uppercase tracking-wide border-b border-zinc-800">
+                                    <thead class="text-zinc-400 text-xs uppercase tracking-wide border-b border-zinc-800">
                                         <tr>
                                             <th class="text-left px-3 py-2">Provider</th>
                                             <th class="text-right px-3 py-2">Sent</th>
@@ -518,7 +528,7 @@ onMounted(async () => {
                                             <td class="px-3 py-2.5 text-right" :class="spamTone(p.complaint_rate_pct) === 'bad' ? 'text-red-400' : spamTone(p.complaint_rate_pct) === 'warn' ? 'text-amber-400' : 'text-zinc-300'">{{ spamPct(p.complaint_rate_pct) }}</td>
                                             <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.open_rate_pct) }}</td>
                                             <td class="px-3 py-2.5 text-right text-zinc-300">{{ pct(p.click_rate_pct) }}</td>
-                                            <td class="px-3 py-2.5 text-right text-zinc-500">
+                                            <td class="px-3 py-2.5 text-right text-zinc-400">
                                                 <span class="text-red-400">{{ p.hard_bounces }}</span> / <span class="text-amber-400">{{ p.soft_bounces }}</span>
                                             </td>
                                         </tr>
@@ -529,7 +539,7 @@ onMounted(async () => {
                         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                             <p class="text-sm font-semibold text-white mb-3">Volume by provider</p>
                             <DonutChart v-if="providerDonut.values.length" :labels="providerDonut.labels" :values="providerDonut.values" />
-                            <p v-else class="text-sm text-zinc-500 py-8 text-center">No sends.</p>
+                            <p v-else class="text-sm text-zinc-400 py-8 text-center">No sends.</p>
                         </div>
                     </div>
                 </template>

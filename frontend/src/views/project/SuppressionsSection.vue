@@ -159,8 +159,8 @@ onMounted(fetchList)
     <div>
         <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-white">Suppressions</h1>
-                <p class="text-sm text-zinc-500 mt-1">Addresses that will be skipped on every send. {{ summary }}.</p>
+                <h1 class="text-xl font-semibold text-white">Suppressions</h1>
+                <p class="text-sm text-zinc-400 mt-1">Addresses that will be skipped on every send. {{ summary }}.</p>
             </div>
             <AppButton size="sm" @click="showAddModal = true">+ Add address</AppButton>
         </div>
@@ -170,18 +170,18 @@ onMounted(fetchList)
                 :class="[
                     'px-3 py-1.5 text-xs rounded-md border transition cursor-pointer',
                     reasonFilter === r.value
-                        ? 'bg-zinc-800 border-zinc-700 text-white'
-                        : 'bg-transparent border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700',
+                        ? 'bg-emerald-500/12 border-emerald-500/45 text-emerald-300'
+                        : 'bg-transparent border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700',
                 ]">
                 {{ r.label }}
             </button>
         </div>
 
-        <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
+        <div v-if="loading" class="text-zinc-400 py-8 text-center">Loading...</div>
 
         <div v-else-if="suppressions.length === 0" class="bg-zinc-900 border border-zinc-800 rounded-lg p-10 text-center">
             <h2 class="text-base font-semibold text-white mb-1">No suppressed addresses</h2>
-            <p class="text-sm text-zinc-500 mb-5 max-w-md mx-auto">
+            <p class="text-sm text-zinc-400 mb-5 max-w-md mx-auto">
                 When subscribers unsubscribe or you add addresses manually, they'll show up here. SendDock will skip every send that targets them.
             </p>
             <AppButton size="sm" @click="showAddModal = true">Add your first address</AppButton>
@@ -191,21 +191,21 @@ onMounted(fetchList)
             <table class="w-full min-w-[640px]">
                 <thead>
                     <tr class="border-b border-zinc-800">
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Email</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Reason</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Source</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Last seen</th>
-                        <th class="text-right px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Actions</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Email</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Reason</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Source</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Last seen</th>
+                        <th class="text-right px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="s in suppressions" :key="s.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 transition">
+                    <tr v-for="s in suppressions" :key="s.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-850/40 transition">
                         <td class="px-4 py-3 text-sm text-white font-mono break-all">{{ s.email }}</td>
                         <td class="px-4 py-3 text-sm">
-                            <span class="px-2 py-0.5 text-xs rounded-md bg-zinc-800 text-zinc-300">{{ reasonLabel(s.reason) }}</span>
+                            <span class="px-2 py-0.5 text-xs rounded-md bg-zinc-850 text-zinc-300">{{ reasonLabel(s.reason) }}</span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-zinc-400">{{ s.source || '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-zinc-400">{{ fmtDate(s.last_seen_at) }}</td>
+                        <td class="px-4 py-3 text-sm text-zinc-300">{{ s.source || '—' }}</td>
+                        <td class="px-4 py-3 text-sm text-zinc-300">{{ fmtDate(s.last_seen_at) }}</td>
                         <td class="px-4 py-3 text-right">
                             <button @click="itemToDelete = s"
                                 class="px-3 py-1 text-xs text-red-400 border border-red-900/50 rounded-md hover:bg-red-950/40 transition cursor-pointer">
@@ -229,20 +229,20 @@ onMounted(fetchList)
                 <div>
                     <div class="flex items-center justify-between mb-1">
                         <label class="text-sm font-medium text-zinc-300">Emails (one per line, comma or semicolon-separated)</label>
-                        <label class="text-xs text-zinc-300 hover:text-white border border-zinc-700 rounded-md px-2 py-1 cursor-pointer transition hover:bg-zinc-800">
+                        <label class="text-xs text-zinc-300 hover:text-white border border-zinc-700 rounded-md px-2 py-1 cursor-pointer transition hover:bg-zinc-850">
                             Choose file
                             <input type="file" accept=".csv,.txt,text/csv,text/plain" class="hidden" @change="handleFileUpload" />
                         </label>
                     </div>
                     <textarea v-model="newEmails" rows="6"
                         placeholder="ada@example.com&#10;alan@example.com&#10;…or paste a CSV with one column"
-                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition resize-y" />
+                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition resize-y" />
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Reason</label>
                     <select v-model="newReason"
-                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 transition cursor-pointer">
+                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition cursor-pointer">
                         <option value="manual">Manually added</option>
                         <option value="unsubscribe">Unsubscribed</option>
                         <option value="bounce">Bounced</option>

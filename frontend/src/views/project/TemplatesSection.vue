@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import { useFieldStore } from '@/stores/fields'
@@ -7,12 +7,17 @@ import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppCopyId from '@/components/ui/AppCopyId.vue'
 import { Codemirror } from 'vue-codemirror'
 import { html } from '@codemirror/lang-html'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { EditorView } from '@codemirror/view'
 import EmailEditor from '@/components/ui/EmailEditor.vue'
 import TemplateLibraryBrowser from '@/views/project/TemplateLibraryBrowser.vue'
+import * as prettier from 'prettier/standalone'
+import htmlPlugin from 'prettier/plugins/html'
+import { detectTemplateVariables, systemVariablesFor } from '@/utils/templateVariables'
 
 interface Template {
     id: string
@@ -20,6 +25,7 @@ interface Template {
     subject: string
     html_body: string
     text_body: string
+    type?: string
     created_at: string
     updated_at: string
 }
@@ -31,12 +37,15 @@ const fieldStore = useFieldStore()
 const customVariables = computed(() => fieldStore.fields(props.project.id))
 
 const templates = ref<Template[]>([])
+const visibleTemplates = computed(() => typeFilter.value === 'all' ? templates.value : templates.value.filter(t => (t.type || 'email') === typeFilter.value))
 const loading = ref(true)
 
 const extensions = [html(), oneDark, EditorView.lineWrapping]
 
 const showCreateModal = ref(false)
 const newName = ref('')
+const newType = ref<'email' | 'page'>('email')
+const typeFilter = ref<'all' | 'email' | 'page'>('all')
 const createLoading = ref(false)
 
 const showLibraryModal = ref(false)
@@ -52,19 +61,34 @@ const editSubject = ref('')
 const editHtml = ref('')
 const saveLoading = ref(false)
 const activeTab = ref<'code' | 'visual'>('code')
+const emailEditorRef = ref<{ flush: () => void; refresh: () => void; insertContent: (html: string) => void } | null>(null)
+const showDiscardModal = ref(false)
+
+const originalName = ref('')
+const originalSubject = ref('')
+const originalHtml = ref('')
+
+const isDirty = computed(() =>
+    editing.value !== null &&
+    (editName.value !== originalName.value ||
+        editSubject.value !== originalSubject.value ||
+        editHtml.value !== originalHtml.value)
+)
 
 const previewHtml = computed(() => {
-    return editHtml.value
-        .replace(/\{\{name\}\}/g, 'John Doe')
-        .replace(/\{\{email\}\}/g, 'john@example.com')
+    let html = editHtml.value
+        .replace(/\{\{\s*name\s*\}\}/g, 'John Doe')
+        .replace(/\{\{\s*email\s*\}\}/g, 'john@example.com')
+        .replace(/\{\{\s*subscriber_id\s*\}\}/g, 'sub_1234567890')
+        .replace(/\{\{\s*unsubscribe_url\s*\}\}/g, '#')
+    for (const field of customVariables.value) {
+        const escaped = field.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        html = html.replace(new RegExp(`\\{\\{\\s*custom\\.${escaped}\\s*\\}\\}`, 'g'), field.label || field.key)
+    }
+    return html
 })
 
-const detectedVariables = computed(() => {
-    const text = editHtml.value + ' ' + editSubject.value
-    const regex = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g
-    const matches = Array.from(text.matchAll(regex)).map(m => m[1])
-    return [...new Set(matches)]
-})
+const detectedVariables = computed(() => detectTemplateVariables(editHtml.value, editSubject.value))
 
 async function fetchTemplates() {
     loading.value = true
@@ -87,10 +111,11 @@ async function handleCreate() {
     try {
         const tmpl = await api<Template>(`/projects/${props.project.id}/templates`, {
             method: 'POST',
-            body: { name: newName.value, subject: '', html_body: '', text_body: '' },
+            body: { name: newName.value, subject: '', html_body: '', text_body: '', type: newType.value },
         })
         showCreateModal.value = false
         newName.value = ''
+        newType.value = 'email'
         toast.success('Template created')
         openEditor(tmpl)
         fetchTemplates()
@@ -106,27 +131,87 @@ function openEditor(tmpl: Template) {
     editName.value = tmpl.name
     editSubject.value = tmpl.subject
     editHtml.value = tmpl.html_body
+    originalName.value = tmpl.name
+    originalSubject.value = tmpl.subject
+    originalHtml.value = tmpl.html_body
     activeTab.value = 'code'
 }
 
+function switchTab(tab: 'code' | 'visual') {
+    activeTab.value = tab
+    if (tab === 'visual') {
+        nextTick(() => emailEditorRef.value?.refresh())
+    }
+}
+
 function closeEditor() {
+    if (isDirty.value) {
+        showDiscardModal.value = true
+        return
+    }
     editing.value = null
     fetchTemplates()
+}
+
+function confirmDiscard() {
+    showDiscardModal.value = false
+    editing.value = null
+    fetchTemplates()
+}
+
+function htmlToText(html: string): string {
+    return html
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<(br|\/p|\/div|\/tr|\/h[1-6]|\/li)[^>]*>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n[ \t]*\n+/g, '\n')
+        .trim()
+}
+
+function onBeforeUnload(e: BeforeUnloadEvent) {
+    if (isDirty.value) {
+        e.preventDefault()
+        e.returnValue = ''
+    }
+}
+
+async function formatHtml(html: string): Promise<string> {
+    try {
+        return await prettier.format(html, {
+            parser: 'html',
+            plugins: [htmlPlugin],
+            printWidth: 120,
+            tabWidth: 2,
+        })
+    } catch {
+        return html
+    }
 }
 
 async function handleSave() {
     if (!editing.value || !editName.value) return
     saveLoading.value = true
     try {
+        emailEditorRef.value?.flush()
+        const htmlBody = await formatHtml(editHtml.value)
         await api(`/projects/${props.project.id}/templates/${editing.value.id}`, {
             method: 'PUT',
             body: {
                 name: editName.value,
                 subject: editSubject.value,
-                html_body: editHtml.value,
-                text_body: '',
+                html_body: htmlBody,
+                text_body: htmlToText(editHtml.value),
             },
         })
+        editHtml.value = htmlBody
+        originalName.value = editName.value
+        originalSubject.value = editSubject.value
+        originalHtml.value = htmlBody
         toast.success('Template saved')
     } catch (e: any) {
         toast.error(e.message || 'Failed to save template')
@@ -165,23 +250,36 @@ async function handleDelete() {
     }
 }
 
-async function copyId(id: string) {
-    await navigator.clipboard.writeText(id)
-    toast.success('ID copied')
+const systemVariables = computed(() => systemVariablesFor(editing.value?.type as 'email' | 'page' | undefined))
+
+let cmView: any = null
+function onCmReady(payload: any) {
+    cmView = payload.view
 }
 
-function varLabel(v: string | undefined) {
-    return '{{' + (v ?? '') + '}}'
+function insertVariable(v: string) {
+    const text = `{{${v}}}`
+    if (activeTab.value === 'code' && cmView) {
+        cmView.dispatch({ changes: { from: cmView.state.selection.main.head, insert: text } })
+    } else if (activeTab.value === 'visual') {
+        emailEditorRef.value?.insertContent(text)
+    } else {
+        editHtml.value += text
+    }
 }
 
-async function copyVariable(key: string) {
-    await navigator.clipboard.writeText(`{{custom.${key}}}`)
-    toast.success('Variable copied')
+function varLabel(v: string): string {
+    return '{{' + v + '}}'
 }
 
 onMounted(() => {
+    window.addEventListener('beforeunload', onBeforeUnload)
     fetchTemplates()
     fieldStore.fetchFields(props.project.id)
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener('beforeunload', onBeforeUnload)
 })
 </script>
 
@@ -190,10 +288,10 @@ onMounted(() => {
         <div v-if="editing">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
-                    <button @click="closeEditor" class="text-zinc-400 hover:text-white transition cursor-pointer">&larr;</button>
-                    <h1 class="text-2xl font-bold text-white">{{ editName }}</h1>
+                    <button @click="closeEditor" class="text-zinc-300 hover:text-white transition cursor-pointer">&larr;</button>
+                    <h1 class="text-xl font-semibold text-white">{{ editName }}</h1>
                 </div>
-                <AppButton :loading="saveLoading" @click="handleSave" class="w-auto! px-4">
+                <AppButton size="md" :loading="saveLoading" @click="handleSave">
                     {{ saveLoading ? 'Saving...' : 'Save' }}
                 </AppButton>
             </div>
@@ -206,21 +304,21 @@ onMounted(() => {
             <div class="flex gap-4" style="height: calc(100vh - 280px);">
                 <div :class="['flex flex-col min-w-0', activeTab === 'visual' ? 'flex-1' : 'flex-1']">
                     <div class="flex gap-1 border-b border-zinc-800">
-                        <button @click="activeTab = 'code'"
+                        <button @click="switchTab('code')"
                             :class="[
                                 'px-4 py-2 text-sm transition cursor-pointer border-b-2 -mb-px',
                                 activeTab === 'code'
                                     ? 'text-white border-white'
-                                    : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                                    : 'text-zinc-400 border-transparent hover:text-zinc-300'
                             ]">
                             Code
                         </button>
-                        <button @click="activeTab = 'visual'"
+                        <button @click="switchTab('visual')"
                             :class="[
                                 'px-4 py-2 text-sm transition cursor-pointer border-b-2 -mb-px',
                                 activeTab === 'visual'
                                     ? 'text-white border-white'
-                                    : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                                    : 'text-zinc-400 border-transparent hover:text-zinc-300'
                             ]">
                             Visual
                         </button>
@@ -231,50 +329,60 @@ onMounted(() => {
                             v-model="editHtml"
                             :extensions="extensions"
                             :style="{ height: '100%', fontSize: '13px' }"
+                            @ready="onCmReady"
                             placeholder="<h1>Hello {{name}}</h1>
 <p>Welcome to our newsletter!</p>"
                         />
                     </div>
 
-                    <div v-if="activeTab === 'visual'" class="flex-1 border border-zinc-800 border-t-0 rounded-b-lg overflow-hidden">
-                        <EmailEditor v-model="editHtml" />
+                    <div v-show="activeTab === 'visual'" class="flex-1 border border-zinc-800 border-t-0 rounded-b-lg overflow-hidden">
+                        <EmailEditor ref="emailEditorRef" v-model="editHtml" />
                     </div>
                 </div>
 
                 <div v-show="activeTab === 'code'" class="flex-1 flex flex-col min-w-0">
                     <div class="flex items-center px-4 py-2 border-b border-zinc-800">
-                        <span class="text-sm text-zinc-400">Preview</span>
+                        <span class="text-sm text-zinc-300">Preview</span>
                     </div>
                     <div class="flex-1 border border-zinc-800 border-t-0 rounded-b-lg overflow-hidden bg-white">
                         <iframe v-if="editHtml" :srcdoc="previewHtml" class="w-full h-full border-0" sandbox="" />
                         <div v-else class="flex items-center justify-center h-full">
-                            <p class="text-zinc-400 text-sm">Write HTML to see a preview</p>
+                            <p class="text-zinc-300 text-sm">Write HTML to see a preview</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-3 p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
-                <p class="text-xs text-zinc-400 font-medium mb-2">Variables in this template:</p>
-                <div class="flex flex-wrap gap-2">
-                    <span v-for="v in detectedVariables" :key="v" class="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded border border-zinc-700 font-mono">
-                        {{ varLabel(v) }}
-                    </span>
-                    <span v-if="detectedVariables.length === 0" class="text-xs text-zinc-500">None detected</span>
+            <div class="mt-3 p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
+                <p v-pre class="text-xs text-zinc-300 font-medium">Variables — click one to insert <code class="text-zinc-400 font-mono">{{variable}}</code></p>
+
+                <div v-if="detectedVariables.length > 0">
+                    <p class="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Detected in this template</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button v-for="v in detectedVariables" :key="'d' + v" type="button" @click="insertVariable(v)"
+                            class="text-xs bg-zinc-850 text-zinc-300 px-2 py-1 rounded border border-zinc-700 font-mono hover:border-emerald-500/60 hover:text-white transition cursor-pointer">
+                            {{ varLabel(v) }}
+                        </button>
+                    </div>
                 </div>
-                <p class="text-xs text-zinc-500 mt-2">
-                    System variables: <code class="text-zinc-400">name</code>,
-                    <code class="text-zinc-400">email</code>,
-                    <code class="text-zinc-400">subscriber_id</code>,
-                    <code class="text-zinc-400">unsubscribe_url</code>
-                </p>
-                <div v-if="customVariables.length > 0" class="mt-3 pt-3 border-t border-zinc-800">
-                    <p class="text-xs text-zinc-400 font-medium mb-2">Custom fields (click to copy):</p>
-                    <div class="flex flex-wrap gap-2">
-                        <button v-for="def in customVariables" :key="def.id" type="button"
-                            @click="copyVariable(def.key)"
+
+                <div>
+                    <p class="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Available</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button v-for="v in systemVariables" :key="'s' + v" type="button" @click="insertVariable(v)"
+                            class="text-xs bg-zinc-850 text-zinc-300 px-2 py-1 rounded border border-zinc-700 font-mono hover:border-emerald-500/60 hover:text-white transition cursor-pointer">
+                            {{ varLabel(v) }}
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="customVariables.length > 0 && editing?.type !== 'page'">
+                    <p class="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Custom fields</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button v-for="def in customVariables" :key="'c' + def.id" type="button"
+                            @click="insertVariable('custom.' + def.key)"
                             :title="def.label"
-                            class="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded border border-zinc-700 font-mono hover:border-zinc-500 hover:text-white transition cursor-pointer">
+                            class="text-xs bg-zinc-850 text-zinc-300 px-2 py-1 rounded border border-zinc-700 font-mono hover:border-emerald-500/60 hover:text-white transition cursor-pointer">
                             {{ varLabel('custom.' + def.key) }}
                         </button>
                     </div>
@@ -284,35 +392,43 @@ onMounted(() => {
 
         <div v-else>
             <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-                <h1 class="text-2xl font-bold text-white">Templates</h1>
+                <div class="flex items-center gap-4">
+                    <h1 class="text-xl font-semibold text-white">Templates</h1>
+                    <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+                        <button v-for="t in (['all', 'email', 'page'] as const)" :key="t" @click="typeFilter = t"
+                            :class="['px-2.5 py-1 text-xs rounded-md transition cursor-pointer capitalize', typeFilter === t ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-400 hover:text-white']">
+                            {{ t }}
+                        </button>
+                    </div>
+                </div>
                 <div class="flex items-center gap-2">
-                    <AppButton variant="secondary" @click="showLibraryModal = true" class="w-auto! px-4">
+                    <AppButton size="md" variant="secondary" @click="showLibraryModal = true">
                         ★ Browse library
                     </AppButton>
-                    <AppButton @click="showCreateModal = true" class="w-auto! px-4">+ New Template</AppButton>
+                    <AppButton size="md" @click="showCreateModal = true">+ New Template</AppButton>
                 </div>
             </div>
 
-            <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
+            <div v-if="loading" class="text-zinc-400 py-8 text-center">Loading...</div>
 
-            <div v-else-if="templates.length > 0" class="space-y-2">
-                <div v-for="tmpl in templates" :key="tmpl.id"
+            <div v-else-if="visibleTemplates.length > 0" class="space-y-2">
+                <div v-for="tmpl in visibleTemplates" :key="tmpl.id"
                     class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-center justify-between hover:border-zinc-700 transition cursor-pointer"
                     @click="openEditor(tmpl)">
                     <div>
-                        <p class="text-white font-medium">{{ tmpl.name }}</p>
-                        <p class="text-sm text-zinc-500 mt-1">
+                        <p class="text-white font-medium">
+                            {{ tmpl.name }}
+                            <span v-if="tmpl.type === 'page'" class="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide bg-zinc-850 border border-zinc-700 text-zinc-300 rounded px-1.5 py-0.5">Page</span>
+                        </p>
+                        <p class="text-sm text-zinc-400 mt-1">
                             {{ tmpl.subject || 'No subject set' }}
                         </p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <button @click.stop="copyId(tmpl.id)"
-                            class="text-xs text-zinc-400 hover:text-white transition cursor-pointer font-mono">
-                            Copy ID
-                        </button>
-                        <span class="text-xs text-zinc-500">{{ new Date(tmpl.updated_at).toLocaleDateString() }}</span>
+                        <AppCopyId :value="tmpl.id" />
+                        <span class="text-xs text-zinc-400">{{ new Date(tmpl.updated_at).toLocaleDateString() }}</span>
                         <button @click.stop="openDeleteModal(tmpl)"
-                            class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer">
+                            class="text-xs text-zinc-400 hover:text-red-400 transition cursor-pointer">
                             Delete
                         </button>
                     </div>
@@ -320,14 +436,30 @@ onMounted(() => {
             </div>
 
             <div v-else class="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-                <p class="text-zinc-400 mb-2">No templates yet.</p>
-                <p class="text-zinc-500 text-sm">Create email templates to use when sending to your subscribers.</p>
+                <p class="text-zinc-300 mb-2">No templates yet.</p>
+                <p class="text-zinc-400 text-sm">Create email templates to use when sending to your subscribers.</p>
             </div>
         </div>
 
         <AppModal :show="showCreateModal" title="New Template" @close="showCreateModal = false">
             <form @submit.prevent="handleCreate" class="space-y-4">
                 <AppInput v-model="newName" label="Template Name" placeholder="Welcome Email" required />
+                <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-2">Type</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" @click="newType = 'email'"
+                            :class="['px-3 py-2.5 text-sm rounded-lg border text-left transition cursor-pointer', newType === 'email' ? 'bg-zinc-850 border-zinc-600 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white']">
+                            <span class="block font-medium">Email</span>
+                            <span class="block text-xs text-zinc-400 mt-0.5">Sent to subscribers</span>
+                        </button>
+                        <button type="button" @click="newType = 'page'"
+                            :class="['px-3 py-2.5 text-sm rounded-lg border text-left transition cursor-pointer', newType === 'page' ? 'bg-zinc-850 border-zinc-600 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white']">
+                            <span class="block font-medium">Unsubscribe page</span>
+                            <span class="block text-xs text-zinc-400 mt-0.5">Branded public page</span>
+                        </button>
+                    </div>
+                    <p v-if="newType === 'page'" class="text-xs text-zinc-400 mt-2">Placeholders: <code class="font-mono" v-pre>{{project_name}}</code> <code class="font-mono" v-pre>{{email}}</code> <code class="font-mono" v-pre>{{newsletter_name}}</code> <code class="font-mono" v-pre>{{confirm_button}}</code>. Select it under Settings → Unsubscribe page.</p>
+                </div>
                 <AppButton :loading="createLoading">
                     {{ createLoading ? 'Creating...' : 'Create Template' }}
                 </AppButton>
@@ -341,9 +473,20 @@ onMounted(() => {
             @used="handleLibraryUsed" />
 
 
+        <AppConfirmModal
+            :show="showDiscardModal"
+            title="Discard changes?"
+            message="You have unsaved changes to this template. Discard them and leave?"
+            confirm-label="Discard"
+            cancel-label="Keep editing"
+            @confirm="confirmDiscard"
+            @cancel="showDiscardModal = false"
+        />
+
+
         <AppModal :show="showDeleteModal" title="Delete Template" @close="showDeleteModal = false">
             <div class="space-y-4">
-                <p class="text-zinc-400 text-sm">
+                <p class="text-zinc-300 text-sm">
                     This action cannot be undone. Type
                     <span class="font-semibold text-white">{{ templateToDelete?.name }}</span>
                     to confirm.

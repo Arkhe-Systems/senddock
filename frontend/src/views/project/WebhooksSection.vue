@@ -204,33 +204,33 @@ onMounted(load)
     <div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-white">Webhooks</h1>
-                <p class="text-sm text-zinc-500 mt-1">Receive HTTP notifications when events happen in this project</p>
+                <h1 class="text-xl font-semibold text-white">Webhooks</h1>
+                <p class="text-sm text-zinc-400 mt-1">Receive HTTP notifications when events happen in this project</p>
             </div>
-            <button v-if="errorState === 'none' && !loading" @click="openCreate"
-                class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
+            <AppButton size="md" v-if="errorState === 'none' && !loading" @click="openCreate"
+                class="">
                 New webhook
-            </button>
+            </AppButton>
         </div>
 
-        <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
+        <div v-if="loading" class="text-zinc-400 py-8 text-center">Loading...</div>
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
-            <p class="text-zinc-400 text-sm">Couldn't load webhooks. Try again later.</p>
-            <button @click="load" class="mt-3 px-3 py-1 text-sm text-white border border-zinc-700 rounded-md hover:bg-zinc-800 cursor-pointer">Retry</button>
+            <p class="text-zinc-300 text-sm">Couldn't load webhooks. Try again later.</p>
+            <button @click="load" class="mt-3 px-3 py-1 text-sm text-white border border-zinc-700 rounded-md hover:bg-zinc-850 cursor-pointer">Retry</button>
         </div>
 
         <div v-else-if="sortedWebhooks.length === 0"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-10 text-center">
             <h2 class="text-base font-semibold text-white mb-1">No webhooks yet</h2>
-            <p class="text-sm text-zinc-500 mb-5 max-w-md mx-auto">
+            <p class="text-sm text-zinc-400 mb-5 max-w-md mx-auto">
                 Create one to receive a signed HTTP POST every time an event you care about happens.
             </p>
-            <button @click="openCreate"
-                class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
+            <AppButton size="md" @click="openCreate"
+                class="">
                 Create your first webhook
-            </button>
+            </AppButton>
         </div>
 
         <div v-else class="space-y-3">
@@ -241,28 +241,28 @@ onMounted(load)
                         <div class="flex items-center gap-2 mb-2">
                             <span :class="[
                                 'inline-flex items-center gap-1 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded',
-                                hook.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'
+                                hook.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-850 text-zinc-400'
                             ]">
                                 <span class="w-1.5 h-1.5 rounded-full" :class="hook.active ? 'bg-emerald-400' : 'bg-zinc-500'"></span>
                                 {{ hook.active ? 'Active' : 'Paused' }}
                             </span>
-                            <span class="text-xs text-zinc-500">Created {{ fmtDate(hook.created_at) }}</span>
+                            <span class="text-xs text-zinc-400">Created {{ fmtDate(hook.created_at) }}</span>
                         </div>
                         <p class="text-sm text-white font-mono truncate" :title="hook.url">{{ hook.url }}</p>
                         <div class="flex flex-wrap gap-1.5 mt-3">
                             <span v-for="ev in hook.events" :key="ev"
-                                class="text-[11px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300">
+                                class="text-[11px] px-2 py-0.5 rounded-md bg-zinc-850 text-zinc-300">
                                 {{ ev }}
                             </span>
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <button @click="openDeliveries(hook)"
-                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer">
+                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-850 transition cursor-pointer">
                             Deliveries
                         </button>
                         <button @click="toggleActive(hook)" :disabled="togglingId === hook.id"
-                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-850 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                             {{ hook.active ? 'Pause' : 'Resume' }}
                         </button>
                         <button @click="confirmDeleteHook(hook)" :disabled="deletingId === hook.id"
@@ -289,7 +289,7 @@ onMounted(load)
                             </span>
                             <div class="min-w-0">
                                 <p class="text-sm text-white font-mono">{{ ev.value }}</p>
-                                <p class="text-xs text-zinc-500 mt-0.5">{{ ev.description }}</p>
+                                <p class="text-xs text-zinc-400 mt-0.5">{{ ev.description }}</p>
                             </div>
                         </label>
                     </div>
@@ -320,7 +320,7 @@ onMounted(load)
                     <div class="flex gap-2">
                         <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-emerald-400 font-mono break-all">{{ createdWebhook.secret }}</code>
                         <button @click="copySecret"
-                            class="px-3 py-2 text-xs font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 transition cursor-pointer flex-shrink-0">
+                            class="px-3 py-2 text-xs font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-850 transition cursor-pointer flex-shrink-0">
                             {{ secretCopied ? 'Copied' : 'Copy' }}
                         </button>
                     </div>
@@ -331,10 +331,10 @@ onMounted(load)
                     <code class="block px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-300 font-mono break-all">{{ createdWebhook.url }}</code>
                 </div>
 
-                <p class="text-xs text-zinc-500">
-                    Each delivery includes a <code class="text-zinc-400">X-SendDock-Signature</code> header in the form
-                    <code class="text-zinc-400">t=&lt;timestamp&gt;,v1=&lt;hex&gt;</code>, where the hex is HMAC-SHA256 of
-                    <code class="text-zinc-400">timestamp.body</code> using this secret.
+                <p class="text-xs text-zinc-400">
+                    Each delivery includes a <code class="text-zinc-300">X-SendDock-Signature</code> header in the form
+                    <code class="text-zinc-300">t=&lt;timestamp&gt;,v1=&lt;hex&gt;</code>, where the hex is HMAC-SHA256 of
+                    <code class="text-zinc-300">timestamp.body</code> using this secret.
                 </p>
 
                 <AppButton @click="createdWebhook = null">Done</AppButton>
@@ -344,11 +344,11 @@ onMounted(load)
         <AppModal :show="!!deliveriesFor" :title="deliveriesFor ? 'Recent deliveries' : ''"
             @close="deliveriesFor = null">
             <div v-if="deliveriesFor">
-                <p class="text-xs text-zinc-500 font-mono break-all mb-4">{{ deliveriesFor.url }}</p>
+                <p class="text-xs text-zinc-400 font-mono break-all mb-4">{{ deliveriesFor.url }}</p>
 
-                <div v-if="deliveriesLoading" class="text-center text-sm text-zinc-500 py-6">Loading...</div>
+                <div v-if="deliveriesLoading" class="text-center text-sm text-zinc-400 py-6">Loading...</div>
 
-                <div v-else-if="deliveries.length === 0" class="text-center text-sm text-zinc-500 py-6">
+                <div v-else-if="deliveries.length === 0" class="text-center text-sm text-zinc-400 py-6">
                     No deliveries yet. Trigger an event to see attempts here.
                 </div>
 
@@ -361,7 +361,7 @@ onMounted(load)
                                 {{ d.status }}
                             </span>
                         </div>
-                        <div class="flex items-center justify-between text-xs text-zinc-500">
+                        <div class="flex items-center justify-between text-xs text-zinc-400">
                             <span>{{ fmtDate(d.created_at) }}</span>
                             <span>{{ d.attempts }} attempt{{ d.attempts === 1 ? '' : 's' }}<span v-if="d.last_status_code"> · HTTP {{ d.last_status_code }}</span></span>
                         </div>

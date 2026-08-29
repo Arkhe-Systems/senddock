@@ -217,10 +217,10 @@ onMounted(async () => {
     <div>
         <div class="mb-6">
             <div class="flex items-center gap-2">
-                <h2 class="text-2xl font-bold text-white">Reports</h2>
+                <h2 class="text-xl font-semibold text-white">Reports</h2>
                 <span class="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">Pro</span>
             </div>
-            <p class="text-sm text-zinc-500 mt-1">Build your own breakdowns — pick a dataset, a measure, how to group it, and how to see it.</p>
+            <p class="text-sm text-zinc-400 mt-1">Build your own breakdowns — pick a dataset, a measure, how to group it, and how to see it.</p>
         </div>
 
         <AppProPaywall v-if="!licenseStore.allowsPro"
@@ -244,45 +244,45 @@ onMounted(async () => {
 
             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Dataset</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Dataset</span>
                     <select v-model="dataset" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
                         <option v-for="d in schema.datasets" :key="d.key" :value="d.key">{{ d.label }}</option>
                     </select>
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Measure</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Measure</span>
                     <select v-model="measure" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
                         <option v-for="m in measures" :key="m.key" :value="m.key">{{ m.label }}</option>
                     </select>
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Group by</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Group by</span>
                     <select v-model="dim1" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
                         <option v-for="d in dims" :key="d.key" :value="d.key">{{ d.label }}</option>
                     </select>
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Then by (pivot)</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Then by (pivot)</span>
                     <select v-model="dim2" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
                         <option value="">— none —</option>
                         <option v-for="d in dim2Options" :key="d.key" :value="d.key">{{ d.label }}</option>
                     </select>
                 </label>
                 <label v-if="usesTime" class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Granularity</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Granularity</span>
                     <select v-model="gran" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
                         <option v-for="g in schema.granularities" :key="g" :value="g">{{ g }}</option>
                     </select>
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Filter (segment)</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Filter (segment)</span>
                     <select v-model="segmentFilter" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
                         <option value="">All</option>
                         <option v-for="s in segments" :key="s.id" :value="s.id">{{ s.name }}</option>
                     </select>
                 </label>
                 <label v-if="dataset === 'emails'" class="block col-span-2">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Date range</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Date range</span>
                     <div class="mt-1 flex items-center gap-1">
                         <input type="date" v-model="fromDate" class="flex-1 px-2 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-300 [color-scheme:dark] focus:outline-none" />
                         <span class="text-zinc-600 text-xs">→</span>
@@ -290,7 +290,7 @@ onMounted(async () => {
                     </div>
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Chart</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Chart</span>
                     <select v-model="viz" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none capitalize">
                         <option v-for="v in vizOptions" :key="v" :value="v">{{ v }}</option>
                     </select>
@@ -306,7 +306,7 @@ onMounted(async () => {
                     <LineChart v-else-if="viz === 'line' || viz === 'area'" :labels="pivotSeries.labels" :series="pivotSeries.series" />
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead class="text-zinc-500 text-xs uppercase tracking-wide border-b border-zinc-800">
+                            <thead class="text-zinc-400 text-xs uppercase tracking-wide border-b border-zinc-800">
                                 <tr>
                                     <th class="text-left px-3 py-2">{{ dim1 }}</th>
                                     <th v-for="c in pivot.columns" :key="c" class="text-right px-3 py-2">{{ c }}</th>
@@ -328,7 +328,7 @@ onMounted(async () => {
                     <LineChart v-else-if="viz === 'line' || viz === 'area'" :labels="singleLine.labels" :series="singleLine.series" />
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead class="text-zinc-500 text-xs uppercase tracking-wide border-b border-zinc-800">
+                            <thead class="text-zinc-400 text-xs uppercase tracking-wide border-b border-zinc-800">
                                 <tr>
                                     <th class="text-left px-3 py-2">{{ dim1 }}</th>
                                     <th class="text-right px-3 py-2">{{ measureLabel }}</th>
@@ -344,13 +344,13 @@ onMounted(async () => {
                     </div>
                 </template>
 
-                <p v-else class="text-sm text-zinc-500 py-12 text-center">No data for this selection.</p>
+                <p v-else class="text-sm text-zinc-400 py-12 text-center">No data for this selection.</p>
             </div>
         </template>
 
         <AppModal :show="saveModalOpen" title="Save report" @close="saveModalOpen = false">
             <label class="block">
-                <span class="text-sm text-zinc-400">Name</span>
+                <span class="text-sm text-zinc-300">Name</span>
                 <input v-model="saveName" type="text" placeholder="e.g. Subscribers by plan"
                     class="mt-1 w-full px-3 py-2 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none" @keyup.enter="confirmSave" />
             </label>

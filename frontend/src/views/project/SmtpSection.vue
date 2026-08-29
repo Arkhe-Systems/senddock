@@ -75,7 +75,7 @@ async function handleTest() {
 
 <template>
     <div>
-        <h1 class="text-2xl font-bold text-white mb-6">SMTP Settings</h1>
+        <h1 class="text-xl font-semibold text-white mb-6">SMTP Settings</h1>
 
         <form @submit.prevent="handleSave" class="max-w-lg space-y-4">
             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-4">
@@ -98,16 +98,16 @@ async function handleTest() {
                 <h2 class="text-sm font-medium text-white mb-2">Sender Identity</h2>
                 <AppInput v-model="fromName" label="From Name" placeholder="My Newsletter" />
                 <AppInput v-model="fromEmail" label="From Email" placeholder="noreply@mydomain.com" />
-                <p class="text-xs text-zinc-500">The email address recipients will see as the sender.</p>
+                <p class="text-xs text-zinc-400">The email address recipients will see as the sender.</p>
             </div>
 
             <div class="flex gap-3">
-                <button type="submit" :disabled="loading"
-                    class="px-5 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                <AppButton size="md" type="submit" :disabled="loading"
+                    class="">
                     {{ loading ? 'Saving...' : 'Save Settings' }}
-                </button>
+                </AppButton>
                 <button v-if="hasSmtpConfig" type="button" @click="handleTest" :disabled="testLoading"
-                    class="px-5 py-2 text-sm font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="px-5 py-2 text-sm font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-850 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                     {{ testLoading ? 'Testing...' : 'Test Connection' }}
                 </button>
             </div>

@@ -145,13 +145,13 @@ onMounted(() => fieldStore.fetchFields(props.project.id))
     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg">
         <div class="flex items-center justify-between mb-2">
             <h2 class="text-sm font-medium text-white">Custom Fields</h2>
-            <button @click="openCreate" class="text-sm text-zinc-400 hover:text-white transition cursor-pointer">
+            <button @click="openCreate" class="text-sm text-zinc-300 hover:text-white transition cursor-pointer">
                 + Add Field
             </button>
         </div>
-        <p class="text-xs text-zinc-500 mb-4">
+        <p class="text-xs text-zinc-400 mb-4">
             Typed attributes stored per subscriber. Use them in templates as
-            <code class="text-zinc-400">{{ customSyntaxHint }}</code> and to build segments.
+            <code class="text-zinc-300">{{ customSyntaxHint }}</code> and to build segments.
         </p>
 
         <div v-if="definitions.length > 0" class="divide-y divide-zinc-800">
@@ -161,17 +161,17 @@ onMounted(() => fieldStore.fetchFields(props.project.id))
                         {{ def.label }}
                         <span v-if="def.required" class="text-red-400">*</span>
                     </p>
-                    <p class="text-xs text-zinc-500 font-mono truncate">
+                    <p class="text-xs text-zinc-400 font-mono truncate">
                         {{ def.key }} · {{ typeLabel(def.field_type) }}
                     </p>
                 </div>
                 <div class="flex items-center gap-3 flex-shrink-0 pl-3">
-                    <button @click="openEdit(def)" class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">Edit</button>
-                    <button @click="toDelete = def" class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer">Delete</button>
+                    <button @click="openEdit(def)" class="text-xs text-zinc-400 hover:text-white transition cursor-pointer">Edit</button>
+                    <button @click="toDelete = def" class="text-xs text-zinc-400 hover:text-red-400 transition cursor-pointer">Delete</button>
                 </div>
             </div>
         </div>
-        <p v-else class="text-sm text-zinc-500">No custom fields yet.</p>
+        <p v-else class="text-sm text-zinc-400">No custom fields yet.</p>
 
         <AppModal :show="showModal" :title="editing ? 'Edit field' : 'New field'" @close="showModal = false">
             <form @submit.prevent="save" class="space-y-4">
@@ -181,8 +181,8 @@ onMounted(() => fieldStore.fetchFields(props.project.id))
                     label="Key"
                     placeholder="plan_tier"
                     :error="keyError" />
-                <p v-else class="text-xs text-zinc-500">
-                    Key <code class="text-zinc-400 font-mono">{{ form.key }}</code> · {{ typeLabel(form.field_type) }} (not editable)
+                <p v-else class="text-xs text-zinc-400">
+                    Key <code class="text-zinc-300 font-mono">{{ form.key }}</code> · {{ typeLabel(form.field_type) }} (not editable)
                 </p>
 
                 <AppInput v-model="form.label" label="Label" placeholder="Plan tier" />
@@ -190,7 +190,7 @@ onMounted(() => fieldStore.fetchFields(props.project.id))
                 <div v-if="!editing">
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Type</label>
                     <select v-model="form.field_type"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 transition">
+                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
                         <option v-for="t in typeOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
                     </select>
                 </div>
@@ -204,7 +204,7 @@ onMounted(() => fieldStore.fetchFields(props.project.id))
 
                 <label class="flex items-center gap-2">
                     <AppCheckbox v-model="form.required" />
-                    <span class="text-sm text-zinc-400">Required</span>
+                    <span class="text-sm text-zinc-300">Required</span>
                 </label>
 
                 <AppButton :loading="saving">{{ editing ? 'Save' : 'Create field' }}</AppButton>

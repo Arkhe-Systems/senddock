@@ -101,23 +101,23 @@ watch(() => props.show, (v) => {
 
 <template>
     <AppModal :show="show" size="xl" title="Template Library" @close="emit('close')">
-        <div v-if="loading" class="py-12 text-center text-sm text-zinc-500">Loading library…</div>
+        <div v-if="loading" class="py-12 text-center text-sm text-zinc-400">Loading library…</div>
 
         <div v-else-if="errorMessage" class="py-12 text-center">
             <p class="text-sm text-red-400 mb-3">{{ errorMessage }}</p>
             <button @click="fetchLibrary" type="button"
-                class="text-sm text-zinc-400 hover:text-white underline cursor-pointer">
+                class="text-sm text-zinc-300 hover:text-white underline cursor-pointer">
                 Retry
             </button>
         </div>
 
         <div v-else-if="entries.length === 0" class="py-12 text-center max-w-md mx-auto">
             <p class="text-zinc-300 font-medium mb-2">The library is empty right now.</p>
-            <p class="text-zinc-500 text-sm mb-5">
+            <p class="text-zinc-400 text-sm mb-5">
                 Templates live in a separate community repo. Be the first to contribute a starter — every SendDock instance picks it up within an hour.
             </p>
             <a href="https://github.com/Arkhe-Systems/senddock-templates" target="_blank" rel="noopener"
-                class="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition">
+                class="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-zinc-850 hover:bg-zinc-700 text-white rounded-lg transition">
                 Open the templates repo
                 <span aria-hidden="true">↗</span>
             </a>
@@ -129,14 +129,14 @@ watch(() => props.show, (v) => {
                     :class="[
                         'px-3 py-1.5 text-sm rounded-md transition cursor-pointer whitespace-nowrap',
                         activeCategory === cat
-                            ? 'bg-zinc-800 text-white'
-                            : 'text-zinc-500 hover:text-white'
+                            ? 'bg-emerald-500/15 text-emerald-400'
+                            : 'text-zinc-400 hover:text-white'
                     ]">
                     {{ categoryLabel(cat) }}
                 </button>
             </div>
 
-            <div v-if="filteredEntries.length === 0" class="py-8 text-center text-sm text-zinc-500">
+            <div v-if="filteredEntries.length === 0" class="py-8 text-center text-sm text-zinc-400">
                 No templates in this category yet.
             </div>
 
@@ -153,11 +153,11 @@ watch(() => props.show, (v) => {
                     <div class="p-3 flex-1 flex flex-col">
                         <div class="flex items-start justify-between gap-2 mb-1.5">
                             <h3 :title="entry.name" class="text-sm font-medium text-white truncate">{{ entry.name }}</h3>
-                            <span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0">
+                            <span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-zinc-850 text-zinc-300 shrink-0">
                                 {{ entry.category }}
                             </span>
                         </div>
-                        <p class="text-xs text-zinc-500 mb-3 flex-1 line-clamp-3">{{ entry.description }}</p>
+                        <p class="text-xs text-zinc-400 mb-3 flex-1 line-clamp-3">{{ entry.description }}</p>
                         <AppButton size="sm" :loading="useLoading === entry.id"
                             :disabled="!!useLoading && useLoading !== entry.id"
                             @click="useTemplate(entry)">

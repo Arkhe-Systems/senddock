@@ -76,20 +76,21 @@ export interface ProviderBreakdown {
     from: string; to: string; total_bounced: number; providers: ProviderStats[]
 }
 
-function windowParams(from: string, to: string, segmentID?: string): string {
+function windowParams(from: string, to: string, segmentID?: string, newsletterID?: string): string {
     const p = new URLSearchParams({ from, to })
     if (segmentID) p.set('segment_id', segmentID)
+    if (newsletterID) p.set('newsletter_id', newsletterID)
     return p.toString()
 }
 
 export const useAnalyticsStore = defineStore('analytics', () => {
     const base = (projectID: string) => `/projects/${projectID}/analytics`
 
-    function overview(projectID: string, from: string, to: string, segmentID?: string) {
-        return api<Overview>(`${base(projectID)}/overview?${windowParams(from, to, segmentID)}`)
+    function overview(projectID: string, from: string, to: string, segmentID?: string, newsletterID?: string) {
+        return api<Overview>(`${base(projectID)}/overview?${windowParams(from, to, segmentID, newsletterID)}`)
     }
-    function campaigns(projectID: string, from: string, to: string) {
-        return api<{ campaigns: CampaignStat[] }>(`${base(projectID)}/campaigns?${windowParams(from, to)}`)
+    function campaigns(projectID: string, from: string, to: string, newsletterID?: string) {
+        return api<{ campaigns: CampaignStat[] }>(`${base(projectID)}/campaigns?${windowParams(from, to, undefined, newsletterID)}`)
     }
     function campaign(projectID: string, broadcastID: string) {
         return api<CampaignDetail>(`${base(projectID)}/campaigns/${broadcastID}`)
@@ -97,8 +98,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     function audience(projectID: string, from: string, to: string) {
         return api<Audience>(`${base(projectID)}/audience?${windowParams(from, to)}`)
     }
-    function engagement(projectID: string, from: string, to: string) {
-        return api<Engagement>(`${base(projectID)}/engagement?${windowParams(from, to)}`)
+    function engagement(projectID: string, from: string, to: string, newsletterID?: string) {
+        return api<Engagement>(`${base(projectID)}/engagement?${windowParams(from, to, undefined, newsletterID)}`)
     }
     function exportUrl(projectID: string): string {
         return `${getApiBase()}${base(projectID)}/export`

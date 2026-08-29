@@ -113,16 +113,16 @@ onMounted(fetchList)
         <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
             <div>
                 <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-bold text-white">Audit log</h1>
+                    <h1 class="text-xl font-semibold text-white">Audit log</h1>
                     <span class="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">Pro</span>
                 </div>
-                <p class="text-sm text-zinc-500 mt-1">
+                <p class="text-sm text-zinc-400 mt-1">
                     Every important action against this project. {{ summary }}.
                 </p>
             </div>
         </div>
 
-        <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
+        <div v-if="loading" class="text-zinc-400 py-8 text-center">Loading...</div>
 
         <AppProPaywall v-else-if="errorState === 'paywall'"
             title="Audit log"
@@ -130,64 +130,64 @@ onMounted(fetchList)
 
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
-            <p class="text-zinc-400 text-sm">Couldn't load the audit log. Try again later.</p>
-            <button @click="fetchList" class="mt-3 px-3 py-1 text-sm text-white border border-zinc-700 rounded-md hover:bg-zinc-800 cursor-pointer">Retry</button>
+            <p class="text-zinc-300 text-sm">Couldn't load the audit log. Try again later.</p>
+            <button @click="fetchList" class="mt-3 px-3 py-1 text-sm text-white border border-zinc-700 rounded-md hover:bg-zinc-850 cursor-pointer">Retry</button>
         </div>
 
         <template v-else>
             <div class="flex items-end gap-3 mb-4 flex-wrap">
                 <div>
-                    <label class="block text-xs text-zinc-500 mb-1">Action</label>
+                    <label class="block text-xs text-zinc-400 mb-1">Action</label>
                     <select v-model="filterAction" @change="applyFilters"
-                        class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-zinc-500">
+                        class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500">
                         <option v-for="a in ACTIONS" :key="a.value" :value="a.value">{{ a.label }}</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs text-zinc-500 mb-1">From</label>
+                    <label class="block text-xs text-zinc-400 mb-1">From</label>
                     <input v-model="filterFrom" type="date" @change="applyFilters"
                         class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white" />
                 </div>
                 <div>
-                    <label class="block text-xs text-zinc-500 mb-1">To</label>
+                    <label class="block text-xs text-zinc-400 mb-1">To</label>
                     <input v-model="filterTo" type="date" @change="applyFilters"
                         class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white" />
                 </div>
                 <button v-if="filterAction || filterFrom || filterTo" @click="clearFilters"
-                    class="px-3 py-1.5 text-sm text-zinc-500 hover:text-white transition cursor-pointer">
+                    class="px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition cursor-pointer">
                     Clear
                 </button>
             </div>
 
             <div v-if="entries.length === 0" class="bg-zinc-900 border border-zinc-800 rounded-lg p-10 text-center">
                 <h2 class="text-base font-semibold text-white mb-1">No entries match these filters</h2>
-                <p class="text-sm text-zinc-500">As soon as you create projects, send broadcasts, manage webhooks or change settings, they'll show up here.</p>
+                <p class="text-sm text-zinc-400">As soon as you create projects, send broadcasts, manage webhooks or change settings, they'll show up here.</p>
             </div>
 
             <div v-else class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
                 <table class="w-full min-w-[768px]">
                     <thead>
                         <tr class="border-b border-zinc-800">
-                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">When</th>
-                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Action</th>
-                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Target</th>
-                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Details</th>
-                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">IP</th>
+                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">When</th>
+                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Action</th>
+                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Target</th>
+                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Details</th>
+                            <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">IP</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="entry in entries" :key="entry.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 transition">
+                        <tr v-for="entry in entries" :key="entry.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-850/40 transition">
                             <td class="px-4 py-3 text-sm text-zinc-300 whitespace-nowrap">{{ fmtDate(entry.created_at) }}</td>
                             <td class="px-4 py-3 text-sm">
-                                <span class="px-2 py-0.5 text-xs rounded-md bg-zinc-800 text-zinc-300 font-mono">{{ entry.action }}</span>
-                                <span class="block text-xs text-zinc-500 mt-1">{{ actionLabel(entry.action) }}</span>
+                                <span class="px-2 py-0.5 text-xs rounded-md bg-zinc-850 text-zinc-300 font-mono">{{ entry.action }}</span>
+                                <span class="block text-xs text-zinc-400 mt-1">{{ actionLabel(entry.action) }}</span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-zinc-400">
+                            <td class="px-4 py-3 text-sm text-zinc-300">
                                 <span v-if="entry.target_type">{{ entry.target_type }}</span>
-                                <span v-if="entry.target_id" class="block text-xs font-mono text-zinc-500 truncate max-w-xs">{{ entry.target_id }}</span>
+                                <span v-if="entry.target_id" class="block text-xs font-mono text-zinc-400 truncate max-w-xs">{{ entry.target_id }}</span>
                             </td>
-                            <td class="px-4 py-3 text-xs text-zinc-400 font-mono break-words max-w-md">{{ fmtMetadata(entry.metadata) }}</td>
-                            <td class="px-4 py-3 text-xs text-zinc-500 font-mono whitespace-nowrap">{{ entry.ip_address || '—' }}</td>
+                            <td class="px-4 py-3 text-xs text-zinc-300 font-mono break-words max-w-md">{{ fmtMetadata(entry.metadata) }}</td>
+                            <td class="px-4 py-3 text-xs text-zinc-400 font-mono whitespace-nowrap">{{ entry.ip_address || '—' }}</td>
                         </tr>
                     </tbody>
                 </table>
