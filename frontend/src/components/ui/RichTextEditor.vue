@@ -70,7 +70,7 @@ function isActive(t: typeof tools[number]) {
                 @click="t.run()"
                 :class="[
                     'p-1.5 rounded cursor-pointer transition',
-                    isActive(t) ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800',
+                    isActive(t) ? 'bg-zinc-700 text-white' : 'text-zinc-300 hover:text-white hover:bg-zinc-850',
                 ]">
                 <component :is="t.icon" class="w-4 h-4" />
             </button>
@@ -105,13 +105,13 @@ function isActive(t: typeof tools[number]) {
     margin: 0 0 0.5rem;
 }
 :deep(.ProseMirror-content blockquote) {
-    border-left: 3px solid #52525b;
+    border-left: 3px solid #5f606a;
     padding-left: 0.75rem;
-    color: #a1a1aa;
+    color: #b2b3bd;
     margin: 0 0 0.5rem;
 }
 :deep(.ProseMirror-content a) {
-    color: #818cf8;
+    color: #3573d9;
     text-decoration: underline;
 }
 :deep(.ProseMirror-content:focus) {

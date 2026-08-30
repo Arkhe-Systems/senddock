@@ -110,11 +110,26 @@ export const useAuthStore = defineStore('auth', () => {
         return res.message
     }
 
-    async function verifyEmail(token: string) {
-        await api<MessageResponse>('/auth/verify', {
+    async function verifyEmail(token: string): Promise<{ pending: boolean }> {
+        const res = await api<{ message: string; pending?: boolean }>('/auth/verify', {
             method: 'POST',
             body: { token },
         })
+        if (!res.pending) {
+            isAuthenticated.value = true
+            sessionExpired.value = false
+            api('/license/status').catch(() => {})
+        }
+        return { pending: !!res.pending }
+    }
+
+    async function pendingStatus(): Promise<boolean> {
+        const res = await api<{ approved: boolean }>('/auth/pending-login/status')
+        return res.approved
+    }
+
+    async function pendingComplete() {
+        await api<MessageResponse>('/auth/pending-login/complete', { method: 'POST' })
         isAuthenticated.value = true
         sessionExpired.value = false
         api('/license/status').catch(() => {})
@@ -143,5 +158,5 @@ export const useAuthStore = defineStore('auth', () => {
         totpEnabled.value = false
     }
 
-    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, totpEnabled, login, signup, verifyEmail, resendVerification, logout, checkAuth, refreshSession, verifyTwoFactor }
+    return { isAuthenticated, sessionExpired, userId, email, name, plan, createdAt, totpEnabled, login, signup, verifyEmail, resendVerification, logout, checkAuth, refreshSession, verifyTwoFactor, pendingStatus, pendingComplete }
 })
