@@ -46,6 +46,8 @@ scrape_configs:
 | `senddock_complaint_ingest_total` | counter | — | Spam complaints ingested. |
 | `senddock_bounce_poller_tick_seconds` | histogram | — | Duration of a bounce IMAP poller tick. |
 
+Bounces arrive two ways: pushed by a provider [webhook](/guide/bounces#2-public-webhook-endpoint), or pulled by polling a bounce [IMAP mailbox](/guide/bounces#3-imap-poller) — the `source` label records which path detected each one.
+
 The endpoint also carries the standard Go runtime and process collectors (`go_*`, `process_*`) from the Prometheus client.
 
 ### Useful signals

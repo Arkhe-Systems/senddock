@@ -1,6 +1,6 @@
 # Audit log <Badge type="warning" text="Pro" />
 
-The audit log records every sensitive action taken on a project — who did it, when, against what, and from which IP. Available on Pro and Team. Without a Pro license the endpoint and UI tab are hidden, and the underlying actions still happen, they just aren't recorded.
+The audit log records every sensitive action taken on a project (and, on Team plans, on the workspace itself — workspace and member changes are recorded with a `workspace` target) — who did it, when, against what, and from which IP. Available on Pro and Team. Without a Pro license the endpoint and UI tab are hidden, and the underlying actions still happen, they just aren't recorded.
 
 ![The audit log with filterable actions](/screenshots/audit-log.png)
 
@@ -27,7 +27,7 @@ Each entry stores:
 
 ## Where to see it
 
-In the project sidebar, open **Audit Log**. Filter by action, by actor, or by date range. Each entry expands to show the metadata JSON.
+In the project sidebar, open **Audit Log**. Filter by action, by actor, or by date range. Each entry expands to show the metadata JSON. Workspace-level entries (Team) appear alongside project entries in the workspace's project logs.
 
 ## API
 

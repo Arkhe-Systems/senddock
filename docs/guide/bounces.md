@@ -17,14 +17,14 @@ SendDock only suppresses on hard (`5xx`) bounces. Soft bounces are surfaced in t
 
 ## How SendDock detects bounces
 
-There are three sources, all enabled per project. Each one independently writes to the suppression list and dispatches webhooks.
+There are three sources, all enabled per project. Each one writes to the suppression list; only in-session 5xx bounces fire the `email.bounced` webhook (IMAP and webhook ingestion update the log and suppression list silently).
 
 ### 1. In-session SMTP (5xx during RCPT TO)
 
 This one is on by default and needs zero configuration. When SendDock talks to your SMTP server and the destination MTA rejects a recipient with a 5xx code on `RCPT TO`, SendDock catches the response in the same connection, classifies it, and:
 
 - marks the email log row as `bounced`,
-- adds the recipient to the project suppression list with reason `hard_bounce`,
+- adds the recipient to the project suppression list with reason `bounce`,
 - fires an `email.bounced` webhook (if configured).
 
 This catches the cleanest case: addresses that don't exist on a major provider (Gmail, Outlook, your customer's company server) and respond synchronously.
@@ -56,7 +56,7 @@ In the project's **Settings** page, the **Bounce mailbox (IMAP)** section lets y
 
 The poller logs in over TLS, scans for unread messages, and for each one:
 
-1. Looks for an **RFC 3464 DSN** (`Final-Recipient: rfc822;user@example.com`) — the standardized bounce format.
+1. Looks for an **RFC 3464 DSN** — a Delivery Status Notification, the machine-readable bounce report mail servers send back to the sender — which carries the failed address in a `Final-Recipient:` header (e.g. `Final-Recipient: rfc822;user@example.com`).
 2. Falls back to scanning the body for a `5xx` line and extracting the address there.
 3. Adds the recipient to the suppression list and marks the IMAP message `\Seen` so it's not processed again.
 
@@ -67,7 +67,7 @@ The poller never deletes messages — it only flags them as read.
 | Where | What you see |
 |---|---|
 | **Email logs** | The send row's status changes from `sent` to `bounced`. |
-| **Suppression list** | Bounced recipients appear with reason `hard_bounce`. |
+| **Suppression list** | Bounced recipients appear with reason `bounce`. |
 | **Project stats** | `bounced` and `suppressed` are tracked separately from `sent` and `failed`. The dashboard's outcome cards show all four. |
 | **Webhooks** | `email.bounced` fires once with `{ "log_id", "to_email", "subject", "smtp_code", "reason" }` in `data`. |
 | **Audit log (Pro)** | Bounce-mailbox config changes and bounce-token rotations are recorded. |

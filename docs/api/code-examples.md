@@ -2,6 +2,10 @@
 
 Copy-paste-ready snippets for the most common SendDock operations in **cURL, JavaScript (Node), Python, Java, C# and PHP**.
 
+::: tip Using TypeScript or JavaScript? Skip the boilerplate
+The official [TypeScript SDK](./sdk) wraps all of this in a typed client — auth, retries, timeouts and error handling included. `npm install @senddock/sdk`.
+:::
+
 Every example uses three placeholders — replace them once and the rest works:
 
 | Placeholder | What goes there |
@@ -214,7 +218,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 
 ## Batch send
 
-Send the same template to many recipients with per-recipient variables. Up to ~5,000 recipients per call is comfortable; for full lists use [Broadcast](#broadcast-to-all-subscribers).
+Send the same template to many recipients with per-recipient variables. Hard cap of **500 recipients per call** — the API rejects larger batches with a `400`. At 10 calls per minute per project that adds up to 5,000 recipients per minute; for full lists use [Broadcast](#broadcast-to-all-subscribers).
 
 ::: code-group
 
@@ -288,7 +292,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 
 :::
 
-The response is `{"sent": N, "failed": M}`. `failed` includes both SMTP rejections and recipients that were on the project's suppression list at send time.
+The response is `{"sent": N, "failed": M, "suppressed": K}`. Recipients on the project's suppression list are skipped without an SMTP attempt and counted separately in `suppressed` — they do **not** count toward `failed`.
 
 ## Broadcast to all subscribers
 
@@ -344,7 +348,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(["template_id" => "YOUR_TEMPLAT
 
 :::
 
-Returns `{"sent": N, "failed": M}` once delivery has been attempted for every active subscriber. Broadcast is rate-limited to **5 calls per minute per project** to prevent runaway sends.
+Returns `{"sent": N, "broadcast_id": "uuid"}` once the send has been enqueued for every active subscriber — `sent` is the number enqueued, not yet delivered; poll `GET /broadcasts` for the final sent/failed/suppressed tallies as the queue drains. Broadcast is rate-limited to **5 calls per hour per project** to prevent runaway sends.
 
 ## Add a subscriber
 
@@ -374,7 +378,7 @@ const res = await fetch(
   }
 )
 if (!res.ok) throw new Error(await res.text())
-const { imported, skipped, errors } = await res.json()
+const { imported, duplicates, syntax_invalid, no_mx, disposable, suppressed, rejected } = await res.json()
 ```
 
 ```python [Python]
@@ -384,7 +388,7 @@ res = requests.post(
     json=[{"email": "user@example.com", "name": "John Doe"}],
 )
 res.raise_for_status()
-result = res.json()  # {imported, skipped, errors}
+result = res.json()  # {imported, duplicates, syntax_invalid, no_mx, disposable, suppressed, rejected}
 ```
 
 ```java [Java]
@@ -418,20 +422,24 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 ]));
 $body   = curl_exec($ch);
 $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-// Response: {"imported": n, "skipped": n, "errors": [...]}
+// Response: {"imported": n, "duplicates": n, "syntax_invalid": n, "no_mx": n, "disposable": n, "suppressed": n, "rejected": [...]}
 ```
 
 :::
 
-Returns `200` with `{imported, skipped, errors}`. `skipped` covers addresses already on the list and addresses that failed validation (disposable domain, bad MX, malformed). Pass an array of any length — it's the same endpoint whether you're importing one row or fifty thousand. See [Subscribers → Bulk import](./subscribers#bulk-import).
+Returns `200` with `{imported, duplicates, syntax_invalid, no_mx, disposable, suppressed, rejected}`. `duplicates` are addresses already on the list; `rejected` is the per-row breakdown of rows that failed validation (disposable domain, bad MX, malformed). Pass an array of any length — it's the same endpoint whether you're importing one row or fifty thousand. See [Subscribers → Bulk import](./subscribers#bulk-import).
 
 ## List subscribers (paginated)
+
+::: warning Cookie auth only
+`GET /subscribers` is cookie-only — a project API key cannot list subscribers (see [Authentication → Endpoints that accept API keys](./authentication#endpoints-that-accept-api-keys)). Log in first, then send the session cookie instead of `Authorization: Bearer`. The cURL example uses `-b cookies.txt`; in the other languages, drop the `Authorization` header and attach the session cookie you received at login.
+:::
 
 ::: code-group
 
 ```bash [cURL]
 curl -G "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/subscribers" \
-  -H "Authorization: Bearer $YOUR_API_KEY" \
+  -b cookies.txt \
   --data-urlencode "limit=100" \
   --data-urlencode "offset=0"
 ```
@@ -675,8 +683,9 @@ All errors return JSON of the shape `{"error": "human-readable message"}` with t
 | `403` | The authenticated user / API key doesn't own this project. |
 | `404` | Project / template / subscriber not found. |
 | `409` | Duplicate (e.g. subscriber email already exists). |
-| `422` | The recipient is on the project's suppression list. The send is logged but no SMTP attempt happens. |
 | `429` | Rate limited. Honor `Retry-After` (in seconds). |
+
+A suppressed recipient is **not** an error: `/send` answers `200` with `{"message": "suppressed", "suppressed": 1}`, and batch/broadcast count those recipients in the `suppressed` field. The send is logged with status `suppressed` and no SMTP attempt happens.
 | `5xx` | Server error. Retry with backoff. |
 
 ## What's next

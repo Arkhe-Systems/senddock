@@ -67,6 +67,7 @@ export default defineConfig({
           items: [
             { text: 'Projects', link: '/guide/projects' },
             { text: 'Subscribers', link: '/guide/subscribers' },
+            { text: 'Newsletters', link: '/guide/newsletters' },
             { text: 'Segments', link: '/guide/segments' },
             { text: 'Templates', link: '/guide/templates' },
             { text: 'Email Sending', link: '/guide/sending' },
@@ -103,10 +104,12 @@ export default defineConfig({
           text: 'API Reference',
           items: [
             { text: 'Authentication', link: '/api/authentication' },
+            { text: 'TypeScript SDK', link: '/api/sdk' },
             { text: 'Code examples', link: '/api/code-examples' },
             { text: 'Workspaces', link: '/api/workspaces' },
             { text: 'Projects', link: '/api/projects' },
             { text: 'Subscribers', link: '/api/subscribers' },
+            { text: 'Newsletters', link: '/api/newsletters' },
             { text: 'Segments', link: '/api/segments' },
             { text: 'Templates', link: '/api/templates' },
             { text: 'Email Sending', link: '/api/sending' },

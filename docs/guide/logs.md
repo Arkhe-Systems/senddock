@@ -1,6 +1,6 @@
 # Email Logs
 
-Every email SendDock sends — transactional, broadcast or campaign — is recorded in the project's **Logs**. It's the source of truth for "what happened to that message", and where opens, clicks and bounces surface per recipient.
+Every email SendDock sends — transactional (a one-off, single-recipient send via `/send`), broadcast (one send to every active subscriber), or campaign (a scheduled broadcast built in the dashboard's [Campaigns](/guide/campaigns) view) — is recorded in the project's **Logs**. It's the source of truth for "what happened to that message", and where opens, clicks and bounces surface per recipient.
 
 Open it from **Logs** in the project sidebar.
 
@@ -25,6 +25,7 @@ A filter bar sits above the table:
 - **Status chips** — All / Sent / Failed / Bounced / Suppressed.
 - **Search** — match by recipient email or subject.
 - **Template** — narrow to a single template.
+- **Newsletter** — narrow to sends targeted at one [newsletter](./newsletters) (shown once the project has newsletters).
 - **From / To** — a date range.
 - **Clear** — reset every filter at once.
 

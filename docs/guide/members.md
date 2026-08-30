@@ -27,6 +27,7 @@ A few notes:
 
 - **Developer** is the role for the rest of your team's services. They can call `/send` from a backend job for password resets and one-off transactional emails, but they can't broadcast to your subscriber list, edit your branded templates, or rotate API keys.
 - **Viewer** is read-only — useful for support staff who need to look up an email log or analytics chart without any risk of writing.
+- **Three ways to send.** `POST /send` targets one explicit recipient (or one subscriber); `POST /send/batch` targets several explicit recipients in a single request (up to 500) with no unsubscribe link; `POST /broadcast` targets your saved subscriber list — optionally narrowed to a segment or newsletter — and injects unsubscribe links. Owners and Admins run all three; Developers can call only `/send`.
 - **API keys are project-scoped, not user-scoped.** Anyone with a key has full access on the five endpoints that accept keys: `/send`, `/send/batch`, `/broadcast`, `/subscribers/import`, `/stats`. Roles only constrain cookie-auth users (the dashboard), so carve up backend access by which API keys you hand out — not by which role you give a teammate.
 - The system always guarantees at least one owner — the last owner cannot be removed or demoted.
 

@@ -1,6 +1,6 @@
 # Email Sending API
 
-`/send`, `/send/batch` and `/broadcast` accept both cookie auth and API key auth (`Authorization: Bearer sk_...`). `/smtp/test` is cookie-only.
+`/send`, `/send/batch`, `/broadcast` and `/stats` accept both cookie auth and API key auth (`Authorization: Bearer sk_...`). `/logs` and `/smtp/test` are cookie-only.
 
 ## Send
 
@@ -69,6 +69,10 @@ When the recipient is on the project's [suppression list](./suppressions), the e
 
 The send is recorded with status `suppressed` in the email log; no SMTP attempt is made. This is the same shape as the failure-counted version below — when present, `suppressed` always counts in addition to `sent` + `failed`.
 
+::: info Error contract
+A `template_id` or `subscriber_id` that doesn't exist in the project, a project without SMTP configured, or a subscriber that isn't `active` all return `400` with an `{error}` body. An SMTP-level rejection (the relay refused the message) also returns `400` with the SMTP error in `{error}` — the log row is marked `failed` or `bounced` accordingly. Only suppression is a "soft" `200`, shown above.
+:::
+
 ## Batch Send
 
 ```
@@ -109,7 +113,19 @@ Sends a template to **all active subscribers** in the project. Separated from `/
 {"template_id": "uuid"}
 ```
 
-Variables are replaced per subscriber. The `{{unsubscribe_url}}` is injected automatically with a link to the public unsubscribe page.
+The audience can be narrowed with exactly one of two optional fields:
+
+```json
+{"template_id": "uuid", "segment_id": "uuid"}
+```
+
+```json
+{"template_id": "uuid", "newsletter_id": "uuid"}
+```
+
+`segment_id` targets the active subscribers matching a [segment](/api/segments); `newsletter_id` targets the active subscribers opted in to a [newsletter](/api/newsletters). Sending both returns `400`.
+
+Variables are replaced per subscriber. The `{{unsubscribe_url}}` is injected automatically with a link to the public unsubscribe page — scoped to the newsletter when `newsletter_id` was used. Newsletter sends can also use `{{newsletter_name}}` in the template body.
 
 **Response**
 
@@ -119,19 +135,37 @@ Variables are replaced per subscriber. The `{{unsubscribe_url}}` is injected aut
 
 `suppressed` is the count of subscribers skipped because they were on the project's suppression list. They do **not** count towards `failed`. Field is omitted when zero.
 
+::: info Public URL required
+The instance must have a [public URL](../guide/instance-settings#public-url) configured — without it the endpoint refuses with `400` because unsubscribe links can't be built. See [A public URL is required](../guide/sending#a-public-url-is-required-for-broadcasts-and-campaigns).
+:::
+
 ## Unsubscribe
 
 ```
-GET  /unsubscribe/{projectId}/{subscriberId}
-POST /unsubscribe/{projectId}/{subscriberId}
+GET  /unsubscribe/{projectId}/{subscriberId}?t=...
+POST /unsubscribe/{projectId}/{subscriberId}?t=...
 ```
 
-Public endpoints (no auth required). The URL is auto-generated and injected via `{{unsubscribe_url}}` in broadcast and subscriber sends; it is HMAC-signed against `JWT_SECRET` so it can't be forged or reused for a different recipient.
+Public endpoints (no auth required). The URL is auto-generated and injected via `{{unsubscribe_url}}` in broadcast and subscriber sends; the `t` token is HMAC-signed against `JWT_SECRET` so it can't be forged or reused for a different recipient.
 
-- **`GET`** — renders a confirmation page and (on the same request) flips the subscriber's status to `unsubscribed`. Used by anyone who clicks the unsubscribe link in an email.
-- **`POST`** — same effect, no UI. Used by Gmail / Outlook for [RFC 8058](https://www.rfc-editor.org/rfc/rfc8058) **one-click unsubscribe**: the email's `List-Unsubscribe-Post: List-Unsubscribe=One-Click` header tells the client to POST to the URL when the user clicks the inbox-level unsubscribe button. Returns `204 No Content` on success.
+- **`GET`** — renders a confirmation page with an unsubscribe button. Used by anyone who clicks the unsubscribe link in an email. Nothing changes until the reader confirms.
+- **`POST`** — performs the unsubscribe. The confirmation page's button posts here, and so do Gmail / Outlook for [RFC 8058](https://www.rfc-editor.org/rfc/rfc8058) **one-click unsubscribe**: the email's `List-Unsubscribe-Post: List-Unsubscribe=One-Click` header tells the client to POST to the URL when the user clicks the inbox-level unsubscribe button.
 
-In both cases the subscriber is also added to the project [suppression list](./suppressions) with reason `unsubscribed`, so subsequent sends from `/send`, `/send/batch` and `/broadcast` skip them.
+A project-wide unsubscribe flips the subscriber's status to `unsubscribed` and adds them to the project [suppression list](./suppressions) with reason `unsubscribe`, so subsequent sends from `/send`, `/send/batch` and `/broadcast` skip them.
+
+### Per-newsletter unsubscribe
+
+Links generated for a [newsletter](/api/newsletters) send carry an extra `n` parameter, and the token covers it:
+
+```
+/unsubscribe/{projectId}/{subscriberId}?n={newsletterId}&t=...
+```
+
+- With `n`, the POST only marks that newsletter's membership as unsubscribed — the subscriber's status and the suppression list are untouched, and other newsletters keep delivering. It also emits the `subscriber.newsletter_unsubscribed` [webhook](/guide/webhooks#events).
+- The confirmation page names the newsletter and offers a separate **Unsubscribe from all emails** action, which performs the project-wide unsubscribe above.
+- Tokens verify exactly the URL they were issued for: stripping or altering `n` invalidates the link. Old links without `n` keep verifying forever and stay project-wide. If the newsletter was deleted, its links degrade to a project-wide unsubscribe.
+
+Both pages can be branded with a [page template](/api/templates#template-types); without one, SendDock renders a neutral built-in page.
 
 ## Test SMTP
 
@@ -147,7 +181,7 @@ Sends a test email to verify SMTP configuration. Cookie auth only.
 GET /t/{logId}
 ```
 
-Public endpoint (no auth required, no file extension on the path). Returns a 1×1 transparent GIF in the response body with `Content-Type: image/gif`. This pixel is automatically injected into emails sent to subscribers and via broadcast. When the recipient's email client loads the image, SendDock records the `opened_at` timestamp on the corresponding email log entry. Only the first open is recorded.
+Public endpoint (no auth required, no file extension on the path). Returns a 1×1 transparent GIF in the response body with `Content-Type: image/gif`. This pixel is automatically injected into **every** outgoing email — subscriber sends, broadcasts, and raw transactional sends to a non-subscriber address (`/send`, `/send/batch`). When the recipient's email client loads the image, SendDock records the `opened_at` timestamp on the corresponding email log entry. Only the first open is recorded.
 
 ## Click Tracking
 
@@ -175,11 +209,14 @@ Cookie auth only.
 |-----------|-------------|---------|
 | `status` | Filter by delivery status. Valid: `sent`, `failed`, `bounced`, `suppressed`. | `?status=bounced` |
 | `template_id` | Restrict to logs that came from one template | `?template_id=...` |
+| `newsletter_id` | Restrict to logs from sends targeted at one newsletter | `?newsletter_id=...` |
 | `from` | Inclusive lower bound on `sent_at` (RFC 3339) | `?from=2026-01-01T00:00:00Z` |
 | `to` | Inclusive upper bound on `sent_at` (RFC 3339) | `?to=2026-02-01T00:00:00Z` |
 | `q` | Free-text match against `to_email` or `subject` (case-insensitive) | `?q=welcome` |
 | `limit` | Page size (default 50, max 100) | `?limit=100` |
 | `offset` | Pagination offset | `?offset=50` |
+
+Status meanings: `sent` — accepted by the SMTP server; `bounced` — accepted, then a hard bounce returned (in-session, via webhook, or via IMAP); `failed` — rejected at send time (soft/transport errors); `suppressed` — skipped before any SMTP attempt because the address is on the suppression list.
 
 ### Export to CSV
 
@@ -262,7 +299,7 @@ Returns `404` if the log doesn't belong to the project.
 GET /api/v1/projects/{id}/broadcasts
 ```
 
-Cookie auth only. Returns the broadcast history for the project, newest first, with live counters that update as the worker drains the queue:
+Cookie auth only. Returns the broadcast history for the project, newest first, with live counters that update as the worker drains the queue. Optional query filters: `status` (one status value) and `newsletter_id`:
 
 ```json
 {
@@ -270,6 +307,7 @@ Cookie auth only. Returns the broadcast history for the project, newest first, w
     {
       "id": "uuid",
       "template_id": "uuid",
+      "newsletter_id": null,
       "status": "sending",
       "total": 12500,
       "sent_count": 8472,
@@ -281,7 +319,7 @@ Cookie auth only. Returns the broadcast history for the project, newest first, w
 }
 ```
 
-`status` is one of `pending`, `sending`, `completed`, `interrupted`. While a broadcast is `sending`, `sent_count` and `failed_count` reflect the live state of the per-recipient job queue. The dashboard polls this endpoint every five seconds to drive the live progress bars.
+`status` is one of `pending`, `sending`, `completed`, `interrupted`. (`interrupted` is a legacy state from a mid-broadcast restart on older builds; current versions stay `sending` and resume from the job queue.) While a broadcast is `sending`, `sent_count` and `failed_count` reflect the live state of the per-recipient job queue. The dashboard polls this endpoint every five seconds to drive the live progress bars.
 
 ## Stats
 
@@ -290,5 +328,17 @@ GET /api/v1/projects/{id}/stats
 ```
 
 ```json
-{"total": 1520, "sent": 1500, "failed": 20, "opened": 980}
+{"total": 1520, "sent": 1480, "failed": 12, "bounced": 8, "suppressed": 20, "opened": 980}
 ```
+
+## Rate limits
+
+Sending endpoints are rate-limited **per project** (shared across every API key of that project):
+
+| Endpoint | Limit | Window | Hard cap per request |
+|---|---|---|---|
+| `POST /send` | 60 requests | 1 minute | — |
+| `POST /send/batch` | 10 requests | 1 minute | 500 recipients |
+| `POST /broadcast` | 5 requests | 1 hour | — |
+
+Exceeding a limit returns `429 Too Many Requests` with a `Retry-After` header. See the [Sending guide](../guide/sending#rate-limits-and-abuse-prevention) for the reasoning and how to stay inside them.

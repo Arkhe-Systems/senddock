@@ -18,7 +18,7 @@ GET /api/v1/projects/{id}/suppressions
 |---|---|---|
 | `limit` | int (default `50`, max `200`) | Page size. |
 | `offset` | int (default `0`) | Pagination offset. |
-| `reason` | string | Filter to a single reason (`hard_bounce`, `unsubscribed`, `manual`). Optional. |
+| `reason` | string | Filter to a single reason (`bounce`, `complaint`, `manual`, `unsubscribe`). Optional. |
 
 ### Response
 
@@ -29,7 +29,7 @@ GET /api/v1/projects/{id}/suppressions
       "id": "01H...",
       "project_id": "01H...",
       "email": "user@example.com",
-      "reason": "hard_bounce",
+      "reason": "bounce",
       "source": "webhook ingest: 550 5.1.1 mailbox unavailable",
       "created_at": "2026-04-30T14:22:11Z",
       "last_seen_at": "2026-05-02T09:00:03Z"
@@ -46,7 +46,7 @@ GET /api/v1/projects/{id}/suppressions
 ```bash
 curl -G "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/suppressions" \
   -b cookies.txt \
-  --data-urlencode "reason=hard_bounce" \
+  --data-urlencode "reason=bounce" \
   --data-urlencode "limit=100"
 ```
 
@@ -71,7 +71,7 @@ Add one or more addresses to the list. Already-suppressed entries are silently d
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `emails` | string[] | yes | One or more addresses. Whitespace trimmed, lower-cased server-side. |
-| `reason` | string | no | One of `hard_bounce`, `unsubscribed`, `manual`. Defaults to `manual`. |
+| `reason` | string | no | One of `bounce`, `complaint`, `manual`, `unsubscribe`. Defaults to `manual`. (`bounce`, `complaint` and `unsubscribe` are written automatically by the system; `manual` is for hand-created entries.) |
 | `source` | string | no | Free-text note (≤ 255 chars), shown in the UI's `source` column and in audit log entries. |
 
 ### Response
@@ -84,7 +84,7 @@ Add one or more addresses to the list. Already-suppressed entries are silently d
 
 ### Capability
 
-Requires the `suppressions:write` capability — owners, admins and developers can call this endpoint; viewers cannot. API keys bypass the role check.
+Requires the `suppressions:write` capability — owners and admins can call this endpoint; developers and viewers cannot. API keys cannot call it at all (see the cookie-auth note at the top).
 
 ### Example
 
@@ -101,7 +101,7 @@ curl -X POST "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/suppressions" \
 DELETE /api/v1/projects/{id}/suppressions/{suppressionId}
 ```
 
-Removes the entry. The next send to that address will go through normally — useful when you've confirmed a bounce was a typo or the recipient asked back in.
+Removes the entry. The next send to that address will go through normally — useful when you've confirmed a bounce was a typo or the recipient asked back in. Note: an entry created automatically on unsubscribe (reason `unsubscribe`) sits alongside the subscriber's `unsubscribed` status — removing only the suppression re-enables transactional sends; set the subscriber's status back to `active` (PATCH `/subscribers/{id}`) for broadcasts to reach them again.
 
 ### Response
 

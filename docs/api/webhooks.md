@@ -22,7 +22,7 @@ POST /api/v1/projects/{id}/webhooks
 | `url` | yes | Absolute http/https URL of your endpoint. |
 | `events` | no | Subset of allowed event types. Omit or pass `[]` to subscribe to **all** events. |
 
-Allowed events: `email.sent`, `email.failed`, `email.bounced`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`.
+Allowed events: `email.sent`, `email.failed`, `email.bounced`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`, `subscriber.newsletter_unsubscribed`.
 
 **Response — 201 Created**
 

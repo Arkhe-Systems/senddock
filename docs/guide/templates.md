@@ -13,6 +13,10 @@ Two ways to start:
 
 Either way, the template lives in your project and is fully editable from there.
 
+When creating from scratch you also pick the template's **type**: an **Email** template is what you send, a **Page** template is rendered as a web page — see [Page templates](#page-templates). The type is fixed at creation.
+
+Each template also has a **subject line**, set in the editor above the content. It's the default subject for every send and can be overridden per send, batch, broadcast or campaign via the optional `subject` field. Template variables (`{{name}}`, `{{custom.*}}`, …) are substituted in the subject just like the body, per recipient.
+
 ## Editor Modes
 
 ### Code Editor
@@ -27,12 +31,14 @@ Drag-and-drop email builder powered by GrapeJS.
 
 ![The visual drag-and-drop template editor](/screenshots/editor.png)
 
+Templates are sanitized when loaded into the editor (scripts, iframes and event handlers stripped), so pasted or imported HTML can't run in the canvas. Undo/redo works while you edit, and switching between the **Code** and **Visual** tabs no longer resets the canvas.
+
 Available blocks:
 
 **Layout:**
 - Container (600px max-width email wrapper)
 - Section
-- 2 Columns / 3 Columns (table-based, email-safe)
+- 2 Columns / 3 Columns (div-based, so you can drag content in and out of them)
 - Divider
 - Spacer
 
@@ -40,7 +46,7 @@ Available blocks:
 - Heading
 - Text
 - Image
-- Button (table-based, works in all email clients)
+- Button (a single styled link — drags as one unit)
 - Link
 - List
 
@@ -73,7 +79,7 @@ Use double curly braces to insert dynamic content:
 
 Plus any custom keys you pass in the `data` map of `/send`, `/send/batch` or in a campaign's `variables` field — those are substituted by the same engine using the exact same `{{your_key}}` syntax.
 
-The template editor lists the project's custom fields as clickable chips below the editor, so you can insert the right <span v-pre>`{{custom.KEY}}`</span> token without remembering the exact key.
+Below the editor, a variable panel lists **every** available token as a <span v-pre>`{{variable}}`</span> pill — the ones detected in the template, the built-in system variables, and the project's custom fields — grouped and clickable to insert at the cursor. Subscriber custom fields are hidden when you're editing a **page** template, since they aren't rendered on a public unsubscribe page.
 
 Variables are replaced per recipient at send time.
 
@@ -100,6 +106,33 @@ A rich value is **not** escaped — instead it runs through a strict HTML **sani
 See [Email Sending → Rich-text variables](/guide/sending#rich-text-variables) for the full workflow.
 
 The subject line is **not** escaped (subject is plain text, not HTML), but it is also not allowed to introduce headers — newlines are stripped to prevent SMTP header injection.
+
+## Page templates
+
+A template created with type **Page** is rendered as a public web page instead of an email. Today pages serve one purpose: **branded unsubscribe pages**. Assign one under **Project → Settings → Unsubscribe page** and both the unsubscribe confirmation and the "you're unsubscribed" page render with your design instead of the neutral built-in page.
+
+This is **one design per project** — every [newsletter](./newsletters) uses the same page, but the page is **per-newsletter at runtime**: the URL carries `?n={newsletterID}`, `{{newsletter_name}}` names the publication, and the confirmation button reads "Unsubscribe from {Newsletter}". So you brand it once and it adapts to whichever newsletter the reader is leaving. See [Newsletters → Per-newsletter unsubscribe](./newsletters#per-newsletter-unsubscribe).
+
+[Newsletter](./newsletters) links get the same treatment, with the newsletter's name in place.
+
+Page templates support these placeholders:
+
+| Placeholder | Renders as |
+|---|---|
+| `{{project_name}}` | The project's name |
+| `{{email}}` | The recipient's address |
+| `{{newsletter_name}}` | The newsletter being left; falls back to the project name on project-wide links |
+| `{{confirm_button}}` | The unsubscribe action itself. If you leave it out, SendDock injects it anyway — a page can never lose the button |
+| `{{unsubscribe_all_link}}` | On newsletter pages, a link to unsubscribe from all emails |
+
+A few rules keep the page safe and predictable:
+
+- The HTML is sanitized before rendering: scripts, iframes, forms, and event-handler attributes are stripped. Placeholder values are escaped, so they can't inject markup.
+- Style with **inline `style` attributes** or a `<style>` block — both are preserved and inlined when the page renders. Images and tables work normally.
+- An invalid or tampered unsubscribe link always shows the built-in error page, never your branded one.
+- Page templates never appear in the broadcast or campaign template pickers, and email templates can't be assigned as pages.
+
+The templates list has an **All / Email / Page** filter, and page templates carry a badge so the two kinds don't mix up.
 
 ## Managing templates
 

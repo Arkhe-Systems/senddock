@@ -18,7 +18,7 @@ POST /api/v1/projects/{id}/subscribers
 }
 ```
 
-`status` is optional, defaults to `active`. Valid values: `active`, `pending`, `unsubscribed`.
+`status` is optional, defaults to `active`. Valid values: `active`, `pending`, `unsubscribed`. `pending` means the address registered but hasn't been confirmed; pending subscribers are excluded from broadcasts until set to `active` (there's no automatic confirmation link — activate them via [Update Status](#update-status) or the dashboard).
 
 `fields` is optional — a map of [custom field](#custom-fields) values, validated against the project's field definitions. Unknown keys return `400`. `tags` is optional — an array of free-form labels (deduplicated and trimmed).
 
@@ -48,6 +48,14 @@ Returns `409 Conflict` if the email already exists in the project, or `400` if a
 GET /api/v1/projects/{id}/subscribers?limit=50&offset=0
 ```
 
+Optional filters, combinable:
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `status` | Filter by status: `active`, `pending`, `unsubscribed` | `?status=active` |
+| `tag` | Only subscribers carrying this tag | `?tag=vip` |
+| `newsletter_id` | Only opted-in members of this [newsletter](/api/newsletters) | `?newsletter_id=...` |
+
 **Response**
 
 ```json
@@ -56,6 +64,8 @@ GET /api/v1/projects/{id}/subscribers?limit=50&offset=0
   "total": 150
 }
 ```
+
+`total` counts the rows matching the filters, not the whole project.
 
 ## Bulk Import
 
@@ -144,10 +154,11 @@ Apply the same operation to many existing subscribers — the dashboard uses thi
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `action` | string | yes | One of `delete`, `update_status`, `add_tags`, `remove_tags`. |
+| `action` | string | yes | One of `delete`, `update_status`, `add_tags`, `remove_tags`, `add_newsletter`, `remove_newsletter`. |
 | `subscriber_ids` | string[] | yes | Non-empty list of subscriber UUIDs. |
 | `status` | string | required for `update_status` | One of `active`, `pending`, `unsubscribed`. |
 | `tags` | string[] | required for `add_tags` / `remove_tags` | Non-empty list of tags to add to or remove from every selected subscriber. |
+| `newsletter_id` | string | required for `add_newsletter` / `remove_newsletter` | The [newsletter](/api/newsletters) to add every selected subscriber to (clearing any opt-out) or remove them from. |
 
 Cookie auth only (the role must have `subscribers:write`). For ingesting fresh rows, use [Bulk Import](#bulk-import) — that endpoint takes raw `email`/`name` rows and accepts API keys; this one operates on already-stored subscriber ids.
 
@@ -307,8 +318,9 @@ Public endpoint — no authentication required. Designed for landing page waitli
 ```
 
 - Creates a subscriber with `pending` status
-- If `template_id` is provided, sends a confirmation email using that template
-- `template_id` is optional — omit it to just collect the email without sending a confirmation
+- `template_id` must reference an `email`-type template (page templates are reserved for unsubscribe pages); the subscriber's address is available to it as `{{email}}`
+- If `template_id` is provided, sends that template as a confirmation email
+- `template_id` is optional — omit it to just collect the email without sending a confirmation. The email is informational: it does **not** activate the subscriber.
 - Returns `409` if the email is already on the waitlist
 - Rate limited (100 requests/min per IP)
 - Email format is validated

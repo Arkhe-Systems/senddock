@@ -30,6 +30,8 @@ POST /api/v1/projects/{id}/keys
 
 The `key` field contains the full API key. It is only returned on creation and cannot be retrieved again. Store it securely.
 
+`key_prefix` is the first 10 characters of the key — the only part kept after creation, so you can identify which key a log or revoke action refers to. `last_used_at` updates on each successful request authenticated with that key.
+
 ## List API Keys
 
 ```

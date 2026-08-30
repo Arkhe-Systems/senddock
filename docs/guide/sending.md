@@ -1,6 +1,6 @@
 # Email Sending
 
-SendDock has two endpoints for sending emails. All require SMTP to be configured.
+SendDock has three endpoints for sending emails: `/send` (one recipient), `/send/batch` (several explicit recipients at once), and `/broadcast` (your subscriber list). All require SMTP to be configured.
 
 From the dashboard, **Project → Overview → Send Email** opens a composer that picks a template, fills its variables, and sends to a specific address or your whole list:
 
@@ -98,7 +98,7 @@ curl -X POST https://your-instance.com/api/v1/projects/{id}/send/batch \
 ```
 
 ```json
-{"sent": 3, "failed": 0}
+{"sent": 3, "failed": 0, "suppressed": 0}
 ```
 
 Ideal for sending notifications or announcements to a known list of recipients without requiring them to be subscribers.
@@ -114,11 +114,13 @@ curl -X POST https://your-instance.com/api/v1/projects/{id}/broadcast \
   -d '{"template_id": "uuid"}'
 ```
 
-Response includes the count of sent and failed:
+The response confirms the recipients were accepted into the queue and returns the broadcast ID to track progress:
 
 ```json
-{"sent": 150, "failed": 2}
+{"sent": 150, "broadcast_id": "4f0c…uuid"}
 ```
+
+Here `sent` is the number of recipients **enqueued** — nothing has left via SMTP yet. Final per-recipient results (including later bounces and failures) land on the broadcast row, the [email logs](./logs) and any linked campaign as the queue drains (see [How a broadcast actually runs](#how-a-broadcast-actually-runs) below).
 
 ### Unsubscribe link
 
@@ -144,7 +146,7 @@ The error returned is:
 
 ```json
 {
-  "error": "your public URL is not set to a publicly reachable address. Newsletters need a working unsubscribe link before they can be sent. Set it under Settings → Instance"
+  "error": "your public URL is not set to a publicly reachable address. Broadcasts need a working unsubscribe link before they can be sent. Set it under Settings → Instance"
 }
 ```
 
@@ -168,7 +170,7 @@ This design has three consequences worth knowing:
 
 - **Server restart mid-send is safe.** Jobs that were in `sending` when the process died are rescheduled to `retry` on the next startup; nothing is lost and nothing is double-sent.
 - **Per-recipient retries with exponential backoff.** Transient errors (DNS failures, network timeouts, SMTP 4xx) reschedule the job — backoff steps are 30s, 2m, 8m, 30m, 1h. After 5 attempts the job is marked `failed`. SMTP 5xx bounces are *not* retried (they are tagged `bounced` and the recipient is added to the suppression list immediately).
-- **Live progress is visible while sending.** The Newsletters list, Broadcasts tab, and the "broadcasts in flight" panel in Analytics all read counts from the live broadcast row, refreshing every 5 seconds while at least one broadcast is in flight. You see `42/213 → 87/213 → 213/213`, not a sudden jump at the end.
+- **Live progress is visible while sending.** The Campaigns list, Broadcasts tab, and the "broadcasts in flight" panel in Analytics all read counts from the live broadcast row, refreshing every 5 seconds while at least one broadcast is in flight. You see `42/213 → 87/213 → 213/213`, not a sudden jump at the end.
 
 If you need to inspect the queue directly:
 
@@ -212,7 +214,7 @@ Tracking is on by default for every send. The two touch points — the open pixe
 
 ## Open Tracking
 
-SendDock automatically injects a 1x1 transparent tracking pixel into emails sent to subscribers and via broadcast. When the recipient opens the email and their email client loads the pixel, SendDock records the open.
+SendDock automatically injects a 1x1 transparent tracking pixel into **every** outgoing email — subscriber sends, broadcasts, and transactional sends to a raw address (`/send`, `/send/batch`). When the recipient opens the email and their email client loads the pixel, SendDock records the open.
 
 - The tracking pixel URL is `GET /t/{logId}` (public, no auth — the response body is the 1×1 GIF, no file extension on the path)
 - Only the first open is recorded (`opened_at` timestamp on the email log)
@@ -253,11 +255,16 @@ From the project **Overview**, click **Send Email** to:
 
 - Select a template
 - Choose "All subscribers" (broadcast) or "Specific email" (direct send)
+- For broadcasts, optionally narrow the audience to a [segment](./segments) or a [newsletter](./newsletters) — one or the other
 - Send immediately
 
 ## CSS Inlining
 
 SendDock automatically inlines CSS styles before sending. If your template uses `<style>` tags, they are converted to inline `style=""` attributes for compatibility with email clients like Gmail.
+
+The same pass converts the visual builder's **columns** — which are divs in the editor (`display: table-cell`) — back into real `<table>/<tr>/<td>` markup, so multi-column layouts render side-by-side in Outlook as well as Gmail.
+
+When you save a template, SendDock also generates the plain-text `text_body` from the HTML, so every email ships both an HTML and a plain-text part without writing it twice.
 
 ## Email Logs
 
@@ -319,13 +326,13 @@ curl https://your-instance.com/api/v1/projects/{id}/stats \
 }
 ```
 
-`/stats` is one of the five endpoints that accept API key auth (cached in Redis for 30 seconds). Click counts and per-template / per-link breakdowns live in the [Analytics dashboard](./analytics) instead.
+`/stats` is one of the endpoints that accept API key auth (results cached in Redis for 30 seconds) — see [Authentication](#authentication) below for the full list. Click counts and per-template / per-link breakdowns live in the [Analytics dashboard](./analytics) instead.
 
 ## Authentication
 
 The send-related endpoints use mixed auth:
 
-- `POST /send`, `POST /send/batch`, `POST /broadcast`, `GET /stats` — accept **both** cookie session and `Authorization: Bearer sk_...` API keys.
+- `POST /send`, `POST /send/batch`, `POST /broadcast`, `GET /stats`, `POST /subscribers/import` — accept **both** cookie session and `Authorization: Bearer sk_...` API keys.
 - `GET /logs`, `POST /smtp/test` — **cookie only**. They tie to per-user role capabilities that an API key doesn't carry.
 
 ## Rate limits and abuse prevention

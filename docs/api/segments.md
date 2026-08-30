@@ -29,6 +29,8 @@ A segment stores a `predicate` — a match mode plus a list of rules:
 
 `custom.KEY` rules read [custom field](/api/subscribers#custom-fields) values. An unknown field name or operator returns `400`.
 
+For `tags`: `includes_any` matches subscribers carrying **at least one** of the listed tags; `includes_all` requires **every** listed tag; `excludes` matches subscribers carrying **none** of the listed tags.
+
 ## List segments
 
 ```

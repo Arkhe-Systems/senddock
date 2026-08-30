@@ -52,7 +52,7 @@ For local development and evaluation, ship `make mail` (or any other [Mailpit](h
 
 ## Option 1: One-line installer (Ubuntu, Arch) — recommended
 
-One command. Installs Docker if missing, fetches the compose file, generates `.env` with random secrets, wires Watchtower so the dashboard's "Update now" button works, and starts the stack.
+One command. Installs Docker if missing, fetches the compose file, generates `.env` with random secrets, wires [Watchtower](./updating#one-click-updates-from-the-dashboard-watchtower) — a small third-party container that pulls the new image and recreates SendDock when the dashboard asks — so the "Update now" button works, and starts the stack.
 
 ```bash
 curl -fsSL https://senddock.dev/install.sh -o setup.sh
@@ -148,7 +148,7 @@ SENDDOCK_LICENSE_KEY=
 # DISPOSABLE_DOMAINS_FILE=/etc/senddock/disposable.txt
 ```
 
-The container runs `goose up` against Postgres on first start, then serves on `:8080`. Healthcheck tells you when it's ready (~10 seconds cold).
+The container runs `goose up` — goose is the SQL migration runner embedded in the image, which applies any pending migrations — against Postgres on first start, then serves on `:8080`. Healthcheck tells you when it's ready (~10 seconds cold).
 
 Open `http://your-domain.com` (or `http://localhost:8080` for a local test) and create your admin account on the setup screen.
 
@@ -160,7 +160,7 @@ If you want the dashboard's **"Update now"** button to work (so you never have t
 
 | License | Behavior |
 |---|---|
-| none | Free tier — Core features only (projects, subscribers, custom fields, tags, segments, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, suppression list, [webhooks](/guide/webhooks), and the [Analytics dashboard](/guide/analytics)). |
+| none | Free tier — Core features only (projects, subscribers, custom fields, tags, segments, templates, transactional sends, broadcasts, campaigns, BYO SMTP, click & open tracking, [suppression list](/guide/suppressions) — addresses that hard-bounced or unsubscribed and are skipped on future sends — [webhooks](/guide/webhooks), and the [Analytics dashboard](/guide/analytics)). |
 | valid Pro key | Pro tier — adds [Deliverability](/guide/deliverability), the [Report builder](/guide/reports) and the [audit log](/guide/audit-log). |
 | valid Team key | Team tier — Pro features plus [multi-user workspaces with roles](/guide/members) and admin user creation. |
 
@@ -173,7 +173,7 @@ The image is the same in all cases; the license just toggles the gated routes. O
 ```yaml
 services:
   senddock:
-    image: ghcr.io/arkhe-systems/senddock:0.6.1
+    image: ghcr.io/arkhe-systems/senddock:0.8.1
 ```
 
 See available tags on [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock). Only versioned tags (`X.Y.Z`, `X.Y`, `X`) and `:latest` are public — pre-release builds (`:dev`) live in a separate, private package and are not intended for end users.

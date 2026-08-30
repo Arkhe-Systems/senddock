@@ -56,6 +56,7 @@ Groups the project's email logs by mailbox provider (inferred from the recipient
 |---|---|
 | `provider` | `Gmail`, `Outlook`, `Yahoo`, `Apple`, or `Other`. |
 | `hard` / `soft` | Bounce split, classified from the bounce reason text. |
+| `complained` | Spam complaints reported for this provider via the [complaint webhook](../guide/deliverability#wiring-the-complaint-webhook) (FBL). |
 | `acceptance_pct` | Accepted ÷ attempted. |
 | `spam_pct` | Complaints ÷ delivered — 0 unless a [complaint webhook](../guide/deliverability#wiring-the-complaint-webhook) is feeding you FBL data. |
 
@@ -71,4 +72,4 @@ Groups the project's email logs by mailbox provider (inferred from the recipient
 ## See also
 
 - [Deliverability guide](../guide/deliverability) — how to read domain health and the per-provider table.
-- [Bounces](./bounces) — the bounce and complaint webhooks that feed these numbers.
+- [Bounces](./bounces) — the bounce webhook that feeds the bounce numbers. The complaint webhook (`POST /webhooks/complaints/{projectId}`) is documented in the [Deliverability guide](../guide/deliverability#wiring-the-complaint-webhook).

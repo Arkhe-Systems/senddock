@@ -30,9 +30,9 @@ In other words: SendDock cannot deliver mail from a network that blocks outbound
 - If you are looping over `/send` to reach all your subscribers, that is exactly the pattern these limits are meant to block — store the recipients as subscribers and call `/broadcast` once.
 - If your tests are tripping the limit, scope them to use a unique project per test run, or unset `REDIS_URL` in your test environment to disable rate limiting (do not do this in production).
 
-### "Newsletters are disabled" banner / cannot send broadcasts
+### "Campaigns are disabled" banner / cannot send broadcasts
 
-**Symptom:** The Newsletters page shows a yellow banner saying broadcasts are disabled, the "+ New Campaign" button is greyed out, or the API returns 400 with an error mentioning that your public URL is not publicly reachable.
+**Symptom:** The Campaigns page shows a yellow banner saying broadcasts are disabled, the "+ New Campaign" button is greyed out, or the API returns 400 with an error mentioning that your public URL is not publicly reachable.
 
 **Cause:** SendDock refuses to send broadcasts and schedule campaigns when your public URL is unset or resolves to `localhost` / `127.0.0.1` / `::1`. Without a public URL, the unsubscribe links inside outgoing emails would not work for recipients, which is the canonical spam pattern.
 
@@ -126,11 +126,13 @@ email.mycompany.com {
 
 ### Frontend hits `localhost:8080` in production
 
-**Cause:** The frontend was built without `VITE_API_URL` set, so it baked in the dev default.
+**Cause:** You built the frontend from source without `VITE_API_URL` set, so it baked in the dev default (`localhost:8080`). This is a **build-time** variable — set it in `frontend/.env` before `npm run build`. The prebuilt Docker image already ships with the correct value, so this only affects source builds and custom SPA builds.
 
-**Fix:** Either rebuild with `VITE_API_URL=/api/v1` (recommended for single-binary deploys), or set it to your full backend URL like `VITE_API_URL=https://email.mycompany.com/api/v1`.
+**Fix:** Rebuild with `VITE_API_URL=/api/v1` (recommended for single-binary deploys), or set it to your full backend URL like `VITE_API_URL=https://email.mycompany.com/api/v1`.
 
 ### Browser shows CORS error on the public waitlist endpoint
+
+The public waitlist endpoint (`POST /api/v1/projects/{id}/waitlist`) is a public form that records interest — anyone can submit an email from your marketing site and be added as a `pending` subscriber, with no login. It exists so you can embed a sign-up form on a static site.
 
 **Cause:** You're embedding the waitlist form on a different domain than your SendDock instance.
 

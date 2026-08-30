@@ -45,7 +45,7 @@ API keys are deliberately narrow: they unlock only the endpoints you'd reach for
 | `POST /api/v1/projects/{id}/subscribers/import` | CSV / JSON bulk import. |
 | `GET /api/v1/projects/{id}/stats` | Read-only counts (sent, failed, bounced, suppressed, opened). |
 
-**Everything else** — managing subscribers individually, editing templates, scheduling campaigns, configuring SMTP, reading the audit log — requires cookie auth (the dashboard, or your own UI built against the same login flow). The reason: those operations key off role-based capabilities tied to the user identity, which a project-scoped key has none of.
+**Everything else** — managing subscribers individually, editing templates, scheduling campaigns, configuring SMTP, reading the audit log — requires **cookie auth**: a normal email/password login that sets a session cookie (the dashboard does this, and your own backend can too). The reason: those operations key off role-based capabilities — per-action permissions granted through a dashboard user's role (see [Members & roles](./members#roles--capabilities)) — which a project-scoped key has none of.
 
 A key is also strictly scoped to its own project. It does not grant access to other projects, workspace-level operations, or your account.
 
