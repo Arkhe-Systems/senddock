@@ -61,7 +61,7 @@ const editSubject = ref('')
 const editHtml = ref('')
 const saveLoading = ref(false)
 const activeTab = ref<'code' | 'visual'>('code')
-const emailEditorRef = ref<{ flush: () => void; refresh: () => void; insertContent: (html: string) => void } | null>(null)
+const emailEditorRef = ref<{ flush: () => void; syncFrom: (html: string) => void; insertContent: (html: string) => void } | null>(null)
 const showDiscardModal = ref(false)
 
 const originalName = ref('')
@@ -140,7 +140,12 @@ function openEditor(tmpl: Template) {
 function switchTab(tab: 'code' | 'visual') {
     activeTab.value = tab
     if (tab === 'visual') {
-        nextTick(() => emailEditorRef.value?.refresh())
+        // Sync the canvas to the current code so switching after a Code edit
+        // never shows a stale canvas (which would overwrite code on next edit).
+        nextTick(() => {
+            emailEditorRef.value?.flush()
+            emailEditorRef.value?.syncFrom(editHtml.value)
+        })
     }
 }
 
@@ -308,7 +313,7 @@ onBeforeUnmount(() => {
                             :class="[
                                 'px-4 py-2 text-sm transition cursor-pointer border-b-2 -mb-px',
                                 activeTab === 'code'
-                                    ? 'text-white border-white'
+                                    ? 'text-white border-emerald-500'
                                     : 'text-zinc-400 border-transparent hover:text-zinc-300'
                             ]">
                             Code
@@ -317,7 +322,7 @@ onBeforeUnmount(() => {
                             :class="[
                                 'px-4 py-2 text-sm transition cursor-pointer border-b-2 -mb-px',
                                 activeTab === 'visual'
-                                    ? 'text-white border-white'
+                                    ? 'text-white border-emerald-500'
                                     : 'text-zinc-400 border-transparent hover:text-zinc-300'
                             ]">
                             Visual
@@ -448,12 +453,12 @@ onBeforeUnmount(() => {
                     <label class="block text-sm font-medium text-zinc-300 mb-2">Type</label>
                     <div class="grid grid-cols-2 gap-2">
                         <button type="button" @click="newType = 'email'"
-                            :class="['px-3 py-2.5 text-sm rounded-lg border text-left transition cursor-pointer', newType === 'email' ? 'bg-zinc-850 border-zinc-600 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white']">
+                            :class="['px-3 py-2.5 text-sm rounded-lg border text-left transition cursor-pointer', newType === 'email' ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-300' : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white']">
                             <span class="block font-medium">Email</span>
                             <span class="block text-xs text-zinc-400 mt-0.5">Sent to subscribers</span>
                         </button>
                         <button type="button" @click="newType = 'page'"
-                            :class="['px-3 py-2.5 text-sm rounded-lg border text-left transition cursor-pointer', newType === 'page' ? 'bg-zinc-850 border-zinc-600 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white']">
+                            :class="['px-3 py-2.5 text-sm rounded-lg border text-left transition cursor-pointer', newType === 'page' ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-300' : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white']">
                             <span class="block font-medium">Unsubscribe page</span>
                             <span class="block text-xs text-zinc-400 mt-0.5">Branded public page</span>
                         </button>

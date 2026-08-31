@@ -288,11 +288,11 @@ onMounted(loadData)
                                 <label class="text-sm font-medium text-zinc-300 font-mono">{{ varLabel(v) }}</label>
                                 <div class="flex gap-0.5 bg-zinc-950/60 rounded-md p-0.5 border border-zinc-800">
                                     <button type="button" @click="richFields[v] = false" title="Plain text"
-                                        :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded cursor-pointer transition', !richFields[v] ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white']">
+                                        :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded cursor-pointer transition', !richFields[v] ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-400 hover:text-white']">
                                         <Type class="w-3 h-3" /> Text
                                     </button>
                                     <button type="button" @click="richFields[v] = true" title="Rich text (bold, lists, links…)"
-                                        :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded cursor-pointer transition', richFields[v] ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white']">
+                                        :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded cursor-pointer transition', richFields[v] ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-400 hover:text-white']">
                                         <WandSparkles class="w-3 h-3" /> Rich
                                     </button>
                                 </div>

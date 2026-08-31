@@ -249,7 +249,7 @@ function startPolling() {
     pollTimer = setInterval(async () => {
         if (tab.value !== 'overview') return
         try {
-            overview.value = await analytics.overview(props.project.id, fromISO.value, toISO.value, selectedSegment.value || undefined)
+            overview.value = await analytics.overview(props.project.id, fromISO.value, toISO.value, selectedSegment.value || undefined, selectedNewsletter.value || undefined)
         } catch { }
     }, 5000)
 }
@@ -330,7 +330,7 @@ onMounted(async () => {
                             <span class="text-zinc-300">{{ b.sent + b.failed + b.suppressed }}/{{ b.total }}</span>
                         </div>
                         <div class="h-1.5 bg-zinc-850 rounded-full overflow-hidden">
-                            <div class="h-full bg-[#3573d9] transition-all" :style="{ width: progressPct(b) + '%' }"></div>
+                            <div class="h-full bg-blue-500 transition-all" :style="{ width: progressPct(b) + '%' }"></div>
                         </div>
                     </div>
                 </div>
@@ -425,7 +425,7 @@ onMounted(async () => {
                                 <span class="text-zinc-300">{{ row.count }} · {{ row.pct.toFixed(1) }}%</span>
                             </div>
                             <div class="h-2 bg-zinc-850 rounded-full overflow-hidden">
-                                <div class="h-full bg-[#3573d9]" :style="{ width: row.pct + '%' }"></div>
+                                <div class="h-full bg-blue-500" :style="{ width: row.pct + '%' }"></div>
                             </div>
                         </div>
                     </div>

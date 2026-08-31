@@ -299,11 +299,25 @@ function refresh() {
     editor?.refresh()
 }
 
+// Bring the canvas in line with externally edited HTML (for example edits
+// made in the Code tab). Components are reloaded only when the content
+// actually changed, so a plain tab switch keeps the canvas and its undo
+// history intact.
+function syncFrom(html: string) {
+    if (!editor) return
+    if (html === lastEmitted) {
+        editor.refresh()
+        return
+    }
+    editor.setComponents(DOMPurify.sanitize(html))
+    lastEmitted = html
+}
+
 function insertContent(html: string) {
     editor?.addComponents(html)
 }
 
-defineExpose({ flush, refresh, insertContent })
+defineExpose({ flush, refresh, syncFrom, insertContent })
 
 onBeforeUnmount(() => {
     flush()

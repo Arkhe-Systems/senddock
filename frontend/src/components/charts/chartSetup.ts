@@ -24,8 +24,8 @@ Chart.register(
 export const chartColors = {
     grid: 'rgba(57, 58, 64, 0.45)',
     tick: '#b2b3bd',
-    indigo: '#3573d9',
-    indigoFill: 'rgba(53, 115, 217, 0.16)',
+    indigo: '#4e91ff',
+    indigoFill: 'rgba(78, 145, 255, 0.16)',
     violet: '#d6b1ff',
     emerald: '#4ec695',
     amber: '#ffd099',
