@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -49,6 +50,21 @@ func (s *CampaignService) Create(ctx context.Context, projectID, templateID, nam
 		return db.Campaign{}, err
 	}
 
+	if _, err := s.queries.GetTemplateByID(ctx, db.GetTemplateByIDParams{ID: tid, ProjectID: pid}); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return db.Campaign{}, errors.New("template not found in this project")
+		}
+		return db.Campaign{}, err
+	}
+	if nlid.Valid {
+		if _, err := s.queries.GetNewsletterByID(ctx, db.GetNewsletterByIDParams{ID: nlid.UUID, ProjectID: pid}); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return db.Campaign{}, errors.New("newsletter not found in this project")
+			}
+			return db.Campaign{}, err
+		}
+	}
+
 	return s.queries.CreateCampaign(ctx, db.CreateCampaignParams{
 		ProjectID:    pid,
 		TemplateID:   tid,
@@ -83,6 +99,21 @@ func (s *CampaignService) Update(ctx context.Context, campaignID, projectID, tem
 	nlid, err := parseOptionalNewsletter(newsletterID)
 	if err != nil {
 		return db.Campaign{}, err
+	}
+
+	if _, err := s.queries.GetTemplateByID(ctx, db.GetTemplateByIDParams{ID: tid, ProjectID: pid}); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return db.Campaign{}, errors.New("template not found in this project")
+		}
+		return db.Campaign{}, err
+	}
+	if nlid.Valid {
+		if _, err := s.queries.GetNewsletterByID(ctx, db.GetNewsletterByIDParams{ID: nlid.UUID, ProjectID: pid}); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return db.Campaign{}, errors.New("newsletter not found in this project")
+			}
+			return db.Campaign{}, err
+		}
 	}
 
 	return s.queries.UpdateCampaign(ctx, db.UpdateCampaignParams{

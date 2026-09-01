@@ -156,7 +156,7 @@ func classifyBounce(err error) *BounceError {
 	return &BounceError{Code: protoErr.Code, Message: protoErr.Msg, err: protoErr}
 }
 
-func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, to, subject string, broadcastID uuid.NullUUID) {
+func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, newsletterID uuid.NullUUID, to, subject string, broadcastID uuid.NullUUID) {
 	_, _ = s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
@@ -166,6 +166,7 @@ func (s *EmailService) logSuppressed(ctx context.Context, projectID uuid.UUID, s
 		Status:       "suppressed",
 		Error:        sql.NullString{String: "recipient on suppression list", Valid: true},
 		BroadcastID:  broadcastID,
+		NewsletterID: newsletterID,
 	})
 }
 
@@ -212,7 +213,7 @@ func (s *EmailService) SendToSubscriber(ctx context.Context, projectID, subscrib
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, sub.Email) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, sub.Email, template.Subject, uuid.NullUUID{})
+		s.logSuppressed(ctx, pid, uuid.NullUUID{UUID: sid, Valid: true}, uuid.NullUUID{UUID: tid, Valid: true}, uuid.NullUUID{}, sub.Email, template.Subject, uuid.NullUUID{})
 		return SendResult{Suppressed: 1}, nil
 	}
 
@@ -400,7 +401,7 @@ func (s *EmailService) SendBroadcastJob(ctx context.Context, job db.BroadcastJob
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, job.ProjectID, sub.Email) {
-		s.logSuppressed(ctx, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, sub.Email, broadcast.Subject, uuid.NullUUID{UUID: broadcast.ID, Valid: true})
+		s.logSuppressed(ctx, job.ProjectID, uuid.NullUUID{UUID: sub.ID, Valid: true}, uuid.NullUUID{UUID: broadcast.TemplateID, Valid: true}, broadcast.NewsletterID, sub.Email, broadcast.Subject, uuid.NullUUID{UUID: broadcast.ID, Valid: true})
 		return BroadcastJobOutcomeSuppressed, nil
 	}
 
@@ -516,7 +517,7 @@ func (s *EmailService) SendDirect(ctx context.Context, projectID, to, subject, h
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, to) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, uuid.NullUUID{})
+		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{}, uuid.NullUUID{}, to, subject, uuid.NullUUID{})
 		return ErrRecipientSuppressed
 	}
 
@@ -552,7 +553,7 @@ func (s *EmailService) SendWithTemplate(ctx context.Context, projectID, template
 	}
 
 	if s.suppressions != nil && s.suppressions.IsSuppressed(ctx, pid, to) {
-		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, to, template.Subject, uuid.NullUUID{})
+		s.logSuppressed(ctx, pid, uuid.NullUUID{}, uuid.NullUUID{UUID: tid, Valid: true}, uuid.NullUUID{}, to, template.Subject, uuid.NullUUID{})
 		return ErrRecipientSuppressed
 	}
 
@@ -712,7 +713,7 @@ func (s *EmailService) ExportLogs(ctx context.Context, projectID string, filters
 	if err != nil {
 		return nil, errors.New("invalid project id")
 	}
-	status, fromT, toT, search, tid, _ := filters.parse()
+	status, fromT, toT, search, tid, nid := filters.parse()
 	return s.queries.ListEmailLogsByProjectExport(ctx, db.ListEmailLogsByProjectExportParams{
 		ProjectID: pid,
 		Column2:   status,
@@ -720,6 +721,7 @@ func (s *EmailService) ExportLogs(ctx context.Context, projectID string, filters
 		Column4:   toT,
 		Column5:   search,
 		Column6:   tid,
+		Column7:   nid,
 	})
 }
 
@@ -1003,6 +1005,12 @@ func (s *EmailService) ResolveUnsubscribe(ctx context.Context, projectID, subscr
 				result.NewsletterID = newsletter.ID.String()
 				result.NewsletterName = newsletter.Name
 				result.AllToken = s.signUnsub(projectID, subscriberID)
+			} else if errors.Is(err, sql.ErrNoRows) {
+				// The newsletter was deleted after the email went out. Keep its id
+				// (with no name) in the context so the confirm form re-POSTs with
+				// ?n= and the token check still passes; Unsubscribe then degrades
+				// to a project-wide unsubscribe, matching the plain page.
+				result.NewsletterID = newsletterID
 			}
 		}
 	}
@@ -1025,7 +1033,7 @@ func (s *EmailService) Unsubscribe(ctx context.Context, projectID, subscriberID,
 		return UnsubscribeContext{}, errors.New("invalid project id")
 	}
 
-	if uctx.NewsletterID != "" {
+	if uctx.NewsletterID != "" && uctx.NewsletterName != "" {
 		if _, err := s.unsubscribeFromNewsletter(ctx, pid, sid, uctx.NewsletterID); err != nil {
 			return UnsubscribeContext{}, err
 		}

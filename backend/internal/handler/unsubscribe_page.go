@@ -55,7 +55,7 @@ func renderBrandedUnsubscribePage(rawTemplateHTML string, ctx service.Unsubscrib
 		actionBlock = brandedDoneBlock(ctx.Email)
 	} else {
 		label := "Confirm unsubscribe"
-		if ctx.NewsletterID != "" {
+		if ctx.NewsletterID != "" && ctx.NewsletterName != "" {
 			label = "Unsubscribe from " + html.EscapeString(ctx.NewsletterName)
 		}
 		actionBlock = brandedConfirmButton(action, label)

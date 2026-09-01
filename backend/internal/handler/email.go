@@ -569,7 +569,7 @@ func unsubscribeConfirmPage(ctx service.UnsubscribeContext, projectID, subscribe
 	safeProject := html.EscapeString(ctx.ProjectName)
 	safeEmail := html.EscapeString(ctx.Email)
 
-	if newsletterID != "" && ctx.NewsletterID != "" {
+	if newsletterID != "" && ctx.NewsletterID != "" && ctx.NewsletterName != "" {
 		safeNewsletter := html.EscapeString(ctx.NewsletterName)
 		action := "/unsubscribe/" + projectID + "/" + subscriberID + "?n=" + ctx.NewsletterID + "&t=" + token
 		return unsubscribePageShell(`

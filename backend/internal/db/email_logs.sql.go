@@ -318,6 +318,7 @@ AND ($3::timestamptz = '0001-01-01'::timestamptz OR sent_at >= $3)
 AND ($4::timestamptz = '0001-01-01'::timestamptz OR sent_at <= $4)
 AND ($5::text = '' OR to_email ILIKE '%' || $5::text || '%' OR subject ILIKE '%' || $5::text || '%')
 AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR template_id = $6::uuid)
+AND ($7::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $7::uuid)
 ORDER BY sent_at DESC
 `
 
@@ -328,6 +329,7 @@ type ListEmailLogsByProjectExportParams struct {
 	Column4   time.Time
 	Column5   string
 	Column6   uuid.UUID
+	Column7   uuid.UUID
 }
 
 func (q *Queries) ListEmailLogsByProjectExport(ctx context.Context, arg ListEmailLogsByProjectExportParams) ([]EmailLog, error) {
@@ -338,6 +340,7 @@ func (q *Queries) ListEmailLogsByProjectExport(ctx context.Context, arg ListEmai
 		arg.Column4,
 		arg.Column5,
 		arg.Column6,
+		arg.Column7,
 	)
 	if err != nil {
 		return nil, err

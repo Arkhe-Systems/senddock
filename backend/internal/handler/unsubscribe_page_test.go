@@ -85,3 +85,40 @@ func TestRenderBrandedPageFallbacksAndWrapping(t *testing.T) {
 		t.Fatalf("fragment was not wrapped in a document: %q", out[:60])
 	}
 }
+
+func TestRenderBrandedPageForDeletedNewsletter(t *testing.T) {
+	// A recipient clicked a newsletter unsubscribe link after the newsletter
+	// was deleted. ResolveUnsubscribe keeps NewsletterID but has no name left;
+	// the confirm form must keep ?n= so the POST re-resolves instead of failing
+	// the token check, and the button must not read "Unsubscribe from ".
+	tpl := `<h1>Leave {{newsletter_name}}?</h1>{{confirm_button}}`
+	ctx := service.UnsubscribeContext{ProjectName: "Acme", Email: "a@b.co", NewsletterID: "nl-1"}
+
+	out := renderBrandedUnsubscribePage(tpl, ctx, unsubPageConfirm, "p-1", "s-1", "tok")
+
+	if !strings.Contains(out, `<form method="POST" action="/unsubscribe/p-1/s-1?n=nl-1&t=tok"`) {
+		t.Fatalf("confirm form dropped ?n= for a deleted newsletter: %q", out)
+	}
+	if strings.Contains(out, "Unsubscribe from </button>") {
+		t.Fatalf("button label rendered with an empty newsletter name: %q", out)
+	}
+	if !strings.Contains(out, "Confirm unsubscribe") {
+		t.Fatalf("generic button label missing: %q", out)
+	}
+}
+
+func TestUnsubscribeConfirmPageForDeletedNewsletter(t *testing.T) {
+	ctx := service.UnsubscribeContext{ProjectName: "Acme", Email: "a@b.co", NewsletterID: "nl-1"}
+
+	out := unsubscribeConfirmPage(ctx, "p-1", "s-1", "nl-1", "tok")
+
+	if !strings.Contains(out, `action="/unsubscribe/p-1/s-1?n=nl-1&t=tok"`) {
+		t.Fatalf("confirm form dropped ?n= for a deleted newsletter: %q", out)
+	}
+	if strings.Contains(out, "Unsubscribe from </button>") || strings.Contains(out, "Unsubscribe from ?") {
+		t.Fatalf("label rendered with an empty newsletter name: %q", out)
+	}
+	if !strings.Contains(out, "Confirm unsubscribe") {
+		t.Fatalf("generic button label missing: %q", out)
+	}
+}
