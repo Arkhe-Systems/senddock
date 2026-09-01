@@ -18,7 +18,7 @@ COPY --from=frontend /app/frontend/dist ../frontend/dist
 RUN CGO_ENABLED=0 go build \
     -ldflags="-X github.com/arkhe-systems/senddock/internal/version.Version=${VERSION}" \
     -o /senddock cmd/server/main.go
-RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.24.1
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
