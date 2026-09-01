@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import RichTextEditor from '@/components/ui/RichTextEditor.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 import { Type, WandSparkles } from 'lucide-vue-next'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
@@ -323,15 +324,16 @@ onMounted(loadData)
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-2">Send to</label>
                     <div class="flex gap-2 mb-3">
-                        <button @click="sendMode = 'broadcast'" :disabled="!appStore.publicUrlIsReachable"
+                        <AppFilterChip size="sm" :active="sendMode === 'broadcast'"
+                            :disabled="!appStore.publicUrlIsReachable"
                             :title="!appStore.publicUrlIsReachable ? 'Set PUBLIC_URL to a public domain to enable broadcasts' : ''"
-                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed', sendMode === 'broadcast' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-400 hover:text-white']">
+                            class="disabled:opacity-40 disabled:cursor-not-allowed"
+                            @click="sendMode = 'broadcast'">
                             All subscribers
-                        </button>
-                        <button @click="sendMode = 'direct'"
-                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer', sendMode === 'direct' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-400 hover:text-white']">
+                        </AppFilterChip>
+                        <AppFilterChip size="sm" :active="sendMode === 'direct'" @click="sendMode = 'direct'">
                             Specific email
-                        </button>
+                        </AppFilterChip>
                     </div>
                     <input v-if="sendMode === 'direct'" v-model="directEmail" type="email" placeholder="user@example.com"
                         class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />

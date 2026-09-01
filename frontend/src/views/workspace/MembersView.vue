@@ -14,6 +14,7 @@ import {
 import { useToastStore } from '@/stores/toast'
 import { ApiError } from '@/api/client'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
 import AppLoader from '@/components/ui/AppLoader.vue'
@@ -335,15 +336,13 @@ onMounted(async () => {
 
             <AppModal :show="showInvite" :title="inviteMode === 'new' ? 'Create user' : 'Add existing user'" @close="showInvite = false">
                 <form @submit.prevent="handleInvite" class="space-y-4">
-                    <div class="flex bg-zinc-950 border border-zinc-800 rounded-lg p-1">
-                        <button type="button" @click="inviteMode = 'existing'"
-                            :class="['flex-1 px-3 py-1.5 text-xs rounded-md transition cursor-pointer', inviteMode === 'existing' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-300']">
+                    <div class="flex gap-2">
+                        <AppFilterChip class="flex-1" :active="inviteMode === 'existing'" @click="inviteMode = 'existing'">
                             Existing user
-                        </button>
-                        <button type="button" @click="inviteMode = 'new'"
-                            :class="['flex-1 px-3 py-1.5 text-xs rounded-md transition cursor-pointer', inviteMode === 'new' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-300']">
+                        </AppFilterChip>
+                        <AppFilterChip class="flex-1" :active="inviteMode === 'new'" @click="inviteMode = 'new'">
                             New user
-                        </button>
+                        </AppFilterChip>
                     </div>
                     <p class="text-xs text-zinc-400">
                         <template v-if="inviteMode === 'existing'">The user must already have a SendDock account on this instance.</template>

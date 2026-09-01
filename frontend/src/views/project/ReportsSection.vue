@@ -239,7 +239,7 @@ onMounted(async () => {
                 <AppButton v-if="editingId" size="sm" variant="danger"
                     @click="deleteTarget = savedReports.find(s => s.id === editingId) ?? null">Delete</AppButton>
                 <div class="flex-1"></div>
-                <AppButton size="sm" variant="secondary" @click="exportCsv">Export CSV</AppButton>
+                <AppButton size="sm" variant="primary" @click="exportCsv">Export CSV</AppButton>
             </div>
 
             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

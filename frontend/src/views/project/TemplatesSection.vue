@@ -9,6 +9,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppCopyId from '@/components/ui/AppCopyId.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 import { Codemirror } from 'vue-codemirror'
 import { html } from '@codemirror/lang-html'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -399,11 +400,12 @@ onBeforeUnmount(() => {
             <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div class="flex items-center gap-4">
                     <h1 class="text-xl font-semibold text-white">Templates</h1>
-                    <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
-                        <button v-for="t in (['all', 'email', 'page'] as const)" :key="t" @click="typeFilter = t"
-                            :class="['px-2.5 py-1 text-xs rounded-md transition cursor-pointer capitalize', typeFilter === t ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-400 hover:text-white']">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <AppFilterChip v-for="t in (['all', 'email', 'page'] as const)" :key="t"
+                            :active="typeFilter === t" class="capitalize"
+                            @click="typeFilter = t">
                             {{ t }}
-                        </button>
+                        </AppFilterChip>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">

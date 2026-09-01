@@ -19,6 +19,7 @@ import AppStatusPill from '@/components/ui/AppStatusPill.vue'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import AppLoader from '@/components/ui/AppLoader.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 
 const props = defineProps<{ project: Project }>()
 
@@ -282,11 +283,11 @@ onMounted(async () => {
                     <option value="">All subscribers</option>
                     <option v-for="s in segments" :key="s.id" :value="s.id">{{ s.name }}</option>
                 </select>
-                <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
-                    <button v-for="p in PRESETS" :key="p.value" @click="applyPreset(p.value)"
-                        :class="['px-2.5 py-1 text-sm rounded-md transition', preset === p.value ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-300 hover:text-white']">
+                <div class="flex flex-wrap items-center gap-2">
+                    <AppFilterChip v-for="p in PRESETS" :key="p.value" size="sm"
+                        :active="preset === p.value" @click="applyPreset(p.value)">
                         {{ p.label }}
-                    </button>
+                    </AppFilterChip>
                 </div>
                 <div class="flex items-center gap-1 bg-zinc-900 border rounded-lg px-2 py-1"
                     :class="preset === '' ? 'border-emerald-500/60' : 'border-zinc-800'">
@@ -355,7 +356,7 @@ onMounted(async () => {
 
             <div v-else-if="tab === 'campaigns'">
                 <div class="flex justify-end mb-3">
-                    <button @click="exportCsv" class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-300 hover:text-white transition">Export CSV</button>
+                    <button @click="exportCsv" class="px-3 py-1.5 text-sm bg-emerald-500/12 border border-emerald-500/45 rounded-lg text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/70 hover:text-emerald-200 transition">Export CSV</button>
                 </div>
                 <p v-if="!campaigns.length" class="text-sm text-zinc-400 py-8 text-center">No campaigns sent yet.</p>
                 <div v-else class="overflow-x-auto">
@@ -432,11 +433,11 @@ onMounted(async () => {
                 </div>
 
                 <div class="flex justify-end">
-                    <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
-                        <button v-for="v in (['donut', 'bars'] as const)" :key="v" @click="engView = v"
-                            :class="['px-2.5 py-1 text-xs rounded-md transition capitalize', engView === v ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-300 hover:text-white']">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <AppFilterChip v-for="v in (['donut', 'bars'] as const)" :key="v" class="capitalize"
+                            :active="engView === v" @click="engView = v">
                             {{ v }}
-                        </button>
+                        </AppFilterChip>
                     </div>
                 </div>
 

@@ -4,6 +4,7 @@ import { api, getApiBase } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import { useNewsletterStore } from '@/stores/newsletters'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 import LogDetailDrawer from './LogDetailDrawer.vue'
 
 interface EmailLog {
@@ -22,12 +23,12 @@ interface EmailLog {
 
 interface Template { id: string; name: string }
 
-const STATUS_CHIPS: { value: string; label: string; classes: string }[] = [
-    { value: '', label: 'All', classes: '' },
-    { value: 'sent', label: 'Sent', classes: 'data-[active]:bg-emerald-500/15 data-[active]:text-emerald-400 data-[active]:border-emerald-500/40' },
-    { value: 'failed', label: 'Failed', classes: 'data-[active]:bg-red-500/15 data-[active]:text-red-400 data-[active]:border-red-500/40' },
-    { value: 'bounced', label: 'Bounced', classes: 'data-[active]:bg-orange-500/15 data-[active]:text-orange-400 data-[active]:border-orange-500/40' },
-    { value: 'suppressed', label: 'Suppressed', classes: 'data-[active]:bg-zinc-500/15 data-[active]:text-zinc-300 data-[active]:border-zinc-600' },
+const STATUS_CHIPS: { value: string; label: string }[] = [
+    { value: '', label: 'All' },
+    { value: 'sent', label: 'Sent' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'bounced', label: 'Bounced' },
+    { value: 'suppressed', label: 'Suppressed' },
 ]
 
 const props = defineProps<{ project: Project }>()
@@ -173,24 +174,17 @@ onMounted(() => {
                 <p class="text-sm text-zinc-400 mt-1">{{ total }} total</p>
             </div>
             <button @click="exportCSV" :disabled="exporting"
-                class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-700 rounded-lg text-white hover:bg-zinc-850 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                class="px-3 py-1.5 text-sm bg-emerald-500/12 border border-emerald-500/45 rounded-lg text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/70 hover:text-emerald-200 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                 {{ exporting ? 'Exporting…' : 'Export CSV' }}
             </button>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 mb-3">
-            <button v-for="chip in STATUS_CHIPS" :key="chip.value"
-                :data-active="filterStatus === chip.value || null"
-                @click="setStatus(chip.value)"
-                :class="[
-                    'px-3 py-1 text-xs rounded-full border transition cursor-pointer',
-                    filterStatus === chip.value
-                        ? 'bg-emerald-500/12 text-emerald-300 border-emerald-500/45'
-                        : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:text-white hover:border-zinc-700',
-                    chip.classes,
-                ]">
+            <AppFilterChip v-for="chip in STATUS_CHIPS" :key="chip.value"
+                :active="filterStatus === chip.value"
+                @click="setStatus(chip.value)">
                 {{ chip.label }}
-            </button>
+            </AppFilterChip>
         </div>
 
         <div class="flex flex-wrap items-end gap-3 mb-6">

@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import { useNewsletterStore } from '@/stores/newsletters'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
@@ -417,14 +418,12 @@ onMounted(loadData)
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-2">When to send?</label>
                     <div class="flex gap-2 mb-3">
-                        <button v-if="!editingCampaign" type="button" @click="sendType = 'now'"
-                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer', sendType === 'now' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-400 hover:text-white']">
+                        <AppFilterChip v-if="!editingCampaign" size="sm" :active="sendType === 'now'" @click="sendType = 'now'">
                             Send Now
-                        </button>
-                        <button type="button" @click="sendType = 'scheduled'"
-                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer', sendType === 'scheduled' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-400 hover:text-white']">
+                        </AppFilterChip>
+                        <AppFilterChip size="sm" :active="sendType === 'scheduled'" @click="sendType = 'scheduled'">
                             Schedule for later
-                        </button>
+                        </AppFilterChip>
                     </div>
 
                     <div v-if="sendType === 'scheduled'" class="flex gap-2 mt-2">

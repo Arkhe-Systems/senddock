@@ -7,6 +7,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 
 interface Suppression {
     id: string
@@ -166,15 +167,11 @@ onMounted(fetchList)
         </div>
 
         <div class="flex flex-wrap gap-2 mb-4">
-            <button v-for="r in REASONS" :key="r.value" @click="applyReason(r.value)"
-                :class="[
-                    'px-3 py-1.5 text-xs rounded-md border transition cursor-pointer',
-                    reasonFilter === r.value
-                        ? 'bg-emerald-500/12 border-emerald-500/45 text-emerald-300'
-                        : 'bg-transparent border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700',
-                ]">
+            <AppFilterChip v-for="r in REASONS" :key="r.value"
+                :active="reasonFilter === r.value"
+                @click="applyReason(r.value)">
                 {{ r.label }}
-            </button>
+            </AppFilterChip>
         </div>
 
         <div v-if="loading" class="text-zinc-400 py-8 text-center">Loading...</div>
