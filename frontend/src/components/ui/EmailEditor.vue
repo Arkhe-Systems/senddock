@@ -18,6 +18,32 @@ let editor: Editor | null = null
 let emitTimer: number | null = null
 let lastEmitted = ''
 
+// Email templates lean on a <style> block and inline styles; keep them when
+// sanitizing before handing the HTML to the canvas.
+const SANITIZE_OPTS = { ADD_TAGS: ['style'] }
+
+// While true, changes coming from a programmatic load (mount / syncFrom) are
+// not written back to the model. Otherwise loading the HTML into the canvas
+// re-serializes it and overwrites the original code with the normalized
+// version, even when the user never touched anything.
+let suppressEmit = false
+let userDirty = false
+
+function loadContent(html: string) {
+    if (!editor) return
+    suppressEmit = true
+    userDirty = false
+    editor.setComponents(DOMPurify.sanitize(html, SANITIZE_OPTS))
+    lastEmitted = html
+    if (emitTimer) {
+        clearTimeout(emitTimer)
+        emitTimer = null
+    }
+    window.setTimeout(() => {
+        suppressEmit = false
+    }, 500)
+}
+
 onMounted(() => {
     if (!editorContainer.value) return
 
@@ -262,9 +288,8 @@ onMounted(() => {
     })
 
     if (props.modelValue) {
-        editor.setComponents(DOMPurify.sanitize(props.modelValue))
+        loadContent(props.modelValue)
     }
-    lastEmitted = props.modelValue || ''
 
     editor.on('update', scheduleEmit)
     editor.on('component:add', scheduleEmit)
@@ -273,12 +298,22 @@ onMounted(() => {
 
 function scheduleEmit() {
     if (!editor) return
+    if (suppressEmit) {
+        // Changes caused by a programmatic load/refresh are not user edits.
+        if (emitTimer) {
+            clearTimeout(emitTimer)
+            emitTimer = null
+        }
+        return
+    }
+    userDirty = true
     if (emitTimer) clearTimeout(emitTimer)
     emitTimer = window.setTimeout(emitHtml, 300)
 }
 
 function emitHtml() {
     if (!editor) return
+    if (suppressEmit) return
     const html = editor.getHtml()
     const css = editor.getCss()
     const raw = css ? `<style>${css}</style>${html}` : html
@@ -292,6 +327,10 @@ function flush() {
         clearTimeout(emitTimer)
         emitTimer = null
     }
+    // Only write the canvas back to the model when the user actually edited
+    // it. A plain open/tab-switch must not overwrite the untouched code with
+    // GrapeJS's re-serialized version.
+    if (!userDirty) return
     emitHtml()
 }
 
@@ -306,11 +345,20 @@ function refresh() {
 function syncFrom(html: string) {
     if (!editor) return
     if (html === lastEmitted) {
+        // Re-render without letting the canvas echo its (re-serialized) HTML
+        // back over the untouched code.
+        suppressEmit = true
         editor.refresh()
+        if (emitTimer) {
+            clearTimeout(emitTimer)
+            emitTimer = null
+        }
+        window.setTimeout(() => {
+            suppressEmit = false
+        }, 400)
         return
     }
-    editor.setComponents(DOMPurify.sanitize(html))
-    lastEmitted = html
+    loadContent(html)
 }
 
 function insertContent(html: string) {
