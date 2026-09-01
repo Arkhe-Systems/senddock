@@ -29,11 +29,30 @@ const SANITIZE_OPTS = { ADD_TAGS: ['style'] }
 let suppressEmit = false
 let userDirty = false
 
+function extractStyleCss(html: string): { body: string; css: string } {
+    const cssParts: string[] = []
+    const body = html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (_m, css: string) => {
+        cssParts.push(css)
+        return ''
+    })
+    return { body, css: cssParts.join('\n') }
+}
+
 function loadContent(html: string) {
     if (!editor) return
     suppressEmit = true
     userDirty = false
-    editor.setComponents(DOMPurify.sanitize(html, SANITIZE_OPTS))
+
+    // GrapeJS renders component markup but ignores a <style> block placed in
+    // the body. Pull it out and feed it to the CssComposer so the canvas
+    // mirrors the code's CSS, and getCss() re-emits it on save.
+    const { body, css } = extractStyleCss(html)
+    editor.setComponents(DOMPurify.sanitize(body, SANITIZE_OPTS))
+    editor.CssComposer.clear()
+    if (css.trim()) {
+        editor.CssComposer.addRules(css)
+    }
+
     lastEmitted = html
     if (emitTimer) {
         clearTimeout(emitTimer)
