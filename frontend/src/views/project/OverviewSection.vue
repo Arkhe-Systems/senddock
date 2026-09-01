@@ -3,6 +3,8 @@ import { ref, onMounted, computed, watch } from 'vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import RichTextEditor from '@/components/ui/RichTextEditor.vue'
 import AppFilterChip from '@/components/ui/AppFilterChip.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppStatusPill, { type PillTone } from '@/components/ui/AppStatusPill.vue'
 import { Type, WandSparkles } from 'lucide-vue-next'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
@@ -45,6 +47,27 @@ const newsletterStore = useNewsletterStore()
 const segments = computed(() => segmentStore.segments(props.project.id))
 const selectedSegment = ref('')
 const projectNewsletters = computed(() => newsletterStore.newsletters(props.project.id))
+
+const templateOptions = computed(() => templates.value.map(t => ({ value: t.id, label: t.name })))
+
+const newsletterOptions = computed(() => [
+    { value: '', label: 'No newsletter — whole audience' },
+    ...projectNewsletters.value.map(n => ({ value: n.id, label: `${n.name} (${n.active_count})` })),
+])
+
+const segmentOptions = computed(() => [
+    { value: '', label: 'All active subscribers' },
+    ...segments.value.map(sg => ({ value: sg.id, label: sg.name })),
+])
+
+function statusTone(status: string): PillTone {
+    switch (status) {
+        case 'sent': return 'emerald'
+        case 'failed': return 'red'
+        case 'bounced': return 'orange'
+        default: return 'zinc'
+    }
+}
 const selectedNewsletter = ref('')
 
 watch(selectedSegment, (v) => { if (v) selectedNewsletter.value = '' })
@@ -231,15 +254,7 @@ onMounted(loadData)
                                 <td class="px-4 py-3 text-sm text-white">{{ log.to_email }}</td>
                                 <td class="px-4 py-3 text-sm text-zinc-300">{{ log.subject || '(no subject)' }}</td>
                                 <td class="px-4 py-3">
-                                    <span :class="[
-                                        'text-xs px-2 py-1 rounded-full',
-                                        log.status === 'sent' && 'bg-emerald-500/10 text-emerald-400',
-                                        log.status === 'failed' && 'bg-red-500/10 text-red-400',
-                                        log.status === 'bounced' && 'bg-orange-500/10 text-orange-400',
-                                        log.status === 'suppressed' && 'bg-zinc-500/10 text-zinc-300',
-                                    ]">
-                                        {{ log.status }}
-                                    </span>
+                                    <AppStatusPill :tone="statusTone(log.status)" :label="log.status" />
                                 </td>
                                 <td class="px-4 py-3 text-sm text-zinc-400">{{ new Date(log.sent_at).toLocaleString() }}</td>
                             </tr>
@@ -261,10 +276,7 @@ onMounted(loadData)
                 <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Template</label>
-                    <select v-model="selectedTemplate"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                        <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
-                    </select>
+                    <AppSelect v-model="selectedTemplate" size="md" class="w-full" :options="templateOptions" />
                 </div>
 
                 <div>
@@ -340,19 +352,13 @@ onMounted(loadData)
                     <div v-else class="space-y-3">
                         <div v-if="projectNewsletters.length > 0">
                             <label class="block text-xs text-zinc-400 mb-1">Newsletter</label>
-                            <select v-model="selectedNewsletter"
-                                class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
-                                <option value="">No newsletter — whole audience</option>
-                                <option v-for="newsletter in projectNewsletters" :key="newsletter.id" :value="newsletter.id">{{ newsletter.name }} ({{ newsletter.active_count }})</option>
-                            </select>
+                            <AppSelect v-model="selectedNewsletter" size="md" class="w-full"
+                                :options="newsletterOptions" />
                         </div>
                         <div>
                             <label v-if="projectNewsletters.length > 0" class="block text-xs text-zinc-400 mb-1">Segment</label>
-                            <select v-model="selectedSegment"
-                                class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
-                                <option value="">All active subscribers</option>
-                                <option v-for="segment in segments" :key="segment.id" :value="segment.id">{{ segment.name }}</option>
-                            </select>
+                            <AppSelect v-model="selectedSegment" size="md" class="w-full"
+                                :options="segmentOptions" />
                         </div>
                         <p class="text-xs text-zinc-400 mt-1">
                             {{ selectedNewsletter ? 'Sends to active members of this newsletter. Their unsubscribe link leaves only this newsletter.' : selectedSegment ? 'Sends to active subscribers matching this segment.' : 'Sends to all active subscribers in this project.' }}

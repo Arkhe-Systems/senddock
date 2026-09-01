@@ -30,6 +30,7 @@ Audience & white-label: multiple newsletters per project with per-newsletter uns
 - **Send composer redesigned.** The Send Email modal is wider, two-column, with a clear audience picker (all subscribers / segment / newsletter).
 - **Copyable IDs.** Project, template and newsletter IDs render as a copy pill with visible feedback wherever the dashboard shows them.
 - **Visual redesign (mint brand).** The dashboard moved from a monochrome light/dark palette to a single **mint/emerald** brand palette (with tuned gray, red, amber, blue and orange scales), and screen headings were unified so the app reads as one consistent interface.
+- **One shared control language.** Status pills, filter dropdowns and toolbar/row buttons now come from the same component set (`AppStatusPill` with a tone map, a new `AppSelect`, and `AppButton` outline/danger-outline variants), so the same control — a log status, a list filter, a destructive row action — renders identically on every screen.
 
 ### Fixed
 

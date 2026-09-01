@@ -8,6 +8,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import AppTagInput from '@/components/ui/AppTagInput.vue'
 import { X } from 'lucide-vue-next'
 
@@ -261,11 +262,10 @@ onMounted(() => {
 
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Match</label>
-                    <select v-model="match"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
-                        <option value="all">All rules (AND)</option>
-                        <option value="any">Any rule (OR)</option>
-                    </select>
+                    <AppSelect v-model="match" size="md" class="w-full" :options="[
+                        { value: 'all', label: 'All rules (AND)' },
+                        { value: 'any', label: 'Any rule (OR)' },
+                    ]" />
                 </div>
 
                 <div class="space-y-2">

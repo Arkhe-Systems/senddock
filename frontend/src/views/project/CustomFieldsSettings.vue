@@ -8,6 +8,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
@@ -189,10 +190,7 @@ onMounted(() => fieldStore.fetchFields(props.project.id))
 
                 <div v-if="!editing">
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Type</label>
-                    <select v-model="form.field_type"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
-                        <option v-for="t in typeOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
-                    </select>
+                    <AppSelect v-model="form.field_type" size="md" class="w-full" :options="typeOptions" />
                 </div>
 
                 <AppInput

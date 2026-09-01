@@ -20,6 +20,8 @@ import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import AppLoader from '@/components/ui/AppLoader.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
 import AppFilterChip from '@/components/ui/AppFilterChip.vue'
+import AppButton from '@/components/ui/AppButton.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const props = defineProps<{ project: Project }>()
 
@@ -273,16 +275,12 @@ onMounted(async () => {
                 <p class="text-sm text-zinc-400 mt-1">Send performance, campaigns and audience</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
-                <select v-if="newsletters.length" v-model="selectedNewsletter" @change="loadCurrentTab"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer">
-                    <option value="">All project</option>
-                    <option v-for="n in newsletters" :key="n.id" :value="n.id">{{ n.name }}</option>
-                </select>
-                <select v-if="segments.length" v-model="selectedSegment" @change="loadCurrentTab"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer">
-                    <option value="">All subscribers</option>
-                    <option v-for="s in segments" :key="s.id" :value="s.id">{{ s.name }}</option>
-                </select>
+                <AppSelect v-if="newsletters.length" v-model="selectedNewsletter" size="sm"
+                    :options="[{ value: '', label: 'All project' }, ...newsletters.map(n => ({ value: n.id, label: n.name }))]"
+                    @change="loadCurrentTab" />
+                <AppSelect v-if="segments.length" v-model="selectedSegment" size="sm"
+                    :options="[{ value: '', label: 'All subscribers' }, ...segments.map(sg => ({ value: sg.id, label: sg.name }))]"
+                    @change="loadCurrentTab" />
                 <div class="flex flex-wrap items-center gap-2">
                     <AppFilterChip v-for="p in PRESETS" :key="p.value" size="sm"
                         :active="preset === p.value" @click="applyPreset(p.value)">
@@ -356,7 +354,7 @@ onMounted(async () => {
 
             <div v-else-if="tab === 'campaigns'">
                 <div class="flex justify-end mb-3">
-                    <button @click="exportCsv" class="px-3 py-1.5 text-sm bg-emerald-500/12 border border-emerald-500/45 rounded-lg text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/70 hover:text-emerald-200 transition">Export CSV</button>
+                    <AppButton size="sm" @click="exportCsv">Export CSV</AppButton>
                 </div>
                 <p v-if="!campaigns.length" class="text-sm text-zinc-400 py-8 text-center">No campaigns sent yet.</p>
                 <div v-else class="overflow-x-auto">

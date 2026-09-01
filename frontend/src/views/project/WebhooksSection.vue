@@ -218,7 +218,7 @@ onMounted(load)
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
             <p class="text-zinc-300 text-sm">Couldn't load webhooks. Try again later.</p>
-            <button @click="load" class="mt-3 px-3 py-1 text-sm text-white border border-zinc-700 rounded-md hover:bg-zinc-850 cursor-pointer">Retry</button>
+            <AppButton variant="outline" size="sm" class="mt-3" @click="load">Retry</AppButton>
         </div>
 
         <div v-else-if="sortedWebhooks.length === 0"
@@ -257,18 +257,11 @@ onMounted(load)
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        <button @click="openDeliveries(hook)"
-                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-850 transition cursor-pointer">
-                            Deliveries
-                        </button>
-                        <button @click="toggleActive(hook)" :disabled="togglingId === hook.id"
-                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-850 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                            {{ hook.active ? 'Pause' : 'Resume' }}
-                        </button>
-                        <button @click="confirmDeleteHook(hook)" :disabled="deletingId === hook.id"
-                            class="px-3 py-1.5 text-xs text-red-400 border border-red-900/50 rounded-md hover:bg-red-950/40 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                            Delete
-                        </button>
+                        <AppButton variant="outline" size="xs" @click="openDeliveries(hook)">Deliveries</AppButton>
+                        <AppButton variant="outline" size="xs" :disabled="togglingId === hook.id"
+                            @click="toggleActive(hook)">{{ hook.active ? 'Pause' : 'Resume' }}</AppButton>
+                        <AppButton variant="danger-outline" size="xs" :disabled="deletingId === hook.id"
+                            @click="confirmDeleteHook(hook)">Delete</AppButton>
                     </div>
                 </div>
             </div>
@@ -319,10 +312,9 @@ onMounted(load)
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Signing secret</label>
                     <div class="flex gap-2">
                         <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-emerald-400 font-mono break-all">{{ createdWebhook.secret }}</code>
-                        <button @click="copySecret"
-                            class="px-3 py-2 text-xs font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-850 transition cursor-pointer flex-shrink-0">
+                        <AppButton variant="outline" size="sm" class="flex-shrink-0" @click="copySecret">
                             {{ secretCopied ? 'Copied' : 'Copy' }}
-                        </button>
+                        </AppButton>
                     </div>
                 </div>
 

@@ -9,6 +9,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import CustomFieldsSettings from '@/views/project/CustomFieldsSettings.vue'
 import AppCopyId from '@/components/ui/AppCopyId.vue'
 
@@ -295,11 +296,10 @@ async function handleDelete() {
                 The public page recipients see when they unsubscribe. Create a template of type <span class="text-zinc-300">Unsubscribe page</span> under Templates, then pick it here.
             </p>
             <div class="flex items-center gap-2">
-                <select v-model="selectedUnsubTemplate"
-                    class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                    <option value="">Default SendDock page</option>
-                    <option v-for="t in pageTemplates" :key="t.id" :value="t.id">{{ t.name }}</option>
-                </select>
+                <AppSelect v-model="selectedUnsubTemplate" size="md" class="flex-1" :options="[
+                    { value: '', label: 'Default SendDock page' },
+                    ...pageTemplates.map(t => ({ value: t.id, label: t.name })),
+                ]" />
                 <AppButton size="md" :loading="unsubTemplateLoading" @click="saveUnsubscribeTemplate">Save</AppButton>
             </div>
             <p v-if="pageTemplates.length === 0" class="text-xs text-zinc-400 mt-3">No page templates yet — create one under Templates with type "Unsubscribe page".</p>
@@ -312,10 +312,7 @@ async function handleDelete() {
             </p>
             <div class="flex items-center gap-2">
                 <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white break-all">{{ instanceUrl }}</code>
-                <button type="button" @click="copyInstanceUrl"
-                    class="px-3 py-2 text-xs bg-zinc-850 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">
-                    Copy
-                </button>
+                <AppButton type="button" variant="outline" size="sm" @click="copyInstanceUrl">Copy</AppButton>
             </div>
             <p v-if="isLocalhost" class="text-xs text-amber-400 mt-3">
                 Heads up: this URL points to localhost. Unsubscribe links and tracking pixels in outgoing emails won't work outside this machine. Set <code>PUBLIC_URL</code> to your public domain in production.
@@ -363,18 +360,16 @@ async function handleDelete() {
             </p>
             <div class="flex items-center gap-2">
                 <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white break-all">{{ bounceWebhookUrl || 'Loading…' }}</code>
-                <button type="button" @click="copyBounceWebhook" :disabled="!bounceWebhookUrl"
-                    class="px-3 py-2 text-xs bg-zinc-850 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer disabled:opacity-50">
+                <AppButton type="button" variant="outline" size="sm" :disabled="!bounceWebhookUrl" @click="copyBounceWebhook">
                     Copy
-                </button>
+                </AppButton>
             </div>
             <p class="text-xs text-zinc-400 mt-3">
                 The token in the query string authenticates the call. If it leaks, rotate it — the new token immediately invalidates the old one.
             </p>
-            <button type="button" @click="showRotateBounceConfirm = true"
-                class="mt-3 px-3 py-1.5 text-xs text-red-400 border border-red-900/50 rounded-md hover:bg-red-950/40 transition cursor-pointer">
+            <AppButton type="button" variant="danger-outline" size="xs" class="mt-3" @click="showRotateBounceConfirm = true">
                 Rotate token
-            </button>
+            </AppButton>
         </div>
 
         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg">
@@ -388,12 +383,12 @@ async function handleDelete() {
                     <div>
                         <label class="block text-sm font-medium text-zinc-300 mb-1">Port</label>
                         <input v-model.number="imapForm.port" type="number" min="1" max="65535"
-                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" />
+                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" />
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-zinc-300 mb-1">Folder</label>
                         <input v-model="imapForm.folder"
-                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" />
+                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" />
                     </div>
                 </div>
                 <AppInput v-model="imapForm.user" label="Username" placeholder="bounces@your-domain.com" />

@@ -5,6 +5,9 @@ import type { Project } from '@/stores/projects'
 import { useNewsletterStore } from '@/stores/newsletters'
 import AppPagination from '@/components/ui/AppPagination.vue'
 import AppFilterChip from '@/components/ui/AppFilterChip.vue'
+import AppButton from '@/components/ui/AppButton.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppStatusPill, { type PillTone } from '@/components/ui/AppStatusPill.vue'
 import LogDetailDrawer from './LogDetailDrawer.vue'
 
 interface EmailLog {
@@ -103,6 +106,25 @@ function setStatus(v: string) {
     applyFilters()
 }
 
+function statusTone(status: string): PillTone {
+    switch (status) {
+        case 'sent': return 'emerald'
+        case 'failed': return 'red'
+        case 'bounced': return 'orange'
+        default: return 'zinc'
+    }
+}
+
+const templateOptions = computed(() => [
+    { value: '', label: 'All templates' },
+    ...templates.value.map(t => ({ value: t.id, label: t.name })),
+])
+
+const newsletterOptions = computed(() => [
+    { value: '', label: 'All newsletters' },
+    ...newsletters.value.map(n => ({ value: n.id, label: n.name })),
+])
+
 function onSearchInput() {
     if (searchTimer) clearTimeout(searchTimer)
     searchTimer = setTimeout(applyFilters, 300)
@@ -173,10 +195,9 @@ onMounted(() => {
                 <h1 class="text-xl font-semibold text-white">Email Logs</h1>
                 <p class="text-sm text-zinc-400 mt-1">{{ total }} total</p>
             </div>
-            <button @click="exportCSV" :disabled="exporting"
-                class="px-3 py-1.5 text-sm bg-emerald-500/12 border border-emerald-500/45 rounded-lg text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/70 hover:text-emerald-200 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            <AppButton size="sm" :loading="exporting" :disabled="exporting" @click="exportCSV">
                 {{ exporting ? 'Exporting…' : 'Export CSV' }}
-            </button>
+            </AppButton>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 mb-3">
@@ -199,29 +220,23 @@ onMounted(() => {
             </div>
             <div>
                 <label class="block text-xs text-zinc-400 mb-1">Template</label>
-                <select v-model="filterTemplateId" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white max-w-[200px] truncate">
-                    <option value="">All templates</option>
-                    <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
-                </select>
+                <AppSelect v-model="filterTemplateId" size="sm" class="max-w-[200px] truncate"
+                    :options="templateOptions" @change="applyFilters" />
             </div>
             <div v-if="newsletters.length">
                 <label class="block text-xs text-zinc-400 mb-1">Newsletter</label>
-                <select v-model="filterNewsletterId" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white max-w-[200px] truncate">
-                    <option value="">All newsletters</option>
-                    <option v-for="n in newsletters" :key="n.id" :value="n.id">{{ n.name }}</option>
-                </select>
+                <AppSelect v-model="filterNewsletterId" size="sm" class="max-w-[200px] truncate"
+                    :options="newsletterOptions" @change="applyFilters" />
             </div>
             <div>
                 <label class="block text-xs text-zinc-400 mb-1">From</label>
                 <input v-model="filterFrom" type="date" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white" />
+                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white [color-scheme:dark] cursor-pointer" />
             </div>
             <div>
                 <label class="block text-xs text-zinc-400 mb-1">To</label>
                 <input v-model="filterTo" type="date" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white" />
+                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white [color-scheme:dark] cursor-pointer" />
             </div>
             <button v-if="hasFilters()" @click="clearFilters"
                 class="px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition cursor-pointer">
@@ -252,15 +267,7 @@ onMounted(() => {
                         <td class="px-4 py-3 text-sm text-white">{{ log.to_email }}</td>
                         <td class="px-4 py-3 text-sm text-zinc-300 max-w-md truncate">{{ log.subject || '(no subject)' }}</td>
                         <td class="px-4 py-3">
-                            <span :class="[
-                                'text-xs px-2 py-1 rounded-full whitespace-nowrap',
-                                log.status === 'sent' && 'bg-emerald-500/10 text-emerald-400',
-                                log.status === 'failed' && 'bg-red-500/10 text-red-400',
-                                log.status === 'bounced' && 'bg-orange-500/10 text-orange-400',
-                                log.status === 'suppressed' && 'bg-zinc-500/10 text-zinc-300',
-                            ]">
-                                {{ log.status }}
-                            </span>
+                            <AppStatusPill :tone="statusTone(log.status)" :label="log.status" />
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-1.5">

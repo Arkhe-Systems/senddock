@@ -5,6 +5,8 @@ import { useLicenseStore } from '@/stores/license'
 import type { Project } from '@/stores/projects'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppButton from '@/components/ui/AppButton.vue'
 
 const licenseStore = useLicenseStore()
 
@@ -131,27 +133,24 @@ onMounted(fetchList)
         <div v-else-if="errorState === 'generic'"
             class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center">
             <p class="text-zinc-300 text-sm">Couldn't load the audit log. Try again later.</p>
-            <button @click="fetchList" class="mt-3 px-3 py-1 text-sm text-white border border-zinc-700 rounded-md hover:bg-zinc-850 cursor-pointer">Retry</button>
+            <AppButton variant="outline" size="sm" class="mt-3" @click="fetchList">Retry</AppButton>
         </div>
 
         <template v-else>
             <div class="flex items-end gap-3 mb-4 flex-wrap">
                 <div>
                     <label class="block text-xs text-zinc-400 mb-1">Action</label>
-                    <select v-model="filterAction" @change="applyFilters"
-                        class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <option v-for="a in ACTIONS" :key="a.value" :value="a.value">{{ a.label }}</option>
-                    </select>
+                    <AppSelect v-model="filterAction" size="sm" :options="ACTIONS" @change="applyFilters" />
                 </div>
                 <div>
                     <label class="block text-xs text-zinc-400 mb-1">From</label>
                     <input v-model="filterFrom" type="date" @change="applyFilters"
-                        class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white" />
+                        class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white [color-scheme:dark] cursor-pointer" />
                 </div>
                 <div>
                     <label class="block text-xs text-zinc-400 mb-1">To</label>
                     <input v-model="filterTo" type="date" @change="applyFilters"
-                        class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white" />
+                        class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white [color-scheme:dark] cursor-pointer" />
                 </div>
                 <button v-if="filterAction || filterFrom || filterTo" @click="clearFilters"
                     class="px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition cursor-pointer">

@@ -10,6 +10,8 @@ import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppStatusPill, { type PillTone } from '@/components/ui/AppStatusPill.vue'
 
 interface Template {
     id: string
@@ -55,6 +57,23 @@ const scheduledTime = ref('')
 const campaignVars = ref<Record<string, string>>({})
 const selectedNewsletter = ref('')
 const projectNewsletters = computed(() => newsletterStore.newsletters(props.project.id))
+
+const templateOptions = computed(() => templates.value.map(t => ({ value: t.id, label: t.name })))
+
+const newsletterOptions = computed(() => [
+    { value: '', label: 'No newsletter — whole audience' },
+    ...projectNewsletters.value.map(n => ({ value: n.id, label: `${n.name} (${n.active_count})` })),
+])
+
+function statusTone(status: string): PillTone {
+    switch (status) {
+        case 'sent': return 'emerald'
+        case 'scheduled': return 'blue'
+        case 'sending': return 'amber'
+        case 'failed': return 'red'
+        default: return 'zinc'
+    }
+}
 
 const selectedTemplateData = computed(() => templates.value.find(t => t.id === selectedTemplate.value))
 const templateHasSubject = computed(() => !!(selectedTemplateData.value?.subject?.trim()))
@@ -316,15 +335,7 @@ onMounted(loadData)
                     <tr v-for="c in campaigns" :key="c.id" class="border-b border-zinc-800 last:border-0 group">
                         <td class="px-4 py-3 text-sm text-white font-medium">{{ c.name }}</td>
                         <td class="px-4 py-3">
-                            <span :class="[
-                                'text-xs px-2 py-1 rounded-full',
-                                c.status === 'scheduled' && 'bg-blue-500/10 text-blue-400',
-                                c.status === 'sending' && 'bg-amber-500/10 text-amber-400',
-                                c.status === 'sent' && 'bg-emerald-500/10 text-emerald-400',
-                                c.status === 'failed' && 'bg-red-500/10 text-red-400',
-                            ]">
-                                {{ c.status }}
-                            </span>
+                            <AppStatusPill :tone="statusTone(c.status)" :label="c.status" />
                         </td>
                         <td class="px-4 py-3 text-sm text-zinc-300">
                             {{ new Date(c.scheduled_at).toLocaleString() }}
@@ -362,19 +373,12 @@ onMounted(loadData)
 
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Template</label>
-                    <select v-model="selectedTemplate"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                        <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
-                    </select>
+                    <AppSelect v-model="selectedTemplate" size="md" class="w-full" :options="templateOptions" />
                 </div>
 
                 <div v-if="projectNewsletters.length > 0">
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Newsletter <span class="text-zinc-400 font-normal">(optional)</span></label>
-                    <select v-model="selectedNewsletter"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                        <option value="">No newsletter — whole audience</option>
-                        <option v-for="newsletter in projectNewsletters" :key="newsletter.id" :value="newsletter.id">{{ newsletter.name }} ({{ newsletter.active_count }})</option>
-                    </select>
+                    <AppSelect v-model="selectedNewsletter" size="md" class="w-full" :options="newsletterOptions" />
                     <p class="text-xs text-zinc-400 mt-1">Targets active members of the newsletter; their unsubscribe link leaves only this newsletter.</p>
                 </div>
 

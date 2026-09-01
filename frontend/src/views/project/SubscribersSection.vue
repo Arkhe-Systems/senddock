@@ -13,6 +13,8 @@ import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
 import SubscriberFieldInputs from '@/components/SubscriberFieldInputs.vue'
 import AppTagInput from '@/components/ui/AppTagInput.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppStatusPill, { type PillTone } from '@/components/ui/AppStatusPill.vue'
 import { validateFieldValues } from '@/utils/fieldValidation'
 
 interface Subscriber {
@@ -29,6 +31,37 @@ const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
 const newsletterStore = useNewsletterStore()
 const projectNewsletters = computed(() => newsletterStore.newsletters(props.project.id))
+
+const STATUS_OPTIONS = [
+    { value: '', label: 'All statuses' },
+    { value: 'active', label: 'Active' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'unsubscribed', label: 'Unsubscribed' },
+]
+
+const tagOptions = computed(() => [
+    { value: '', label: 'All tags' },
+    ...tagSuggestions.value.map(tag => ({ value: tag, label: tag })),
+])
+
+const newsletterOptions = computed(() => [
+    { value: '', label: 'All newsletters' },
+    ...projectNewsletters.value.map(n => ({ value: n.id, label: n.name })),
+])
+
+const bulkNewsletterOptions = computed(() => [
+    { value: '', label: 'Pick a newsletter…' },
+    ...projectNewsletters.value.map(n => ({ value: n.id, label: n.name })),
+])
+
+function statusTone(status: string): PillTone {
+    switch (status) {
+        case 'active': return 'emerald'
+        case 'pending': return 'amber'
+        case 'unsubscribed': return 'red'
+        default: return 'zinc'
+    }
+}
 const editNewsletters = ref<string[]>([])
 const fieldStore = useFieldStore()
 
@@ -531,29 +564,16 @@ onMounted(() => {
         <div class="flex flex-wrap items-end gap-3 mb-6">
             <div>
                 <label class="block text-xs text-zinc-400 mb-1">Status</label>
-                <select v-model="filterStatus" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer">
-                    <option value="">All statuses</option>
-                    <option value="active">Active</option>
-                    <option value="pending">Pending</option>
-                    <option value="unsubscribed">Unsubscribed</option>
-                </select>
+                <AppSelect v-model="filterStatus" size="sm" :options="STATUS_OPTIONS" @change="applyFilters" />
             </div>
             <div v-if="tagSuggestions.length">
                 <label class="block text-xs text-zinc-400 mb-1">Tag</label>
-                <select v-model="filterTag" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer max-w-[200px] truncate">
-                    <option value="">All tags</option>
-                    <option v-for="tag in tagSuggestions" :key="tag" :value="tag">{{ tag }}</option>
-                </select>
+                <AppSelect v-model="filterTag" size="sm" class="max-w-[200px] truncate" :options="tagOptions" @change="applyFilters" />
             </div>
             <div v-if="projectNewsletters.length">
                 <label class="block text-xs text-zinc-400 mb-1">Newsletter</label>
-                <select v-model="filterNewsletterId" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer max-w-[200px] truncate">
-                    <option value="">All newsletters</option>
-                    <option v-for="n in projectNewsletters" :key="n.id" :value="n.id">{{ n.name }}</option>
-                </select>
+                <AppSelect v-model="filterNewsletterId" size="sm" class="max-w-[200px] truncate"
+                    :options="newsletterOptions" @change="applyFilters" />
             </div>
             <button v-if="hasFilters" @click="clearFilters"
                 class="px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition cursor-pointer">
@@ -570,15 +590,12 @@ onMounted(() => {
                     <option value="pending">Mark Pending</option>
                     <option value="unsubscribed">Mark Unsubscribed</option>
                 </select>
-                <button @click="showBulkTagModal = true" class="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-3 py-1.5 text-white hover:bg-zinc-850 transition cursor-pointer">
-                    Tags
-                </button>
-                <button v-if="projectNewsletters.length > 0" @click="showBulkNewsletterModal = true; newsletterStore.fetchNewsletters(props.project.id)" class="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-3 py-1.5 text-white hover:bg-zinc-850 transition cursor-pointer">
-                    Newsletter
-                </button>
-                <button @click="confirmBulkDelete" :disabled="bulkLoading" class="text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-md px-3 py-1.5 transition cursor-pointer disabled:opacity-50">
+                <AppButton variant="outline" size="sm" @click="showBulkTagModal = true">Tags</AppButton>
+                <AppButton v-if="projectNewsletters.length > 0" variant="outline" size="sm"
+                    @click="showBulkNewsletterModal = true; newsletterStore.fetchNewsletters(props.project.id)">Newsletter</AppButton>
+                <AppButton variant="danger-outline" size="sm" :loading="bulkLoading" :disabled="bulkLoading" @click="confirmBulkDelete">
                     Delete
-                </button>
+                </AppButton>
             </div>
         </div>
 
@@ -615,14 +632,7 @@ onMounted(() => {
                             <span v-else class="text-sm text-zinc-600">-</span>
                         </td>
                         <td class="px-4 py-3">
-                            <span :class="[
-                                'text-xs px-2 py-1 rounded-full',
-                                sub.status === 'active' && 'bg-emerald-500/10 text-emerald-400',
-                                sub.status === 'unsubscribed' && 'bg-red-500/10 text-red-400',
-                                sub.status === 'pending' && 'bg-amber-500/10 text-amber-400',
-                            ]">
-                                {{ sub.status }}
-                            </span>
+                            <AppStatusPill :tone="statusTone(sub.status)" :label="sub.status" />
                         </td>
                         <td class="px-4 py-3 text-sm text-zinc-400">{{ new Date(sub.created_at).toLocaleDateString() }}</td>
                         <td class="px-4 py-3 text-right space-x-3">
@@ -709,11 +719,7 @@ onMounted(() => {
                 <p class="text-sm text-zinc-300">{{ selectedIds.length }} subscriber(s) selected.</p>
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Newsletter</label>
-                    <select v-model="bulkNewsletter"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <option value="" disabled>Pick a newsletter…</option>
-                        <option v-for="newsletter in projectNewsletters" :key="newsletter.id" :value="newsletter.id">{{ newsletter.name }}</option>
-                    </select>
+                    <AppSelect v-model="bulkNewsletter" size="md" class="w-full" :options="bulkNewsletterOptions" />
                 </div>
                 <div class="flex gap-2">
                     <AppButton variant="ghost" size="sm" class="flex-1" :loading="bulkNewsletterLoading" @click="handleBulkNewsletter('remove_newsletter')">Remove</AppButton>
@@ -760,7 +766,7 @@ onMounted(() => {
                             isDragging ? 'border-white border-dashed bg-zinc-900' : 'border-zinc-800',
                         ]">
                         <textarea v-model="importText" rows="8" placeholder="email,name&#10;ada@example.com,Ada Lovelace&#10;alan@example.com,Alan Turing&#10;&#10;…or drop a .csv file here"
-                            class="w-full px-3 py-2 bg-zinc-950 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition resize-y" />
+                            class="w-full px-3 py-2 bg-zinc-900 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition resize-y" />
                     </div>
                     <p class="text-xs text-zinc-400 mt-1">First line can be a header (<code class="text-zinc-300">email,name</code>). Name column is optional. Extra columns whose header matches a custom field key or label are imported into that field. Drop a .csv file or pick one above.</p>
                 </div>

@@ -106,10 +106,10 @@ async function handleTest() {
                     class="">
                     {{ loading ? 'Saving...' : 'Save Settings' }}
                 </AppButton>
-                <button v-if="hasSmtpConfig" type="button" @click="handleTest" :disabled="testLoading"
-                    class="px-5 py-2 text-sm font-medium border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-850 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                <AppButton v-if="hasSmtpConfig" type="button" variant="outline" size="md" @click="handleTest"
+                    :disabled="testLoading" :loading="testLoading">
                     {{ testLoading ? 'Testing...' : 'Test Connection' }}
-                </button>
+                </AppButton>
             </div>
         </form>
     </div>

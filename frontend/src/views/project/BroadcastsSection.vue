@@ -4,6 +4,8 @@ import { api } from '@/api/client'
 import type { Project } from '@/stores/projects'
 import { useNewsletterStore } from '@/stores/newsletters'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppStatusPill, { type PillTone } from '@/components/ui/AppStatusPill.vue'
 
 interface Broadcast {
     id: string
@@ -38,6 +40,26 @@ const filterNewsletterId = ref('')
 const newsletters = computed(() => newsletterStore.newsletters(props.project.id))
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
+
+const STATUS_OPTIONS = [
+    { value: '', label: 'All statuses' },
+    { value: 'sending', label: 'Sending' },
+    { value: 'completed', label: 'Completed' },
+]
+
+function statusTone(status: string): PillTone {
+    switch (status) {
+        case 'sending': return 'blue'
+        case 'completed': return 'emerald'
+        case 'failed': return 'red'
+        default: return 'zinc'
+    }
+}
+
+const newsletterOptions = computed(() => [
+    { value: '', label: 'All newsletters' },
+    ...newsletters.value.map(n => ({ value: n.id, label: n.name })),
+])
 
 const hasInProgress = computed(() => broadcasts.value.some(b => b.status === 'sending'))
 
@@ -111,17 +133,9 @@ onBeforeUnmount(() => {
                 </p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
-                <select v-model="filterStatus" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer">
-                    <option value="">All statuses</option>
-                    <option value="sending">Sending</option>
-                    <option value="completed">Completed</option>
-                </select>
-                <select v-if="newsletters.length" v-model="filterNewsletterId" @change="applyFilters"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer max-w-[200px] truncate">
-                    <option value="">All newsletters</option>
-                    <option v-for="n in newsletters" :key="n.id" :value="n.id">{{ n.name }}</option>
-                </select>
+                <AppSelect v-model="filterStatus" size="sm" :options="STATUS_OPTIONS" @change="applyFilters" />
+                <AppSelect v-if="newsletters.length" v-model="filterNewsletterId" size="sm"
+                    class="max-w-[200px] truncate" :options="newsletterOptions" @change="applyFilters" />
             </div>
         </div>
 
@@ -150,13 +164,7 @@ onBeforeUnmount(() => {
                             <td class="px-4 py-3 text-sm text-white max-w-md truncate">{{ b.subject || '(no subject)' }}</td>
                         <td class="px-4 py-3 text-sm text-zinc-300">{{ newsletterName(b.newsletter_id) || 'All' }}</td>
                             <td class="px-4 py-3">
-                                <span :class="[
-                                    'text-xs px-2 py-1 rounded-full whitespace-nowrap',
-                                    b.status === 'sending' && 'bg-blue-500/10 text-blue-400',
-                                    b.status === 'completed' && 'bg-emerald-500/10 text-emerald-400',
-                                ]">
-                                    {{ b.status }}
-                                </span>
+                                <AppStatusPill :tone="statusTone(b.status)" :label="b.status" />
                             </td>
                             <td class="px-4 py-3 text-sm text-zinc-300">
                                 <div class="flex items-center gap-2 min-w-[180px]">

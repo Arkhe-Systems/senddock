@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { api } from '@/api/client'
+import AppStatusPill, { type PillTone } from '@/components/ui/AppStatusPill.vue'
 
 interface EmailLog {
     id: string
@@ -44,17 +45,15 @@ const errored = ref(false)
 const log = computed(() => detail.value?.log ?? null)
 const clicks = computed(() => detail.value?.clicks ?? [])
 
-const statusClass = computed(() => {
-    if (!log.value) return ''
-    switch (log.value.status) {
-        case 'sent': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-        case 'failed': return 'bg-red-500/10 text-red-400 border-red-500/30'
-        case 'bounced': return 'bg-orange-500/10 text-orange-400 border-orange-500/30'
-        case 'suppressed': return 'bg-zinc-500/10 text-zinc-300 border-zinc-600'
-        default: return 'bg-zinc-700/30 text-zinc-300 border-zinc-700'
+function toneFor(status: string): PillTone {
+    switch (status) {
+        case 'sent': return 'emerald'
+        case 'failed': return 'red'
+        case 'bounced': return 'orange'
+        case 'suppressed': return 'zinc'
+        default: return 'zinc'
     }
-})
-
+}
 interface TimelineEvent {
     label: string
     at: string
@@ -148,11 +147,9 @@ function userAgentSummary(ua: string | null): string {
                     <template v-else-if="log">
                         <section>
                             <div class="flex items-center gap-2 mb-3">
-                                <span :class="['text-xs px-2 py-1 rounded-full border whitespace-nowrap', statusClass]">
-                                    {{ log.status }}
-                                </span>
-                                <span v-if="log.opened_at" class="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">opened</span>
-                                <span v-if="log.clicked_at" class="text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">clicked</span>
+                                <AppStatusPill bordered :tone="toneFor(log.status)" :label="log.status" />
+                                <AppStatusPill v-if="log.opened_at" bordered tone="blue" label="opened" />
+                                <AppStatusPill v-if="log.clicked_at" bordered tone="amber" label="clicked" />
                             </div>
                             <dl class="grid grid-cols-1 gap-3 text-sm">
                                 <div>

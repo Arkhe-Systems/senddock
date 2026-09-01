@@ -4,6 +4,7 @@ import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 
 interface LibraryEntry {
     id: string
@@ -125,15 +126,10 @@ watch(() => props.show, (v) => {
 
         <div v-else class="space-y-4">
             <div class="flex gap-1.5 border-b border-zinc-800 pb-3 overflow-x-auto">
-                <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" type="button"
-                    :class="[
-                        'px-3 py-1.5 text-sm rounded-md transition cursor-pointer whitespace-nowrap',
-                        activeCategory === cat
-                            ? 'bg-emerald-500/15 text-emerald-400'
-                            : 'text-zinc-400 hover:text-white'
-                    ]">
+                <AppFilterChip v-for="cat in categories" :key="cat" size="sm" :active="activeCategory === cat"
+                    @click="activeCategory = cat">
                     {{ categoryLabel(cat) }}
-                </button>
+                </AppFilterChip>
             </div>
 
             <div v-if="filteredEntries.length === 0" class="py-8 text-center text-sm text-zinc-400">

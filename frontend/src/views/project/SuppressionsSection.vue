@@ -4,6 +4,7 @@ import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
@@ -204,10 +205,7 @@ onMounted(fetchList)
                         <td class="px-4 py-3 text-sm text-zinc-300">{{ s.source || '—' }}</td>
                         <td class="px-4 py-3 text-sm text-zinc-300">{{ fmtDate(s.last_seen_at) }}</td>
                         <td class="px-4 py-3 text-right">
-                            <button @click="itemToDelete = s"
-                                class="px-3 py-1 text-xs text-red-400 border border-red-900/50 rounded-md hover:bg-red-950/40 transition cursor-pointer">
-                                Remove
-                            </button>
+                            <AppButton variant="danger-outline" size="xs" @click="itemToDelete = s">Remove</AppButton>
                         </td>
                     </tr>
                 </tbody>
@@ -233,18 +231,17 @@ onMounted(fetchList)
                     </div>
                     <textarea v-model="newEmails" rows="6"
                         placeholder="ada@example.com&#10;alan@example.com&#10;…or paste a CSV with one column"
-                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition resize-y" />
+                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition resize-y" />
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Reason</label>
-                    <select v-model="newReason"
-                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition cursor-pointer">
-                        <option value="manual">Manually added</option>
-                        <option value="unsubscribe">Unsubscribed</option>
-                        <option value="bounce">Bounced</option>
-                        <option value="complaint">Complaint</option>
-                    </select>
+                    <AppSelect v-model="newReason" size="md" class="w-full" :options="[
+                        { value: 'manual', label: 'Manually added' },
+                        { value: 'unsubscribe', label: 'Unsubscribed' },
+                        { value: 'bounce', label: 'Bounced' },
+                        { value: 'complaint', label: 'Complaint' },
+                    ]" />
                 </div>
 
                 <div class="flex gap-2 pt-2">

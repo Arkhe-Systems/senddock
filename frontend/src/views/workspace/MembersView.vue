@@ -20,6 +20,7 @@ import AppAlert from '@/components/ui/AppAlert.vue'
 import AppLoader from '@/components/ui/AppLoader.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import { checkoutUrl } from '@/config/checkout'
 import { useAppStore } from '@/stores/app'
@@ -308,7 +309,7 @@ onMounted(async () => {
                                 <td class="px-4 py-3">
                                     <select v-if="isOwner && canManageTeam" :value="m.role"
                                         @change="changeRole(m, ($event.target as HTMLSelectElement).value as WorkspaceRole)"
-                                        class="px-2 py-1 text-xs bg-zinc-950 border border-zinc-800 rounded-md text-white cursor-pointer">
+                                        class="px-2 py-1 text-xs bg-zinc-900 border border-zinc-800 rounded-md text-white cursor-pointer">
                                         <option v-for="r in ASSIGNABLE_ROLES" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
                                     </select>
                                     <span v-else class="text-xs text-zinc-300">{{ ROLE_LABEL[m.role] }}</span>
@@ -354,16 +355,14 @@ onMounted(async () => {
                         <div>
                             <label class="block text-xs text-zinc-300 mb-1">Temporary password</label>
                             <input v-model="newUserPassword" type="password" minlength="8" required
-                                class="w-full px-3 py-2 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white" />
+                                class="w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" />
                             <p class="text-xs text-zinc-400 mt-1">At least 8 characters. The user can change it after first login.</p>
                         </div>
                     </template>
                     <div>
                         <label class="block text-xs text-zinc-300 mb-1">Role</label>
-                        <select v-model="inviteRole"
-                            class="w-full px-3 py-2 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white cursor-pointer">
-                            <option v-for="r in ASSIGNABLE_ROLES" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
-                        </select>
+                        <AppSelect v-model="inviteRole" size="md" class="w-full"
+                            :options="ASSIGNABLE_ROLES.map(r => ({ value: r, label: ROLE_LABEL[r] }))" />
                         <p class="text-xs text-zinc-400 mt-1">{{ ROLE_DESCRIPTION[inviteRole] }}</p>
                     </div>
                     <AppAlert :message="inviteError" />
