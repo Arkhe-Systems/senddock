@@ -233,12 +233,12 @@ onMounted(async () => {
                 <AppSelect v-model="editingId" size="sm"
                     :options="[{ value: '', label: 'New report…' }, ...savedReports.map(r => ({ value: r.id, label: r.name }))]"
                     @change="() => { const r = savedReports.find(s => s.id === editingId); if (r) loadReport(r) }" />
-                <AppButton size="sm" variant="secondary" @click="newReport">New</AppButton>
-                <AppButton size="sm" @click="openSave">{{ editingId ? 'Save' : 'Save as…' }}</AppButton>
-                <AppButton v-if="editingId" size="sm" variant="danger"
+                <AppButton size="md" variant="secondary" @click="newReport">New</AppButton>
+                <AppButton size="md" @click="openSave">{{ editingId ? 'Save' : 'Save as…' }}</AppButton>
+                <AppButton v-if="editingId" size="md" variant="danger"
                     @click="deleteTarget = savedReports.find(s => s.id === editingId) ?? null">Delete</AppButton>
                 <div class="flex-1"></div>
-                <AppButton size="sm" variant="primary" @click="exportCsv">Export CSV</AppButton>
+                <AppButton size="md" variant="primary" @click="exportCsv">Export CSV</AppButton>
             </div>
 
             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -322,10 +322,7 @@ async function handleDelete() {
         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-sm font-medium text-white">API Keys</h2>
-                <button @click="showKeyModal = true"
-                    class="text-sm text-zinc-300 hover:text-white transition cursor-pointer">
-                    + Create Key
-                </button>
+                <AppButton size="md" @click="showKeyModal = true">+ Create Key</AppButton>
             </div>
 
             <p class="text-xs text-zinc-400 mb-4">

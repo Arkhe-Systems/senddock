@@ -556,8 +556,8 @@ onMounted(() => {
                 <p class="text-sm text-zinc-400 mt-1">{{ total }} total</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <AppButton variant="ghost" size="sm" @click="showImportModal = true">Import CSV</AppButton>
-                <AppButton size="sm" @click="openAddModal">+ Add Subscriber</AppButton>
+                <AppButton variant="ghost" size="md" @click="showImportModal = true">Import CSV</AppButton>
+                <AppButton size="md" @click="openAddModal">+ Add Subscriber</AppButton>
             </div>
         </div>
 

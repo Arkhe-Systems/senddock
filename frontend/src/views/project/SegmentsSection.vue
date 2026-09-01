@@ -224,7 +224,7 @@ onMounted(() => {
                 <h1 class="text-xl font-semibold text-white">Segments</h1>
                 <p class="text-sm text-zinc-400 mt-1">Saved filters used to target broadcasts.</p>
             </div>
-            <AppButton size="sm" @click="openCreate">+ New Segment</AppButton>
+            <AppButton size="md" @click="openCreate">+ New Segment</AppButton>
         </div>
 
         <div v-if="segments.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">

@@ -164,7 +164,7 @@ onMounted(fetchList)
                 <h1 class="text-xl font-semibold text-white">Suppressions</h1>
                 <p class="text-sm text-zinc-400 mt-1">Addresses that will be skipped on every send. {{ summary }}.</p>
             </div>
-            <AppButton size="sm" @click="showAddModal = true">+ Add address</AppButton>
+            <AppButton size="md" @click="showAddModal = true">+ Add address</AppButton>
         </div>
 
         <div class="flex flex-wrap gap-2 mb-4">
@@ -182,7 +182,7 @@ onMounted(fetchList)
             <p class="text-sm text-zinc-400 mb-5 max-w-md mx-auto">
                 When subscribers unsubscribe or you add addresses manually, they'll show up here. SendDock will skip every send that targets them.
             </p>
-            <AppButton size="sm" @click="showAddModal = true">Add your first address</AppButton>
+            <AppButton size="md" @click="showAddModal = true">Add your first address</AppButton>
         </div>
 
         <div v-else class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">

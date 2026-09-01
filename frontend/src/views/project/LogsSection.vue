@@ -195,7 +195,7 @@ onMounted(() => {
                 <h1 class="text-xl font-semibold text-white">Email Logs</h1>
                 <p class="text-sm text-zinc-400 mt-1">{{ total }} total</p>
             </div>
-            <AppButton size="sm" :loading="exporting" :disabled="exporting" @click="exportCSV">
+            <AppButton size="md" :loading="exporting" :disabled="exporting" @click="exportCSV">
                 {{ exporting ? 'Exporting…' : 'Export CSV' }}
             </AppButton>
         </div>

@@ -146,9 +146,7 @@ onMounted(() => fieldStore.fetchFields(props.project.id))
     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-lg">
         <div class="flex items-center justify-between mb-2">
             <h2 class="text-sm font-medium text-white">Custom Fields</h2>
-            <button @click="openCreate" class="text-sm text-zinc-300 hover:text-white transition cursor-pointer">
-                + Add Field
-            </button>
+            <AppButton size="md" @click="openCreate">+ Add Field</AppButton>
         </div>
         <p class="text-xs text-zinc-400 mb-4">
             Typed attributes stored per subscriber. Use them in templates as

@@ -90,7 +90,7 @@ onMounted(() => {
                 <h1 class="text-xl font-semibold text-white">Newsletters</h1>
                 <p class="text-sm text-zinc-400 mt-1">Publications your subscribers can join and leave individually.</p>
             </div>
-            <AppButton size="sm" @click="openCreate">+ New Newsletter</AppButton>
+            <AppButton size="md" @click="openCreate">+ New Newsletter</AppButton>
         </div>
 
         <div v-if="newsletters.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">

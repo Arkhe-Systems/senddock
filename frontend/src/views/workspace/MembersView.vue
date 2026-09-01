@@ -261,10 +261,10 @@ onMounted(async () => {
                         <p class="text-sm text-zinc-400 mt-1">{{ members.length }} {{ members.length === 1 ? 'member' : 'members' }}</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <AppButton variant="ghost" size="sm" v-if="isOwner" @click="openRename">Rename</AppButton>
-                        <AppButton variant="danger" size="sm" v-if="canDelete" @click="showDelete = true">Delete</AppButton>
-                        <AppButton variant="ghost" size="sm" v-if="isOwner && canManageTeam" @click="openInvite('existing')">+ Add existing</AppButton>
-                        <AppButton size="sm" v-if="isOwner && canManageTeam" @click="openInvite('new')">+ Create user</AppButton>
+                        <AppButton variant="ghost" size="md" v-if="isOwner" @click="openRename">Rename</AppButton>
+                        <AppButton variant="danger" size="md" v-if="canDelete" @click="showDelete = true">Delete</AppButton>
+                        <AppButton variant="ghost" size="md" v-if="isOwner && canManageTeam" @click="openInvite('existing')">+ Add existing</AppButton>
+                        <AppButton size="md" v-if="isOwner && canManageTeam" @click="openInvite('new')">+ Create user</AppButton>
                     </div>
                 </div>
 

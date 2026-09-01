@@ -361,10 +361,7 @@ onMounted(loadData)
 
         <div v-else class="text-center py-20 border border-dashed border-zinc-800 rounded-lg">
             <p class="text-zinc-400 mb-4">No campaigns scheduled yet.</p>
-            <AppButton size="lg" @click="openCreateModal"
-                class="">
-                Create your first campaign
-            </AppButton>
+            <AppButton size="md" @click="openCreateModal">Create your first campaign</AppButton>
         </div>
 
         <AppModal :show="showCreateModal" :title="editingCampaign ? 'Edit Campaign' : 'New Campaign'" @close="showCreateModal = false">

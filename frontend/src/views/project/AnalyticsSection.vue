@@ -354,7 +354,7 @@ onMounted(async () => {
 
             <div v-else-if="tab === 'campaigns'">
                 <div class="flex justify-end mb-3">
-                    <AppButton size="sm" @click="exportCsv">Export CSV</AppButton>
+                    <AppButton size="md" @click="exportCsv">Export CSV</AppButton>
                 </div>
                 <p v-if="!campaigns.length" class="text-sm text-zinc-400 py-8 text-center">No campaigns sent yet.</p>
                 <div v-else class="overflow-x-auto">
