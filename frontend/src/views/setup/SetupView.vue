@@ -50,9 +50,9 @@ const passwordStrength = computed(() => {
     if (/[0-9]/.test(pw)) score++
     if (/[^A-Za-z0-9]/.test(pw)) score++
     if (score <= 1) return { label: 'Weak', color: 'bg-red-500 text-red-400', width: 25 }
-    if (score === 2) return { label: 'Fair', color: 'bg-yellow-500 text-yellow-400', width: 50 }
+    if (score === 2) return { label: 'Fair', color: 'bg-amber-500 text-amber-400', width: 50 }
     if (score === 3) return { label: 'Good', color: 'bg-blue-500 text-blue-400', width: 75 }
-    return { label: 'Strong', color: 'bg-green-500 text-green-400', width: 100 }
+    return { label: 'Strong', color: 'bg-emerald-500 text-emerald-400', width: 100 }
 })
 
 async function handleSetup() {
@@ -120,7 +120,7 @@ async function handleSetup() {
                     </g>
                 </svg>
                 <h1 class="text-2xl font-bold text-white">Welcome to SendDock</h1>
-                <p class="text-zinc-400 mt-2">Create your admin account to get started.</p>
+                <p class="text-zinc-300 mt-2">Create your admin account to get started.</p>
             </div>
 
             <form @submit.prevent="handleSetup" class="space-y-4">
@@ -133,7 +133,7 @@ async function handleSetup() {
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs" :class="passwordStrength.color.split(' ')[1]">{{ passwordStrength.label }}</span>
                         </div>
-                        <div class="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                        <div class="h-1 bg-zinc-850 rounded-full overflow-hidden">
                             <div class="h-full transition-all" :class="passwordStrength.color.split(' ')[0]" :style="{ width: passwordStrength.width + '%' }"></div>
                         </div>
                     </div>
@@ -142,7 +142,7 @@ async function handleSetup() {
 
                 <div class="pt-2 border-t border-zinc-800">
                     <AppInput v-model="publicUrl" label="Public URL" placeholder="https://mail.example.com" />
-                    <p class="text-xs text-zinc-500 mt-2">
+                    <p class="text-xs text-zinc-400 mt-2">
                         Where this instance is reachable from the internet. Used for unsubscribe and tracking links.
                         You can change it later under Instance.
                     </p>

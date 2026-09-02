@@ -1,6 +1,6 @@
 -- name: CreateCampaign :one
-INSERT INTO campaigns (project_id, template_id, name, subject, scheduled_at, variables)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO campaigns (project_id, template_id, name, subject, scheduled_at, variables, newsletter_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: ListCampaignsByProject :many
@@ -68,6 +68,7 @@ UPDATE campaigns SET
     template_id = $4,
     subject = $5,
     scheduled_at = $6,
-    variables = $7
+    variables = $7,
+    newsletter_id = $8
 WHERE id = $1 AND project_id = $2 AND status = 'scheduled'
 RETURNING *;

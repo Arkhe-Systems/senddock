@@ -73,7 +73,7 @@ If anything misbehaves after going live, see [Troubleshooting](/self-hosting/tro
 
 ## Plans and licensing
 
-SendDock is open-core: the AGPL-3.0 **Community** edition does everything most one-person operations need, and two paid tiers (**Pro** and **Team**) add deliverability, reporting and team collaboration. Paid tiers are unlocked with a license key validated against [Lemon Squeezy](https://lemonsqueezy.com).
+SendDock is open-core: the AGPL-3.0 **Community** edition does everything most one-person operations need, and two paid tiers (**Pro** and **Team**) add deliverability, reporting and team collaboration. Throughout these docs **Core** means the free feature set — everything in the Community tier, available with no key. The dashboard labels the three tiers **Free**, **Pro** and **Team** (the "Free" plan is the Community edition); the table below writes it as "Community (Free)". Paid tiers are unlocked with a license key validated against [Lemon Squeezy](https://lemonsqueezy.com).
 
 On a **self-hosted** instance you activate that key from the dashboard, under **Instance → License** — it's stored encrypted in the database and applies immediately, no restart. See [Instance settings → Pro license](/guide/instance-settings#pro-license). The legacy `SENDDOCK_LICENSE_KEY` environment variable still works but is **deprecated**: if set, it's imported into the database once on boot and support for it is removed in v0.9. On the **cloud** deployment the environment owns the key.
 
@@ -130,7 +130,7 @@ A future **Enterprise** tier will add SSO/SCIM, per-project ACLs, white-label tr
 | valid Team key | Pro and Team features unlocked. |
 | invalid / revoked | Locked after the next validation tick (24h grace from the last successful check). |
 
-The validator distinguishes Pro from Team by the Lemon Squeezy `variant_id` of the license — there is no separate Team key file or env var. Buying Team gives you a single key that the validator recognizes as Team-tier; buying Pro gives a key that validates only the Pro features.
+The validator distinguishes Pro from Team by the Lemon Squeezy `variant_id` of the license — the product/pricing variant the key was purchased against (for example `pro_monthly` vs `team_monthly`). There is no separate Team key file or env var: buying Team gives you a single key the validator recognizes as Team-tier; buying Pro gives a key that validates only the Pro features.
 
 The `CLOUD` flag (which replaced the old `DEPLOYMENT_MODE` string — see [Environment Variables](/guide/environment)) does not change Pro gating — the license requirement applies the same way to self-hosted and cloud. What it does control is who owns configuration and registration: `CLOUD=true` opens the public sign-up endpoints used by the senddock.dev managed product and lets the environment own settings like the public URL and license key. A self-hosted instance (the default) keeps registration closed — relying on the first-boot setup screen plus the admin **Create user** flow on Team workspaces — and owns those settings from the dashboard instead. There is no public sign-up endpoint to call on a self-hosted deploy.
 

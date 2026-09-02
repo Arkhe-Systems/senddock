@@ -1,8 +1,8 @@
 # Campaigns
 
-Campaigns let you schedule email broadcasts for a future time. Instead of sending immediately, you create a campaign that pairs a template with a scheduled delivery time. When the time arrives, SendDock broadcasts the template to all active subscribers in the project.
+Campaigns let you schedule email broadcasts for a future time. Instead of sending immediately, you create a campaign that pairs a template with a scheduled delivery time. When the time arrives, SendDock broadcasts the template to all active subscribers in the project (optionally narrowed to a single newsletter).
 
-![The Newsletters view listing scheduled campaigns](/screenshots/campaigns.png)
+![The Campaigns view listing scheduled campaigns](/screenshots/campaigns.png)
 
 ## How Campaigns Work
 
@@ -19,34 +19,37 @@ Campaigns let you schedule email broadcasts for a future time. Instead of sendin
 | `scheduled` | Waiting for the scheduled time |
 | `sending` | Currently broadcasting to subscribers |
 | `sent` | All emails have been sent |
-| `failed` | An error occurred during sending |
+| `failed` | The broadcast failed to start (for example an enqueue or claim error at trigger time) — not per-recipient failures |
+
+A campaign reaches `sent` when its broadcast finishes draining, even if some recipients failed — those are reflected in `failed_count`. The `failed` status is reserved for the broadcast itself failing to start.
 
 ## Create a Campaign
 
-From the **Newsletters** tab in your project, click **+ New Campaign**, then:
+From the **Campaigns** tab in your project, click **+ New Campaign**, then:
 
 ![The New Campaign dialog](/screenshots/new-campaign-modal.png)
 
 
 1. **Name** the campaign (for your own reference in the list).
 2. Pick a **template**.
-3. Optionally **override the subject**.
-4. Fill in any **template variables** — each custom `{{placeholder}}` in the template gets its own input, applied to every recipient (subscriber values like `{{name}}` are filled per person automatically).
-5. Choose **Send now** to broadcast immediately, or **Schedule** and set a date and time.
+3. Optionally pick a **[newsletter](./newsletters)** — only its active opted-in members receive the campaign, and unsubscribe links are scoped to it. Leave it on *All active subscribers* otherwise. (Segments are not available for scheduled campaigns today — only a newsletter can narrow the audience. To target a segment, send an immediate broadcast from the composer.)
+4. Optionally **override the subject**.
+5. Fill in any **template variables** — each custom `{{placeholder}}` in the template gets its own input, applied to every recipient (subscriber values like `{{name}}` are filled per person automatically).
+6. Choose **Send now** to broadcast immediately, or **Schedule** and set a date and time.
 
 Click **Create** and it appears in the list. The programmatic equivalent, including the `variables` shape, is in the [Campaigns API reference](/api/campaigns#create-campaign).
 
 ::: tip Cookie auth only
-Campaigns mutate workspace state and require role-based capabilities (`campaigns:write`). API keys, which are project-scoped and identity-less, can't call these endpoints — you'll get `401`. Schedule from the dashboard, or call the endpoints from your own UI built on the same cookie-session login.
+Campaigns mutate workspace state and require role-based capabilities (`campaigns:write`). Each dashboard role maps to a set of capabilities — see [Members & roles](./members#roles--capabilities) for the matrix; only roles holding `campaigns:write` can create or edit campaigns. API keys, which are project-scoped and identity-less, can't call these endpoints — you'll get `401`. Schedule from the dashboard, or call the endpoints from your own UI built on the same cookie-session login.
 :::
 
 ## List Campaigns
 
-The **Newsletters** tab shows every campaign in the project, ordered by scheduled time, with their current status and live `sent_count` / `failed_count`. The same data is exposed at `GET /api/v1/projects/{id}/campaigns` — see the [API reference](/api/campaigns#list-campaigns).
+The **Campaigns** tab shows every campaign in the project, ordered by scheduled time, with their current status and live `sent_count` / `failed_count`. The same data is exposed at `GET /api/v1/projects/{id}/campaigns` — see the [API reference](/api/campaigns#list-campaigns).
 
 ## Edit or delete a campaign
 
-Each row in the **Newsletters** tab has:
+Each row in the **Campaigns** tab has:
 
 - **Edit** — only available while the campaign is still `scheduled`. Use it to change the template, subject, variables or scheduled time before it fires. Once it moves to `sending`, `sent` or `failed`, editing is closed.
 - **Delete** — available in **any** status. Deleting a `scheduled` campaign cancels it before it sends; deleting a `sent`/`failed` one just removes it from the list (it doesn't unsend anything). A confirmation dialog spells out what will happen for the current status.

@@ -348,7 +348,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(["template_id" => "YOUR_TEMPLAT
 
 :::
 
-Returns `{"sent": N, "failed": M, "suppressed": K}` (`suppressed` omitted when zero) once the send has been enqueued for every active subscriber. Broadcast is rate-limited to **5 calls per hour per project** to prevent runaway sends.
+Returns `{"sent": N, "broadcast_id": "uuid"}` once the send has been enqueued for every active subscriber — `sent` is the number enqueued, not yet delivered; poll `GET /broadcasts` for the final sent/failed/suppressed tallies as the queue drains. Broadcast is rate-limited to **5 calls per hour per project** to prevent runaway sends.
 
 ## Add a subscriber
 
@@ -378,7 +378,7 @@ const res = await fetch(
   }
 )
 if (!res.ok) throw new Error(await res.text())
-const { imported, skipped, errors } = await res.json()
+const { imported, duplicates, syntax_invalid, no_mx, disposable, suppressed, rejected } = await res.json()
 ```
 
 ```python [Python]
@@ -388,7 +388,7 @@ res = requests.post(
     json=[{"email": "user@example.com", "name": "John Doe"}],
 )
 res.raise_for_status()
-result = res.json()  # {imported, skipped, errors}
+result = res.json()  # {imported, duplicates, syntax_invalid, no_mx, disposable, suppressed, rejected}
 ```
 
 ```java [Java]
@@ -427,15 +427,19 @@ $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
 :::
 
-Returns `200` with `{imported, skipped, errors}`. `skipped` covers addresses already on the list and addresses that failed validation (disposable domain, bad MX, malformed). Pass an array of any length — it's the same endpoint whether you're importing one row or fifty thousand. See [Subscribers → Bulk import](./subscribers#bulk-import).
+Returns `200` with `{imported, duplicates, syntax_invalid, no_mx, disposable, suppressed, rejected}`. `duplicates` are addresses already on the list; `rejected` is the per-row breakdown of rows that failed validation (disposable domain, bad MX, malformed). Pass an array of any length — it's the same endpoint whether you're importing one row or fifty thousand. See [Subscribers → Bulk import](./subscribers#bulk-import).
 
 ## List subscribers (paginated)
+
+::: warning Cookie auth only
+`GET /subscribers` is cookie-only — a project API key cannot list subscribers (see [Authentication → Endpoints that accept API keys](./authentication#endpoints-that-accept-api-keys)). Log in first, then send the session cookie instead of `Authorization: Bearer`. The cURL example uses `-b cookies.txt`; in the other languages, drop the `Authorization` header and attach the session cookie you received at login.
+:::
 
 ::: code-group
 
 ```bash [cURL]
 curl -G "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/subscribers" \
-  -H "Authorization: Bearer $YOUR_API_KEY" \
+  -b cookies.txt \
   --data-urlencode "limit=100" \
   --data-urlencode "offset=0"
 ```

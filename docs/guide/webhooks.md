@@ -35,17 +35,18 @@ The dispatcher runs inside the Core process, polls every 10 seconds, and claims 
 
 ## Events
 
-SendDock emits seven event types today:
+SendDock emits the following event types:
 
 | Type | When it fires |
 |---|---|
 | `email.sent` | Email handed to the SMTP relay successfully |
-| `email.failed` | Email rejected by the SMTP relay or returned an error |
-| `email.bounced` | A hard bounce was detected (in-session 5xx, IMAP DSN, or webhook ingest). The recipient is also added to the [suppression list](./suppressions). |
+| `email.failed` | The log row settles to `failed` — transport errors, timeouts, and soft (4xx) bounces. No suppression. |
+| `email.bounced` | A hard (5xx) bounce is rejected in-session. The log row settles to `bounced` and the recipient is added to the [suppression list](./suppressions). (Hard bounces detected later via IMAP polling or a bounce webhook also mark the log `bounced` and suppress, but do not emit this event.) |
 | `email.opened` | First time a recipient loads the open-tracking pixel |
 | `email.clicked` | First time a recipient clicks any tracked link in the email |
 | `subscriber.created` | A subscriber is added (UI, API, import, or waitlist signup) |
 | `subscriber.unsubscribed` | A subscriber's status changes to `unsubscribed` |
+| `subscriber.newsletter_unsubscribed` | A subscriber leaves one [newsletter](./newsletters) — their project status is unchanged |
 
 Open and click events fire only on the **first** open/click per email, so a subscriber clicking the same link twice produces a single `email.clicked` event.
 
@@ -106,6 +107,16 @@ Every delivery is an HTTP `POST` with a JSON body shaped like an envelope:
   "email": "user@example.com",
   "name": "Sebastián",
   "status": "active"   // omitted on subscriber.unsubscribed
+}
+
+// subscriber.newsletter_unsubscribed
+{
+  "subscriber_id": "uuid",
+  "project_id": "uuid",
+  "newsletter_id": "uuid",
+  "newsletter_name": "Dev Tips",
+  "email": "user@example.com",
+  "name": "Sebastián"
 }
 ```
 

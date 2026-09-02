@@ -22,7 +22,7 @@ The active workspace is remembered in your browser's `localStorage` (key `senddo
 
 ## Default workspace
 
-When you sign up — through the **Setup** screen on a fresh self-hosted instance, or **Register** in cloud mode — SendDock creates a workspace named `My Workspace` and makes you the owner. Existing instances were migrated the same way: every user got a `My Workspace`, and every project they had moved under it.
+When you sign up — through the **Setup** screen on a fresh self-hosted instance, or **Register** in cloud mode (SendDock's managed hosted service; on a self-hosted instance the equivalent first-run flow is the Setup screen) — SendDock creates a workspace named `My Workspace` and makes you the owner. Existing instances were migrated the same way: every user got a `My Workspace`, and every project they had moved under it.
 
 ## Sharing with a team
 
@@ -41,7 +41,7 @@ The same operation is available on the API as `DELETE /workspaces/{id}` with the
 
 ## Plans & licensing
 
-The license check is deployment-wide, not per-workspace. SendDock has two paid tiers, both unlocked through the same license key (the validator decides which features the key entitles you to):
+The license check is deployment-wide, not per-workspace. SendDock has two paid tiers, both unlocked through the same license key (the built-in [license validator](./what-is-senddock#the-model) decides which features the key entitles you to):
 
 | Plan | What it unlocks |
 |---|---|

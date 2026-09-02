@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
+import { useNewsletterStore } from '@/stores/newsletters'
 import { useFieldStore } from '@/stores/fields'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -12,6 +13,8 @@ import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
 import SubscriberFieldInputs from '@/components/SubscriberFieldInputs.vue'
 import AppTagInput from '@/components/ui/AppTagInput.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppStatusPill, { type PillTone } from '@/components/ui/AppStatusPill.vue'
 import { validateFieldValues } from '@/utils/fieldValidation'
 
 interface Subscriber {
@@ -26,6 +29,40 @@ interface Subscriber {
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
+const newsletterStore = useNewsletterStore()
+const projectNewsletters = computed(() => newsletterStore.newsletters(props.project.id))
+
+const STATUS_OPTIONS = [
+    { value: '', label: 'All statuses' },
+    { value: 'active', label: 'Active' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'unsubscribed', label: 'Unsubscribed' },
+]
+
+const tagOptions = computed(() => [
+    { value: '', label: 'All tags' },
+    ...tagSuggestions.value.map(tag => ({ value: tag, label: tag })),
+])
+
+const newsletterOptions = computed(() => [
+    { value: '', label: 'All newsletters' },
+    ...projectNewsletters.value.map(n => ({ value: n.id, label: n.name })),
+])
+
+const bulkNewsletterOptions = computed(() => [
+    { value: '', label: 'Pick a newsletter…' },
+    ...projectNewsletters.value.map(n => ({ value: n.id, label: n.name })),
+])
+
+function statusTone(status: string): PillTone {
+    switch (status) {
+        case 'active': return 'emerald'
+        case 'pending': return 'amber'
+        case 'unsubscribed': return 'red'
+        default: return 'zinc'
+    }
+}
+const editNewsletters = ref<string[]>([])
 const fieldStore = useFieldStore()
 
 const fieldDefinitions = computed(() => fieldStore.fields(props.project.id))
@@ -33,6 +70,11 @@ const fieldDefinitions = computed(() => fieldStore.fields(props.project.id))
 const subscribers = ref<Subscriber[]>([])
 const total = ref(0)
 const loading = ref(true)
+
+const filterStatus = ref('')
+const filterTag = ref('')
+const filterNewsletterId = ref('')
+const hasFilters = computed(() => filterStatus.value !== '' || filterTag.value !== '' || filterNewsletterId.value !== '')
 
 const tagSuggestions = ref<string[]>([])
 
@@ -66,6 +108,9 @@ function openAddModal() {
 
 const showBulkTagModal = ref(false)
 const bulkTags = ref<string[]>([])
+const showBulkNewsletterModal = ref(false)
+const bulkNewsletter = ref('')
+const bulkNewsletterLoading = ref(false)
 const bulkTagLoading = ref(false)
 
 async function fetchTagSuggestions() {
@@ -97,6 +142,30 @@ async function handleBulkTags(action: 'add_tags' | 'remove_tags') {
         toast.error(e.message || 'Failed to update tags')
     } finally {
         bulkTagLoading.value = false
+    }
+}
+
+async function handleBulkNewsletter(action: 'add_newsletter' | 'remove_newsletter') {
+    if (!bulkNewsletter.value) {
+        toast.error('Pick a newsletter')
+        return
+    }
+    bulkNewsletterLoading.value = true
+    try {
+        await api(`/projects/${props.project.id}/subscribers/bulk`, {
+            method: 'POST',
+            body: { action, newsletter_id: bulkNewsletter.value, subscriber_ids: selectedIds.value },
+        })
+        toast.success(action === 'add_newsletter' ? 'Added to newsletter' : 'Removed from newsletter')
+        showBulkNewsletterModal.value = false
+        bulkNewsletter.value = ''
+        selectedIds.value = []
+        fetchSubscribers()
+        newsletterStore.fetchNewsletters(props.project.id)
+    } catch (e: any) {
+        toast.error(e.message || 'Failed to update newsletter membership')
+    } finally {
+        bulkNewsletterLoading.value = false
     }
 }
 
@@ -172,11 +241,27 @@ async function handleBulkAction(action: 'delete' | 'update_status', status?: str
     }
 }
 
+function applyFilters() {
+    page.value = 0
+    fetchSubscribers()
+}
+
+function clearFilters() {
+    filterStatus.value = ''
+    filterTag.value = ''
+    filterNewsletterId.value = ''
+    applyFilters()
+}
+
 async function fetchSubscribers() {
     loading.value = true
     try {
+        const params = new URLSearchParams({ limit: String(limit.value), offset: String(page.value * limit.value) })
+        if (filterStatus.value) params.set('status', filterStatus.value)
+        if (filterTag.value) params.set('tag', filterTag.value)
+        if (filterNewsletterId.value) params.set('newsletter_id', filterNewsletterId.value)
         const res = await api<{ subscribers: Subscriber[] | null, total: number }>(
-            `/projects/${props.project.id}/subscribers?limit=${limit.value}&offset=${page.value * limit.value}`
+            `/projects/${props.project.id}/subscribers?${params.toString()}`
         )
         subscribers.value = res.subscribers || []
         total.value = res.total
@@ -222,6 +307,11 @@ function openEditModal(sub: Subscriber) {
     editFields.value = { ...sub.fields }
     editTags.value = [...(sub.tags ?? [])]
     editFieldErrors.value = {}
+    editNewsletters.value = []
+    newsletterStore.fetchNewsletters(props.project.id)
+    newsletterStore.fetchSubscriberNewsletters(props.project.id, sub.id).then((memberships) => {
+        editNewsletters.value = memberships.filter(m => !m.unsubscribed_at).map(m => m.id)
+    })
     showEditModal.value = true
 }
 
@@ -240,6 +330,9 @@ async function handleEditFields() {
             method: 'PUT',
             body: { tags: editTags.value },
         })
+        if (projectNewsletters.value.length > 0) {
+            await newsletterStore.setSubscriberNewsletters(props.project.id, id, editNewsletters.value)
+        }
         showEditModal.value = false
         editingSubscriber.value = null
         toast.success('Subscriber updated')
@@ -448,6 +541,7 @@ function handleFileDrop(event: DragEvent) {
 }
 
 onMounted(() => {
+    newsletterStore.fetchNewsletters(props.project.id)
     fetchSubscribers()
     fieldStore.fetchFields(props.project.id)
     fetchTagSuggestions()
@@ -458,34 +552,54 @@ onMounted(() => {
     <div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-white">Subscribers</h1>
-                <p class="text-sm text-zinc-500 mt-1">{{ total }} total</p>
+                <h1 class="text-xl font-semibold text-white">Subscribers</h1>
+                <p class="text-sm text-zinc-400 mt-1">{{ total }} total</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <AppButton variant="ghost" size="sm" @click="showImportModal = true">Import CSV</AppButton>
-                <AppButton size="sm" @click="openAddModal">+ Add Subscriber</AppButton>
+                <AppButton variant="ghost" size="md" @click="showImportModal = true">Import CSV</AppButton>
+                <AppButton size="md" @click="openAddModal">+ Add Subscriber</AppButton>
             </div>
         </div>
 
-        <div v-if="selectedIds.length > 0" class="bg-zinc-800 border border-zinc-700 rounded-lg p-3 mb-6 flex items-center justify-between shadow-lg">
+        <div class="flex flex-wrap items-end gap-3 mb-6">
+            <div>
+                <label class="block text-xs text-zinc-400 mb-1">Status</label>
+                <AppSelect v-model="filterStatus" size="sm" :options="STATUS_OPTIONS" @change="applyFilters" />
+            </div>
+            <div v-if="tagSuggestions.length">
+                <label class="block text-xs text-zinc-400 mb-1">Tag</label>
+                <AppSelect v-model="filterTag" size="sm" class="max-w-[200px] truncate" :options="tagOptions" @change="applyFilters" />
+            </div>
+            <div v-if="projectNewsletters.length">
+                <label class="block text-xs text-zinc-400 mb-1">Newsletter</label>
+                <AppSelect v-model="filterNewsletterId" size="sm" class="max-w-[200px] truncate"
+                    :options="newsletterOptions" @change="applyFilters" />
+            </div>
+            <button v-if="hasFilters" @click="clearFilters"
+                class="px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition cursor-pointer">
+                Clear
+            </button>
+        </div>
+
+        <div v-if="selectedIds.length > 0" class="bg-zinc-850 border border-zinc-700 rounded-lg p-3 mb-6 flex items-center justify-between shadow-lg">
             <span class="text-sm font-medium text-white px-2">{{ selectedIds.length }} selected</span>
             <div class="flex items-center gap-2">
-                <select @change="(e) => handleBulkAction('update_status', (e.target as HTMLSelectElement).value)" class="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-3 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-zinc-500">
+                <select @change="(e) => handleBulkAction('update_status', (e.target as HTMLSelectElement).value)" class="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-3 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     <option value="" disabled selected>Change Status...</option>
                     <option value="active">Mark Active</option>
                     <option value="pending">Mark Pending</option>
                     <option value="unsubscribed">Mark Unsubscribed</option>
                 </select>
-                <button @click="showBulkTagModal = true" class="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-3 py-1.5 text-white hover:bg-zinc-800 transition cursor-pointer">
-                    Tags
-                </button>
-                <button @click="confirmBulkDelete" :disabled="bulkLoading" class="text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-md px-3 py-1.5 transition cursor-pointer disabled:opacity-50">
+                <AppButton variant="outline" size="sm" @click="showBulkTagModal = true">Tags</AppButton>
+                <AppButton v-if="projectNewsletters.length > 0" variant="outline" size="sm"
+                    @click="showBulkNewsletterModal = true; newsletterStore.fetchNewsletters(props.project.id)">Newsletter</AppButton>
+                <AppButton variant="danger-outline" size="sm" :loading="bulkLoading" :disabled="bulkLoading" @click="confirmBulkDelete">
                     Delete
-                </button>
+                </AppButton>
             </div>
         </div>
 
-        <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
+        <div v-if="loading" class="text-zinc-400 py-8 text-center">Loading...</div>
 
         <div v-else-if="subscribers.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
             <table class="w-full min-w-[640px]">
@@ -494,51 +608,44 @@ onMounted(() => {
                         <th class="px-4 py-3 w-10">
                             <AppCheckbox :modelValue="allSelected" @update:modelValue="toggleSelectAll" />
                         </th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Email</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Name</th>
-                        <th v-for="def in fieldDefinitions" :key="def.id" class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">{{ def.label }}</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Tags</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Status</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Added</th>
-                        <th class="text-right px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Actions</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Email</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Name</th>
+                        <th v-for="def in fieldDefinitions" :key="def.id" class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">{{ def.label }}</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Tags</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Status</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Added</th>
+                        <th class="text-right px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="sub in subscribers" :key="sub.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/50 transition" :class="{'bg-zinc-800/30': selectedIds.includes(sub.id)}">
+                    <tr v-for="sub in subscribers" :key="sub.id" class="border-b border-zinc-800 last:border-0 hover:bg-zinc-850/50 transition" :class="{'bg-emerald-500/8 shadow-[inset_2px_0_0_var(--color-emerald-500)]': selectedIds.includes(sub.id)}">
                         <td class="px-4 py-3">
                             <AppCheckbox :modelValue="selectedIds.includes(sub.id)" @update:modelValue="(v: boolean) => toggleSelected(sub.id, v)" />
                         </td>
                         <td class="px-4 py-3 text-sm text-white">{{ sub.email }}</td>
-                        <td class="px-4 py-3 text-sm text-zinc-400">{{ sub.name || '-' }}</td>
-                        <td v-for="def in fieldDefinitions" :key="def.id" class="px-4 py-3 text-sm text-zinc-400">{{ formatFieldValue(sub.fields?.[def.key]) }}</td>
+                        <td class="px-4 py-3 text-sm text-zinc-300">{{ sub.name || '-' }}</td>
+                        <td v-for="def in fieldDefinitions" :key="def.id" class="px-4 py-3 text-sm text-zinc-300">{{ formatFieldValue(sub.fields?.[def.key]) }}</td>
                         <td class="px-4 py-3">
                             <div v-if="sub.tags?.length" class="flex flex-wrap gap-1">
-                                <span v-for="tag in sub.tags" :key="tag" class="text-xs bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded border border-zinc-700">{{ tag }}</span>
+                                <span v-for="tag in sub.tags" :key="tag" class="text-xs bg-zinc-850 text-zinc-300 px-2 py-0.5 rounded border border-zinc-700">{{ tag }}</span>
                             </div>
                             <span v-else class="text-sm text-zinc-600">-</span>
                         </td>
                         <td class="px-4 py-3">
-                            <span :class="[
-                                'text-xs px-2 py-1 rounded-full',
-                                sub.status === 'active' && 'bg-green-500/10 text-green-400',
-                                sub.status === 'unsubscribed' && 'bg-red-500/10 text-red-400',
-                                sub.status === 'pending' && 'bg-yellow-500/10 text-yellow-400',
-                            ]">
-                                {{ sub.status }}
-                            </span>
+                            <AppStatusPill :tone="statusTone(sub.status)" :label="sub.status" />
                         </td>
-                        <td class="px-4 py-3 text-sm text-zinc-500">{{ new Date(sub.created_at).toLocaleDateString() }}</td>
+                        <td class="px-4 py-3 text-sm text-zinc-400">{{ new Date(sub.created_at).toLocaleDateString() }}</td>
                         <td class="px-4 py-3 text-right space-x-3">
                             <button @click="openEditModal(sub)"
-                                class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
+                                class="text-xs text-zinc-400 hover:text-white transition cursor-pointer">
                                 Edit
                             </button>
                             <button @click="toggleStatus(sub)"
-                                class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
+                                class="text-xs text-zinc-400 hover:text-white transition cursor-pointer">
                                 {{ sub.status === 'active' ? 'Unsubscribe' : 'Activate' }}
                             </button>
                             <button @click="openDeleteModal(sub)"
-                                class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer">
+                                class="text-xs text-zinc-400 hover:text-red-400 transition cursor-pointer">
                                 Delete
                             </button>
                         </td>
@@ -547,9 +654,14 @@ onMounted(() => {
             </table>
         </div>
 
+        <div v-else-if="hasFilters" class="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
+            <p class="text-zinc-300 mb-2">No subscribers match these filters.</p>
+            <button @click="clearFilters" class="text-sm text-zinc-400 hover:text-white transition cursor-pointer underline">Clear filters</button>
+        </div>
+
         <div v-else class="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-            <p class="text-zinc-400 mb-2">No subscribers yet.</p>
-            <p class="text-zinc-500 text-sm">Add subscribers manually or collect them via the API.</p>
+            <p class="text-zinc-300 mb-2">No subscribers yet.</p>
+            <p class="text-zinc-400 text-sm">Add subscribers manually or collect them via the API.</p>
         </div>
 
         <AppPagination
@@ -574,6 +686,17 @@ onMounted(() => {
             <form @submit.prevent="handleEditFields" class="space-y-4" novalidate>
                 <SubscriberFieldInputs v-model="editFields" :definitions="fieldDefinitions" :errors="editFieldErrors" />
                 <AppTagInput v-model="editTags" label="Tags" :suggestions="tagSuggestions" />
+                <div v-if="projectNewsletters.length > 0">
+                    <label class="block text-sm font-medium text-zinc-300 mb-2">Newsletters</label>
+                    <div class="space-y-2">
+                        <label v-for="newsletter in projectNewsletters" :key="newsletter.id" class="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                            <input type="checkbox" :value="newsletter.id" v-model="editNewsletters"
+                                class="rounded border-zinc-700 bg-zinc-900 text-white focus:ring-emerald-500" />
+                            {{ newsletter.name }}
+                        </label>
+                    </div>
+                    <p class="text-xs text-zinc-400 mt-1">Checking a newsletter re-subscribes the reader if they had opted out of it.</p>
+                </div>
                 <AppButton :loading="editLoading">
                     {{ editLoading ? 'Saving...' : 'Save' }}
                 </AppButton>
@@ -582,11 +705,25 @@ onMounted(() => {
 
         <AppModal :show="showBulkTagModal" title="Tag selected subscribers" @close="showBulkTagModal = false">
             <div class="space-y-4">
-                <p class="text-sm text-zinc-400">{{ selectedIds.length }} subscriber(s) selected.</p>
+                <p class="text-sm text-zinc-300">{{ selectedIds.length }} subscriber(s) selected.</p>
                 <AppTagInput v-model="bulkTags" label="Tags" :suggestions="tagSuggestions" />
                 <div class="flex gap-2">
                     <AppButton variant="ghost" size="sm" class="flex-1" :loading="bulkTagLoading" @click="handleBulkTags('remove_tags')">Remove</AppButton>
                     <AppButton size="sm" class="flex-1" :loading="bulkTagLoading" @click="handleBulkTags('add_tags')">Add</AppButton>
+                </div>
+            </div>
+        </AppModal>
+
+        <AppModal :show="showBulkNewsletterModal" title="Newsletter membership" @close="showBulkNewsletterModal = false">
+            <div class="space-y-4">
+                <p class="text-sm text-zinc-300">{{ selectedIds.length }} subscriber(s) selected.</p>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-1">Newsletter</label>
+                    <AppSelect v-model="bulkNewsletter" size="md" class="w-full" :options="bulkNewsletterOptions" />
+                </div>
+                <div class="flex gap-2">
+                    <AppButton variant="ghost" size="sm" class="flex-1" :loading="bulkNewsletterLoading" @click="handleBulkNewsletter('remove_newsletter')">Remove</AppButton>
+                    <AppButton size="sm" class="flex-1" :loading="bulkNewsletterLoading" @click="handleBulkNewsletter('add_newsletter')">Add</AppButton>
                 </div>
             </div>
         </AppModal>
@@ -616,7 +753,7 @@ onMounted(() => {
                 <div>
                     <div class="flex items-center justify-between mb-1">
                         <label class="text-sm font-medium text-zinc-300">CSV (email, name)</label>
-                        <label class="text-xs text-zinc-300 hover:text-white border border-zinc-700 rounded-md px-2 py-1 cursor-pointer transition hover:bg-zinc-800">
+                        <label class="text-xs text-zinc-300 hover:text-white border border-zinc-700 rounded-md px-2 py-1 cursor-pointer transition hover:bg-zinc-850">
                             Choose file
                             <input type="file" accept=".csv,text/csv" class="hidden" @change="handleFileUpload" />
                         </label>
@@ -629,9 +766,9 @@ onMounted(() => {
                             isDragging ? 'border-white border-dashed bg-zinc-900' : 'border-zinc-800',
                         ]">
                         <textarea v-model="importText" rows="8" placeholder="email,name&#10;ada@example.com,Ada Lovelace&#10;alan@example.com,Alan Turing&#10;&#10;…or drop a .csv file here"
-                            class="w-full px-3 py-2 bg-zinc-950 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition resize-y" />
+                            class="w-full px-3 py-2 bg-zinc-900 rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition resize-y" />
                     </div>
-                    <p class="text-xs text-zinc-500 mt-1">First line can be a header (<code class="text-zinc-400">email,name</code>). Name column is optional. Extra columns whose header matches a custom field key or label are imported into that field. Drop a .csv file or pick one above.</p>
+                    <p class="text-xs text-zinc-400 mt-1">First line can be a header (<code class="text-zinc-300">email,name</code>). Name column is optional. Extra columns whose header matches a custom field key or label are imported into that field. Drop a .csv file or pick one above.</p>
                 </div>
 
                 <div class="space-y-2">
@@ -641,7 +778,7 @@ onMounted(() => {
                         </span>
                         <div class="min-w-0">
                             <p class="text-sm text-white">Reject addresses without MX records</p>
-                            <p class="text-xs text-zinc-500 mt-0.5">DNS lookup per unique domain. Skips dead inboxes that would bounce on first send.</p>
+                            <p class="text-xs text-zinc-400 mt-0.5">DNS lookup per unique domain. Skips dead inboxes that would bounce on first send.</p>
                         </div>
                     </label>
                     <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition">
@@ -650,7 +787,7 @@ onMounted(() => {
                         </span>
                         <div class="min-w-0">
                             <p class="text-sm text-white">Reject disposable domains</p>
-                            <p class="text-xs text-zinc-500 mt-0.5">Blocks Mailinator, 10MinuteMail, YopMail and similar single-use mailbox services.</p>
+                            <p class="text-xs text-zinc-400 mt-0.5">Blocks Mailinator, 10MinuteMail, YopMail and similar single-use mailbox services.</p>
                         </div>
                     </label>
                 </div>
@@ -670,23 +807,23 @@ onMounted(() => {
                         <p class="text-2xl font-bold text-emerald-300 tabular-nums">{{ importResult.imported }}</p>
                     </div>
                     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Duplicates</p>
+                        <p class="text-[11px] text-zinc-400 uppercase tracking-wide">Duplicates</p>
                         <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.duplicates }}</p>
                     </div>
                     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Bad syntax</p>
+                        <p class="text-[11px] text-zinc-400 uppercase tracking-wide">Bad syntax</p>
                         <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.syntax_invalid }}</p>
                     </div>
                     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">No MX</p>
+                        <p class="text-[11px] text-zinc-400 uppercase tracking-wide">No MX</p>
                         <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.no_mx }}</p>
                     </div>
                     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Disposable</p>
+                        <p class="text-[11px] text-zinc-400 uppercase tracking-wide">Disposable</p>
                         <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.disposable }}</p>
                     </div>
                     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Suppressed</p>
+                        <p class="text-[11px] text-zinc-400 uppercase tracking-wide">Suppressed</p>
                         <p class="text-2xl font-bold text-zinc-300 tabular-nums">{{ importResult.suppressed }}</p>
                     </div>
                 </div>
@@ -695,7 +832,7 @@ onMounted(() => {
                     <div class="flex items-center justify-between mb-2">
                         <p class="text-sm font-medium text-white">{{ importResult.rejected.length }} rejected</p>
                         <button @click="downloadRejected"
-                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 transition cursor-pointer">
+                            class="px-3 py-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-850 transition cursor-pointer">
                             Download CSV
                         </button>
                     </div>
@@ -703,19 +840,19 @@ onMounted(() => {
                         <table class="w-full text-xs">
                             <thead class="sticky top-0 bg-zinc-900 border-b border-zinc-800">
                                 <tr>
-                                    <th class="text-left px-3 py-2 font-medium text-zinc-400">Email</th>
-                                    <th class="text-left px-3 py-2 font-medium text-zinc-400">Reason</th>
+                                    <th class="text-left px-3 py-2 font-medium text-zinc-300">Email</th>
+                                    <th class="text-left px-3 py-2 font-medium text-zinc-300">Reason</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="row in importResult.rejected.slice(0, 100)" :key="row.email" class="border-b border-zinc-800/50 last:border-0">
                                     <td class="px-3 py-1.5 font-mono text-zinc-300 truncate max-w-xs">{{ row.email }}</td>
-                                    <td class="px-3 py-1.5 text-zinc-500">{{ row.reason }}</td>
+                                    <td class="px-3 py-1.5 text-zinc-400">{{ row.reason }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                    <p v-if="importResult.rejected.length > 100" class="text-xs text-zinc-500 mt-1">
+                    <p v-if="importResult.rejected.length > 100" class="text-xs text-zinc-400 mt-1">
                         Showing first 100. Download CSV for the full list.
                     </p>
                 </div>

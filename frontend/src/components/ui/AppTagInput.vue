@@ -39,9 +39,9 @@ function removeTag(tag: string) {
         <label v-if="label" class="block text-sm font-medium text-zinc-300 mb-1">{{ label }}</label>
         <div class="flex flex-wrap gap-1.5 px-2 py-2 bg-zinc-900 border border-zinc-800 rounded-lg focus-within:ring-2 focus-within:ring-zinc-500 transition">
             <span v-for="tag in model" :key="tag"
-                class="inline-flex items-center gap-1 text-xs bg-zinc-800 text-zinc-200 px-2 py-1 rounded border border-zinc-700">
+                class="inline-flex items-center gap-1 text-xs bg-zinc-850 text-zinc-200 px-2 py-1 rounded border border-zinc-700">
                 {{ tag }}
-                <button type="button" @click="removeTag(tag)" class="text-zinc-500 hover:text-red-400 transition cursor-pointer">&times;</button>
+                <button type="button" @click="removeTag(tag)" class="text-zinc-400 hover:text-red-400 transition cursor-pointer">&times;</button>
             </span>
             <input
                 v-model="draft"

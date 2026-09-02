@@ -16,8 +16,8 @@ SendDock looks up the DNS records that inboxes check before trusting you, and gr
 
 | Record | What it checks |
 |---|---|
-| **SPF** | A `TXT` record on your sending domain that authorizes SendDock's SMTP host to send for you. |
-| **DKIM** | A public key that lets providers verify your messages weren't tampered with. SendDock probes the common selectors; if your provider uses an unusual selector it may show as *warn* even when configured. |
+| **SPF** | A `TXT` record on your sending domain that authorizes the SMTP host your project sends through (your configured relay) to send for you — it must list every host that legitimately sends mail for the domain. |
+| **DKIM** | A public key that lets providers verify your messages weren't tampered with. A **selector** is the DNS name a provider publishes its key under (e.g. `default._domainkey`); providers each use their own, so SendDock probes the common ones and shows *warn* when it can't locate yours. |
 | **DMARC** | A `_dmarc` `TXT` policy that tells inboxes what to do with mail that fails SPF/DKIM, and where to send reports. |
 
 The checks read live DNS, so fixing a record and re-opening the tab reflects it within your resolver's TTL. All three passing is the single biggest lever on whether you land in the inbox.
@@ -32,13 +32,13 @@ Recipients are grouped by mailbox provider — Gmail, Outlook, Yahoo, Apple, and
 | **Acceptance rate** | Accepted ÷ attempted — the relay-level counterpart to bounce rate. |
 | **Bounce rate** | Split into **hard** (permanent — bad address) and **soft** (transient — full mailbox, greylisting) using the bounce reason text. |
 | **Open / Click rate** | Engagement per provider. |
-| **Spam rate** | Complaints ÷ delivered (see below). |
+| **Spam rate** | Complaints ÷ delivered, where delivered = messages the relay accepted that did not hard-bounce (log rows that settle in `sent`) — see below. |
 
 Reading providers separately matters because they behave differently: a bounce rate that looks fine overall can hide one provider quietly rejecting you. Sudden divergence on one provider is your earliest warning that something in your setup or list quality is off.
 
 ## Spam-complaint rate
 
-When a recipient hits "report spam", their provider can notify the sender through a **feedback loop (FBL)**. SendDock ingests those via a complaint webhook, records a complaint on the original log (without changing its delivered status), and surfaces the resulting **spam rate** both on the Overview tab and per provider here.
+When a recipient hits "report spam", their provider can notify the sender through a **feedback loop (FBL)**. SendDock ingests those via a complaint webhook, records a complaint on the original log (without changing its `sent` status), and surfaces the resulting **spam rate** both on the Overview tab and per provider here.
 
 Keep it well under **0.1%** — Gmail and others start throttling above roughly 0.3%.
 

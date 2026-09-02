@@ -18,9 +18,9 @@ Open a project and you land on its **Overview** dashboard:
 
 ![A project Overview with send totals and recent activity](/screenshots/project-overview.png)
 
-- **Total Emails** — total emails sent from this project
-- **Sent** — successfully delivered emails
-- **Failed** — emails that failed to send (with error details)
+- **Total Emails** — every send recorded in the project's email log, across all outcomes
+- **Sent** — emails the SMTP relay accepted (log status `sent`)
+- **Failed** — emails rejected at send time (log status `failed`; hard bounces and skipped addresses are tracked separately as `bounced` and `suppressed` in [Email Logs](./logs))
 - **Recent Activity** — last 10 emails sent
 
 ## SMTP Configuration
@@ -38,7 +38,8 @@ In **Settings** you can:
 - Edit project name and description
 - Copy the project ID (for API usage)
 - Manage [API keys](./api-keys) and [custom fields](./subscribers#custom-fields)
-- Configure the [bounce webhook](./bounces#2-public-webhook-endpoint) URL and IMAP poller
+- Pick a branded [unsubscribe page](./templates#page-templates) for the project's public unsubscribe flow
+- Configure [bounce ingestion](./bounces) — the bounce webhook (a push channel) and/or the IMAP poller (a bounce mailbox SendDock reads). A bounce mailbox is an IMAP inbox where your SMTP provider delivers hard-bounce notifications; either way a detected hard bounce marks the log `bounced` and adds the recipient to the suppression list.
 - Delete the project from the **danger zone** (requires typing the project name to confirm)
 
 Each project also gets its own tabs in the sidebar for [Suppressions](./suppressions), [Webhooks](./webhooks) and [Audit Log](./audit-log) (Pro) — they're scoped to the current project, not the workspace.

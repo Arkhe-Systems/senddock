@@ -96,11 +96,29 @@ func (q *Queries) CountActiveSubscribersByProject(ctx context.Context, projectID
 }
 
 const countSubscribersByProject = `-- name: CountSubscribersByProject :one
-SELECT COUNT(*) FROM subscribers WHERE project_id = $1
+SELECT COUNT(*) FROM subscribers s
+WHERE s.project_id = $1
+AND ($2::text = '' OR s.status = $2::text)
+AND ($3::text = '' OR $3::text = ANY(s.tags))
+AND ($4::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR s.id IN (
+    SELECT ns.subscriber_id FROM newsletter_subscriptions ns
+    WHERE ns.newsletter_id = $4::uuid AND ns.unsubscribed_at IS NULL))
 `
 
-func (q *Queries) CountSubscribersByProject(ctx context.Context, projectID uuid.UUID) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countSubscribersByProject, projectID)
+type CountSubscribersByProjectParams struct {
+	ProjectID uuid.UUID
+	Column2   string
+	Column3   string
+	Column4   uuid.UUID
+}
+
+func (q *Queries) CountSubscribersByProject(ctx context.Context, arg CountSubscribersByProjectParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSubscribersByProject,
+		arg.ProjectID,
+		arg.Column2,
+		arg.Column3,
+		arg.Column4,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -289,9 +307,14 @@ func (q *Queries) ListDistinctTagsByProject(ctx context.Context, projectID uuid.
 }
 
 const listSubscribersByProject = `-- name: ListSubscribersByProject :many
-SELECT id, project_id, email, name, status, metadata, subscribed_at, unsubscribed_at, created_at, updated_at, tags FROM subscribers
-WHERE project_id = $1
-ORDER BY created_at DESC
+SELECT s.id, s.project_id, s.email, s.name, s.status, s.metadata, s.subscribed_at, s.unsubscribed_at, s.created_at, s.updated_at, s.tags FROM subscribers s
+WHERE s.project_id = $1
+AND ($4::text = '' OR s.status = $4::text)
+AND ($5::text = '' OR $5::text = ANY(s.tags))
+AND ($6::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR s.id IN (
+    SELECT ns.subscriber_id FROM newsletter_subscriptions ns
+    WHERE ns.newsletter_id = $6::uuid AND ns.unsubscribed_at IS NULL))
+ORDER BY s.created_at DESC
 LIMIT $2 OFFSET $3
 `
 
@@ -299,10 +322,20 @@ type ListSubscribersByProjectParams struct {
 	ProjectID uuid.UUID
 	Limit     int32
 	Offset    int32
+	Column4   string
+	Column5   string
+	Column6   uuid.UUID
 }
 
 func (q *Queries) ListSubscribersByProject(ctx context.Context, arg ListSubscribersByProjectParams) ([]Subscriber, error) {
-	rows, err := q.db.QueryContext(ctx, listSubscribersByProject, arg.ProjectID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listSubscribersByProject,
+		arg.ProjectID,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+		arg.Column5,
+		arg.Column6,
+	)
 	if err != nil {
 		return nil, err
 	}

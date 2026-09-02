@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import grapesjs, { type Editor } from 'grapesjs'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
+import grapesjs, { type Editor, type Block } from 'grapesjs'
 import newsletterPreset from 'grapesjs-preset-newsletter'
 import 'grapesjs/dist/css/grapes.min.css'
-import * as prettier from 'prettier/standalone'
-import htmlPlugin from 'prettier/plugins/html'
+import DOMPurify from 'dompurify'
 
 const props = defineProps<{
     modelValue: string
@@ -16,7 +15,8 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLElement | null>(null)
 let editor: Editor | null = null
-let skipWatch = false
+let emitTimer: number | null = null
+let lastEmitted = ''
 
 onMounted(() => {
     if (!editorContainer.value) return
@@ -32,6 +32,8 @@ onMounted(() => {
             [newsletterPreset as any]: {
                 modalTitleImport: 'Import HTML',
                 modalTitleExport: 'Export HTML',
+                updateStyleManager: false,
+                useCustomTheme: false,
             }
         },
         canvas: {
@@ -133,36 +135,32 @@ onMounted(() => {
     bm.add('container', {
         label: 'Container',
         category: 'Layout',
-        content: `<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; font-family: Arial, sans-serif;"></div>`,
+        content: `<div data-gjs-custom-name="Container" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; font-family: Arial, sans-serif;"></div>`,
     })
 
     bm.add('section', {
         label: 'Section',
         category: 'Layout',
-        content: `<div style="padding: 20px; background-color: #ffffff;"></div>`,
+        content: `<div data-gjs-custom-name="Section" style="padding: 20px; background-color: #ffffff;"></div>`,
     })
 
     bm.add('columns-2', {
         label: '2 Columns',
         category: 'Layout',
-        content: `<table style="width: 100%; border-collapse: collapse;">
-            <tr>
-                <td style="width: 50%; vertical-align: top; padding: 10px;"></td>
-                <td style="width: 50%; vertical-align: top; padding: 10px;"></td>
-            </tr>
-        </table>`,
+        content: `<div data-gjs-custom-name="2 Columns" data-columns="2" style="width: 100%; display: table; table-layout: fixed; border-collapse: collapse;">
+            <div data-gjs-custom-name="Column" style="display: table-cell; width: 50%; height: 60px; vertical-align: top; padding: 10px;"></div>
+            <div data-gjs-custom-name="Column" style="display: table-cell; width: 50%; height: 60px; vertical-align: top; padding: 10px;"></div>
+        </div>`,
     })
 
     bm.add('columns-3', {
         label: '3 Columns',
         category: 'Layout',
-        content: `<table style="width: 100%; border-collapse: collapse;">
-            <tr>
-                <td style="width: 33.33%; vertical-align: top; padding: 10px;"></td>
-                <td style="width: 33.33%; vertical-align: top; padding: 10px;"></td>
-                <td style="width: 33.33%; vertical-align: top; padding: 10px;"></td>
-            </tr>
-        </table>`,
+        content: `<div data-gjs-custom-name="3 Columns" data-columns="3" style="width: 100%; display: table; table-layout: fixed; border-collapse: collapse;">
+            <div data-gjs-custom-name="Column" style="display: table-cell; width: 33.33%; height: 60px; vertical-align: top; padding: 10px;"></div>
+            <div data-gjs-custom-name="Column" style="display: table-cell; width: 33.33%; height: 60px; vertical-align: top; padding: 10px;"></div>
+            <div data-gjs-custom-name="Column" style="display: table-cell; width: 33.33%; height: 60px; vertical-align: top; padding: 10px;"></div>
+        </div>`,
     })
 
     bm.add('divider', {
@@ -198,13 +196,7 @@ onMounted(() => {
     bm.add('button', {
         label: 'Button',
         category: 'Content',
-        content: `<table style="margin: 10px 0;">
-            <tr>
-                <td style="background-color: #000000; border-radius: 4px; padding: 0;">
-                    <a href="#" style="display: inline-block; padding: 14px 28px; color: #ffffff; text-decoration: none; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold;">Click Here</a>
-                </td>
-            </tr>
-        </table>`,
+        content: `<a href="#" data-gjs-custom-name="Button" style="display: inline-block; margin: 10px 0; padding: 14px 28px; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 6px; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold;">Click Here</a>`,
     })
 
     bm.add('link', {
@@ -246,54 +238,89 @@ onMounted(() => {
         content: `<div style="background-color: #f8f8f8; padding: 40px 20px; text-align: center;">
             <h2 style="margin: 0 0 10px 0; font-family: Arial, sans-serif; font-size: 22px; color: #333333;">Ready to get started?</h2>
             <p style="margin: 0 0 20px 0; font-family: Arial, sans-serif; font-size: 14px; color: #666666;">Join thousands of users who trust our platform.</p>
-            <table style="margin: 0 auto;">
-                <tr>
-                    <td style="background-color: #000000; border-radius: 4px; padding: 0;">
-                        <a href="#" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold;">Get Started</a>
-                    </td>
-                </tr>
-            </table>
+            <a href="#" data-gjs-custom-name="Button" style="display: inline-block; padding: 14px 32px; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 6px; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold;">Get Started</a>
         </div>`,
     })
 
-    if (props.modelValue) {
-        editor.setComponents(props.modelValue)
-    }
+    bm.getAll().forEach((block: Block) => block.set('select', true))
 
-    editor.on('component:update', emitHtml)
-    editor.on('component:add', emitHtml)
-    editor.on('component:remove', emitHtml)
-    editor.on('component:styleUpdate', emitHtml)
+    const instance = editor
+    instance.on('load', () => {
+        const doc = instance.Canvas.getDocument()
+        if (!doc) return
+        const style = doc.createElement('style')
+        style.textContent = `
+            img { max-width: 100%; }
+            table { border-collapse: collapse; }
+            div:empty, td:empty, th:empty {
+                min-height: 60px;
+                outline: 1px dashed rgba(0, 0, 0, 0.3);
+                outline-offset: -1px;
+            }
+        `
+        doc.head.appendChild(style)
+    })
+
+    if (props.modelValue) {
+        editor.setComponents(DOMPurify.sanitize(props.modelValue))
+    }
+    lastEmitted = props.modelValue || ''
+
+    editor.on('update', scheduleEmit)
+    editor.on('component:add', scheduleEmit)
+    editor.on('component:remove', scheduleEmit)
 })
 
-async function emitHtml() {
-    if (!editor || skipWatch) return
+function scheduleEmit() {
+    if (!editor) return
+    if (emitTimer) clearTimeout(emitTimer)
+    emitTimer = window.setTimeout(emitHtml, 300)
+}
+
+function emitHtml() {
+    if (!editor) return
     const html = editor.getHtml()
     const css = editor.getCss()
     const raw = css ? `<style>${css}</style>${html}` : html
-
-    let formatted = raw
-    try {
-        formatted = await prettier.format(raw, {
-            parser: 'html',
-            plugins: [htmlPlugin],
-            printWidth: 120,
-            tabWidth: 2,
-        })
-    } catch {
-    }
-
-    skipWatch = true
-    emit('update:modelValue', formatted)
-    setTimeout(() => { skipWatch = false }, 200)
+    if (raw === lastEmitted) return
+    lastEmitted = raw
+    emit('update:modelValue', raw)
 }
 
-watch(() => props.modelValue, (newVal) => {
-    if (!editor || skipWatch) return
-    editor.setComponents(newVal || '')
-})
+function flush() {
+    if (emitTimer) {
+        clearTimeout(emitTimer)
+        emitTimer = null
+    }
+    emitHtml()
+}
+
+function refresh() {
+    editor?.refresh()
+}
+
+// Bring the canvas in line with externally edited HTML (for example edits
+// made in the Code tab). Components are reloaded only when the content
+// actually changed, so a plain tab switch keeps the canvas and its undo
+// history intact.
+function syncFrom(html: string) {
+    if (!editor) return
+    if (html === lastEmitted) {
+        editor.refresh()
+        return
+    }
+    editor.setComponents(DOMPurify.sanitize(html))
+    lastEmitted = html
+}
+
+function insertContent(html: string) {
+    editor?.addComponents(html)
+}
+
+defineExpose({ flush, refresh, syncFrom, insertContent })
 
 onBeforeUnmount(() => {
+    flush()
     if (editor) {
         editor.destroy()
         editor = null
@@ -313,15 +340,15 @@ onBeforeUnmount(() => {
 /* Dark theme overrides */
 .gjs-editor-cont,
 .gjs-one-bg {
-    background-color: #18181b !important;
+    background-color: #19191b !important;
 }
 
 .gjs-two-color {
-    color: #a1a1aa !important;
+    color: #b2b3bd !important;
 }
 
 .gjs-three-bg {
-    background-color: #27272a !important;
+    background-color: #292a2e !important;
 }
 
 .gjs-four-color,
@@ -330,15 +357,15 @@ onBeforeUnmount(() => {
 }
 
 .gjs-pn-panel {
-    background-color: #18181b !important;
-    border-color: #3f3f46 !important;
+    background-color: #19191b !important;
+    border-color: #46484f !important;
 }
 
 /* Blocks */
 .gjs-block {
-    background-color: #27272a !important;
-    border: 1px solid #3f3f46 !important;
-    color: #a1a1aa !important;
+    background-color: #292a2e !important;
+    border: 1px solid #46484f !important;
+    color: #b2b3bd !important;
     border-radius: 6px !important;
     min-height: auto !important;
     padding: 10px 8px !important;
@@ -346,12 +373,12 @@ onBeforeUnmount(() => {
 }
 
 .gjs-block:hover {
-    border-color: #52525b !important;
+    border-color: #5f606a !important;
     color: #ffffff !important;
 }
 
 .gjs-block svg {
-    fill: #a1a1aa !important;
+    fill: #b2b3bd !important;
 }
 
 .gjs-block:hover svg {
@@ -359,49 +386,49 @@ onBeforeUnmount(() => {
 }
 
 .gjs-blocks-cs {
-    background-color: #18181b !important;
+    background-color: #19191b !important;
 }
 
 /* Categories */
 .gjs-category-title,
 .gjs-layer-title,
 .gjs-block-category .gjs-title {
-    background-color: #27272a !important;
-    border-color: #3f3f46 !important;
-    color: #a1a1aa !important;
+    background-color: #292a2e !important;
+    border-color: #46484f !important;
+    color: #b2b3bd !important;
     font-size: 12px !important;
 }
 
 /* Style manager */
 .gjs-sm-sector-title {
-    background-color: #27272a !important;
-    color: #a1a1aa !important;
-    border-color: #3f3f46 !important;
+    background-color: #292a2e !important;
+    color: #b2b3bd !important;
+    border-color: #46484f !important;
     font-size: 12px !important;
 }
 
 .gjs-sm-sector .gjs-sm-properties {
-    background-color: #18181b !important;
+    background-color: #19191b !important;
 }
 
 .gjs-sm-label {
-    color: #71717a !important;
+    color: #6c6e79 !important;
     font-size: 11px !important;
 }
 
 .gjs-clm-tags {
-    background-color: #18181b !important;
+    background-color: #19191b !important;
 }
 
 .gjs-clm-tag {
-    background-color: #27272a !important;
-    color: #a1a1aa !important;
+    background-color: #292a2e !important;
+    color: #b2b3bd !important;
 }
 
 /* Fields */
 .gjs-field {
-    background-color: #09090b !important;
-    border-color: #3f3f46 !important;
+    background-color: #111113 !important;
+    border-color: #46484f !important;
     color: #ffffff !important;
     border-radius: 4px !important;
 }
@@ -413,7 +440,7 @@ onBeforeUnmount(() => {
 }
 
 .gjs-field-arrows {
-    color: #71717a !important;
+    color: #6c6e79 !important;
 }
 
 .gjs-field-color-picker {
@@ -422,9 +449,9 @@ onBeforeUnmount(() => {
 
 /* Radio buttons */
 .gjs-radio-item {
-    background-color: #27272a !important;
-    border-color: #3f3f46 !important;
-    color: #a1a1aa !important;
+    background-color: #292a2e !important;
+    border-color: #46484f !important;
+    color: #b2b3bd !important;
 }
 
 .gjs-radio-item:hover {
@@ -432,20 +459,20 @@ onBeforeUnmount(() => {
 }
 
 .gjs-radio-item input:checked + .gjs-radio-item-label {
-    background-color: #3f3f46 !important;
+    background-color: #46484f !important;
     color: #ffffff !important;
 }
 
 /* Primary button */
 .gjs-btn-prim {
-    background-color: #ffffff !important;
-    color: #09090b !important;
+    background-color: #00af7b !important;
+    color: #ffffff !important;
     border-radius: 6px !important;
 }
 
 /* Panel buttons */
 .gjs-pn-btn {
-    color: #a1a1aa !important;
+    color: #b2b3bd !important;
 }
 
 .gjs-pn-btn.gjs-pn-active {
@@ -454,7 +481,7 @@ onBeforeUnmount(() => {
 
 /* Canvas */
 .gjs-cv-canvas {
-    background-color: #27272a !important;
+    background-color: #292a2e !important;
 }
 
 /* Selected component highlight */
@@ -463,13 +490,13 @@ onBeforeUnmount(() => {
 }
 
 .gjs-toolbar {
-    background-color: #27272a !important;
-    border: 1px solid #3f3f46 !important;
+    background-color: #292a2e !important;
+    border: 1px solid #46484f !important;
     border-radius: 4px !important;
 }
 
 .gjs-toolbar-item {
-    color: #a1a1aa !important;
+    color: #b2b3bd !important;
 }
 
 .gjs-toolbar-item:hover {
@@ -478,31 +505,31 @@ onBeforeUnmount(() => {
 
 /* Layers */
 .gjs-layer {
-    background-color: #18181b !important;
+    background-color: #19191b !important;
 }
 
 .gjs-layer-title {
-    border-color: #3f3f46 !important;
+    border-color: #46484f !important;
 }
 
 /* Trait manager */
 .gjs-trt-trait {
-    border-color: #3f3f46 !important;
+    border-color: #46484f !important;
 }
 
 .gjs-trt-trait .gjs-label {
-    color: #71717a !important;
+    color: #6c6e79 !important;
 }
 
 /* Modal */
 .gjs-mdl-dialog {
-    background-color: #18181b !important;
-    border: 1px solid #3f3f46 !important;
+    background-color: #19191b !important;
+    border: 1px solid #46484f !important;
     border-radius: 8px !important;
 }
 
 .gjs-mdl-header {
-    border-color: #3f3f46 !important;
+    border-color: #46484f !important;
     color: #ffffff !important;
 }
 
@@ -517,11 +544,11 @@ onBeforeUnmount(() => {
 }
 
 .gjs-editor-cont ::-webkit-scrollbar-track {
-    background: #18181b;
+    background: #19191b;
 }
 
 .gjs-editor-cont ::-webkit-scrollbar-thumb {
-    background: #3f3f46;
+    background: #46484f;
     border-radius: 3px;
 }
 </style>

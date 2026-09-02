@@ -75,7 +75,7 @@ That's the full loop. Everything after this — scheduling, analytics, deliverab
 
 ## 7. (Optional) Get an API key
 
-If you want to drive SendDock from your own app — say, add a subscriber when someone signs up, or fire a transactional email — create a key under **Settings → API Keys → + Create Key**. Copy it once (it's shown only that one time) and send it as `Authorization: Bearer sk_...`.
+If you want to drive SendDock from your own app — say, add a subscriber when someone signs up, or fire a transactional email (a one-off, single-recipient operational message like a password reset, with no subscriber list or unsubscribe link) — create a key under **Settings → API Keys → + Create Key**. Copy it once (it's shown only that one time) and send it as `Authorization: Bearer sk_...`.
 
 ![Creating an API key in project settings](/screenshots/api-keys.png)
 

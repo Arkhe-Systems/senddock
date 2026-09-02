@@ -3,17 +3,22 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { api } from '@/api/client'
 import { useToastStore } from '@/stores/toast'
 import { useAppStore } from '@/stores/app'
+import { useNewsletterStore } from '@/stores/newsletters'
 import type { Project } from '@/stores/projects'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppStatusPill, { type PillTone } from '@/components/ui/AppStatusPill.vue'
 
 interface Template {
     id: string
     name: string
     subject: string
     html_body: string
+    type?: string
 }
 
 interface Campaign {
@@ -27,11 +32,13 @@ interface Campaign {
     sent_count: number
     failed_count: number
     variables: Record<string, string>
+    newsletter_id: string | null
 }
 
 const props = defineProps<{ project: Project }>()
 const toast = useToastStore()
 const appStore = useAppStore()
+const newsletterStore = useNewsletterStore()
 
 const campaigns = ref<Campaign[]>([])
 const templates = ref<Template[]>([])
@@ -48,6 +55,25 @@ const sendType = ref<'now' | 'scheduled'>('now')
 const scheduledDate = ref('')
 const scheduledTime = ref('')
 const campaignVars = ref<Record<string, string>>({})
+const selectedNewsletter = ref('')
+const projectNewsletters = computed(() => newsletterStore.newsletters(props.project.id))
+
+const templateOptions = computed(() => templates.value.map(t => ({ value: t.id, label: t.name })))
+
+const newsletterOptions = computed(() => [
+    { value: '', label: 'No newsletter — whole audience' },
+    ...projectNewsletters.value.map(n => ({ value: n.id, label: `${n.name} (${n.active_count})` })),
+])
+
+function statusTone(status: string): PillTone {
+    switch (status) {
+        case 'sent': return 'emerald'
+        case 'scheduled': return 'blue'
+        case 'sending': return 'amber'
+        case 'failed': return 'red'
+        default: return 'zinc'
+    }
+}
 
 const selectedTemplateData = computed(() => templates.value.find(t => t.id === selectedTemplate.value))
 const templateHasSubject = computed(() => !!(selectedTemplateData.value?.subject?.trim()))
@@ -82,7 +108,7 @@ async function loadData() {
             api<Template[] | null>(`/projects/${props.project.id}/templates`),
         ])
         campaigns.value = campRes || []
-        templates.value = tempRes || []
+        templates.value = (tempRes || []).filter(t => (t.type ?? 'email') === 'email')
     } catch {
         toast.error('Failed to load campaigns')
     } finally {
@@ -92,7 +118,7 @@ async function loadData() {
 
 function openCreateModal() {
     if (!appStore.publicUrlIsReachable) {
-        toast.error('Configure PUBLIC_URL with your public domain before scheduling newsletters. Recipients need a working unsubscribe link.')
+        toast.error('Configure PUBLIC_URL with your public domain before scheduling campaigns. Recipients need a working unsubscribe link.')
         return
     }
     if (templates.value.length === 0) {
@@ -110,6 +136,8 @@ function openCreateModal() {
     scheduledDate.value = tomorrow.toISOString().split('T')[0] ?? ''
     scheduledTime.value = '09:00'
     campaignVars.value = {}
+    selectedNewsletter.value = ''
+    newsletterStore.fetchNewsletters(props.project.id)
 
     showCreateModal.value = true
 }
@@ -126,6 +154,8 @@ function openEditModal(c: Campaign) {
     scheduledTime.value = date.toTimeString().split(' ')[0]?.slice(0, 5) ?? '09:00'
 
     campaignVars.value = c.variables ? { ...c.variables } : {}
+    selectedNewsletter.value = c.newsletter_id || ''
+    newsletterStore.fetchNewsletters(props.project.id)
 
     showCreateModal.value = true
 }
@@ -162,7 +192,8 @@ async function handleSave() {
                     template_id: selectedTemplate.value,
                     subject: subjectOverride.value,
                     scheduled_at: finalScheduledAt,
-                    variables: campaignVars.value
+                    variables: campaignVars.value,
+                    newsletter_id: selectedNewsletter.value
                 }
             })
             toast.success('Campaign updated')
@@ -174,7 +205,8 @@ async function handleSave() {
                     template_id: selectedTemplate.value,
                     subject: subjectOverride.value,
                     scheduled_at: finalScheduledAt,
-                    variables: campaignVars.value
+                    variables: campaignVars.value,
+                    newsletter_id: selectedNewsletter.value
                 }
             })
             toast.success('Campaign scheduled')
@@ -271,62 +303,54 @@ onMounted(loadData)
     <div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-white">Newsletters</h1>
-                <p class="text-sm text-zinc-400 mt-1">Schedule and send email campaigns to your subscribers.</p>
+                <h1 class="text-xl font-semibold text-white">Campaigns</h1>
+                <p class="text-sm text-zinc-300 mt-1">Schedule and send email campaigns to your subscribers.</p>
             </div>
-            <button @click="openCreateModal" :disabled="!appStore.publicUrlIsReachable"
-                :title="!appStore.publicUrlIsReachable ? 'Set PUBLIC_URL to a public domain in your .env to enable newsletters' : ''"
-                class="px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+            <AppButton size="md" @click="openCreateModal" :disabled="!appStore.publicUrlIsReachable"
+                :title="!appStore.publicUrlIsReachable ? 'Set PUBLIC_URL to a public domain in your .env to enable campaigns' : ''"
+                class="disabled:opacity-40">
                 + New Campaign
-            </button>
+            </AppButton>
         </div>
 
-        <div v-if="!appStore.publicUrlIsReachable" class="bg-yellow-500/5 border border-yellow-500/30 text-yellow-300 rounded-lg p-4 mb-6 text-sm">
-            <p class="font-medium mb-1">Newsletters are disabled</p>
-            <p class="text-yellow-300/80">Your instance is reachable only at localhost, so unsubscribe links inside emails would not work for recipients. Set <code class="font-mono">PUBLIC_URL</code> to your public domain in <code class="font-mono">.env</code> and restart the server to enable newsletters.</p>
+        <div v-if="!appStore.publicUrlIsReachable" class="bg-amber-500/5 border border-amber-500/30 text-amber-300 rounded-lg p-4 mb-6 text-sm">
+            <p class="font-medium mb-1">Campaigns are disabled</p>
+            <p class="text-amber-300/80">Your instance is reachable only at localhost, so unsubscribe links inside emails would not work for recipients. Set <code class="font-mono">PUBLIC_URL</code> to your public domain in <code class="font-mono">.env</code> and restart the server to enable campaigns.</p>
         </div>
 
-        <div v-if="loading" class="text-zinc-500 py-8 text-center">Loading...</div>
+        <div v-if="loading" class="text-zinc-400 py-8 text-center">Loading...</div>
 
         <div v-else-if="campaigns.length > 0" class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto">
             <table class="w-full min-w-[640px]">
                 <thead>
                     <tr class="border-b border-zinc-800">
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Name</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Status</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Scheduled For</th>
-                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Sent / Failed</th>
-                        <th class="text-right px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Actions</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Name</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Status</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Scheduled For</th>
+                        <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Sent / Failed</th>
+                        <th class="text-right px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="c in campaigns" :key="c.id" class="border-b border-zinc-800 last:border-0 group">
                         <td class="px-4 py-3 text-sm text-white font-medium">{{ c.name }}</td>
                         <td class="px-4 py-3">
-                            <span :class="[
-                                'text-xs px-2 py-1 rounded-full',
-                                c.status === 'scheduled' && 'bg-blue-500/10 text-blue-400',
-                                c.status === 'sending' && 'bg-yellow-500/10 text-yellow-400',
-                                c.status === 'sent' && 'bg-green-500/10 text-green-400',
-                                c.status === 'failed' && 'bg-red-500/10 text-red-400',
-                            ]">
-                                {{ c.status }}
-                            </span>
+                            <AppStatusPill :tone="statusTone(c.status)" :label="c.status" />
                         </td>
-                        <td class="px-4 py-3 text-sm text-zinc-400">
+                        <td class="px-4 py-3 text-sm text-zinc-300">
                             {{ new Date(c.scheduled_at).toLocaleString() }}
                         </td>
-                        <td class="px-4 py-3 text-sm text-zinc-400">
-                            <span class="text-green-400">{{ c.sent_count }}</span> / 
-                            <span :class="c.failed_count > 0 ? 'text-red-400' : 'text-zinc-500'">{{ c.failed_count }}</span>
+                        <td class="px-4 py-3 text-sm text-zinc-300">
+                            <span class="text-emerald-400">{{ c.sent_count }}</span> / 
+                            <span :class="c.failed_count > 0 ? 'text-red-400' : 'text-zinc-400'">{{ c.failed_count }}</span>
                         </td>
                         <td class="px-4 py-3 text-right space-x-3 whitespace-nowrap">
                             <button v-if="c.status === 'scheduled'" @click="openEditModal(c)"
-                                class="text-xs text-zinc-400 hover:text-white transition cursor-pointer">
+                                class="text-xs text-zinc-300 hover:text-white transition cursor-pointer">
                                 Edit
                             </button>
                             <button @click="confirmDelete(c)"
-                                class="text-xs text-zinc-400 hover:text-red-400 transition cursor-pointer">
+                                class="text-xs text-zinc-300 hover:text-red-400 transition cursor-pointer">
                                 Delete
                             </button>
                         </td>
@@ -336,52 +360,52 @@ onMounted(loadData)
         </div>
 
         <div v-else class="text-center py-20 border border-dashed border-zinc-800 rounded-lg">
-            <p class="text-zinc-500 mb-4">No newsletters scheduled yet.</p>
-            <button @click="openCreateModal"
-                class="px-6 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
-                Create your first campaign
-            </button>
+            <p class="text-zinc-400 mb-4">No campaigns scheduled yet.</p>
+            <AppButton size="md" @click="openCreateModal">Create your first campaign</AppButton>
         </div>
 
-        <AppModal :show="showCreateModal" :title="editingCampaign ? 'Edit Campaign' : 'New Newsletter Campaign'" @close="showCreateModal = false">
+        <AppModal :show="showCreateModal" :title="editingCampaign ? 'Edit Campaign' : 'New Campaign'" @close="showCreateModal = false">
             <form @submit.prevent="handleSave" class="space-y-4">
                 <AppInput v-model="newName" label="Campaign Name" placeholder="Monthly Update - May" required />
 
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">Template</label>
-                    <select v-model="selectedTemplate"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent">
-                        <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
-                    </select>
+                    <AppSelect v-model="selectedTemplate" size="md" class="w-full" :options="templateOptions" />
+                </div>
+
+                <div v-if="projectNewsletters.length > 0">
+                    <label class="block text-sm font-medium text-zinc-300 mb-1">Newsletter <span class="text-zinc-400 font-normal">(optional)</span></label>
+                    <AppSelect v-model="selectedNewsletter" size="md" class="w-full" :options="newsletterOptions" />
+                    <p class="text-xs text-zinc-400 mt-1">Targets active members of the newsletter; their unsubscribe link leaves only this newsletter.</p>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-1">
                         Email Subject
-                        <span v-if="templateHasSubject" class="text-zinc-500 font-normal">(override the template's subject — optional)</span>
+                        <span v-if="templateHasSubject" class="text-zinc-400 font-normal">(override the template's subject — optional)</span>
                     </label>
                     <input v-model="subjectOverride" type="text" :placeholder="templateHasSubject ? selectedTemplateData?.subject : 'Set a subject for this campaign'"
-                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent" />
-                    <p v-if="!templateHasSubject && !subjectOverride.trim()" class="text-xs text-yellow-400 mt-1">
-                        This template has no subject. Sending newsletters without a subject is a strong spam signal — most providers will route them to the spam folder.
+                        class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                    <p v-if="!templateHasSubject && !subjectOverride.trim()" class="text-xs text-amber-400 mt-1">
+                        This template has no subject. Sending campaigns without a subject is a strong spam signal — most providers will route them to the spam folder.
                     </p>
                 </div>
 
                 <div v-if="selectedTemplateVars.length > 0" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-3">
-                    <p class="text-xs font-medium text-zinc-400">Template Variables</p>
+                    <p class="text-xs font-medium text-zinc-300">Template Variables</p>
 
                     <div v-if="customTemplateVars.length > 0" class="space-y-2">
-                        <p class="text-xs text-zinc-500">Fill in the custom values for this send:</p>
+                        <p class="text-xs text-zinc-400">Fill in the custom values for this send:</p>
                         <div v-for="v in customTemplateVars" :key="v">
                             <AppInput v-model="campaignVars[v]" :label="v" :placeholder="'Value for {{' + v + '}}'" />
                         </div>
                     </div>
 
                     <div>
-                        <p class="text-xs text-zinc-500 mb-1">Auto-filled per subscriber:</p>
+                        <p class="text-xs text-zinc-400 mb-1">Auto-filled per subscriber:</p>
                         <div class="flex flex-wrap gap-1">
                             <span v-for="v in selectedTemplateVars.filter(v => SYSTEM_VARS.has(v))" :key="v"
-                                class="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-zinc-700 font-mono">
+                                class="text-xs bg-zinc-850 text-zinc-300 px-2 py-0.5 rounded border border-zinc-700 font-mono">
                                 {{ varLabel(v) }}
                             </span>
                         </div>
@@ -389,30 +413,28 @@ onMounted(loadData)
                 </div>
 
                 <div v-else-if="selectedTemplate" class="p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
-                    <p class="text-xs text-zinc-500">This template has no variables detected.</p>
+                    <p class="text-xs text-zinc-400">This template has no variables detected.</p>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-2">When to send?</label>
                     <div class="flex gap-2 mb-3">
-                        <button v-if="!editingCampaign" type="button" @click="sendType = 'now'"
-                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer', sendType === 'now' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white']">
+                        <AppFilterChip v-if="!editingCampaign" size="sm" :active="sendType === 'now'" @click="sendType = 'now'">
                             Send Now
-                        </button>
-                        <button type="button" @click="sendType = 'scheduled'"
-                            :class="['px-3 py-1.5 text-sm rounded-lg transition cursor-pointer', sendType === 'scheduled' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white']">
+                        </AppFilterChip>
+                        <AppFilterChip size="sm" :active="sendType === 'scheduled'" @click="sendType = 'scheduled'">
                             Schedule for later
-                        </button>
+                        </AppFilterChip>
                     </div>
 
                     <div v-if="sendType === 'scheduled'" class="flex gap-2 mt-2">
                         <div class="flex-1">
                             <input type="date" v-model="scheduledDate" required
-                                class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent" />
+                                class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
                         </div>
                         <div class="w-32">
                             <input type="time" v-model="scheduledTime" required
-                                class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent" />
+                                class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
                         </div>
                     </div>
                 </div>

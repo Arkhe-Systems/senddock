@@ -28,7 +28,7 @@ Keys are project-scoped — the key identifies the project, so the URL `{id}` se
 | `POST /api/v1/projects/{id}/send/batch` | Same template, many recipients with per-recipient `data`. |
 | `POST /api/v1/projects/{id}/broadcast` | Send to every active subscriber. |
 | `POST /api/v1/projects/{id}/subscribers/import` | CSV / JSON import with email validation. |
-| `GET /api/v1/projects/{id}/stats` | Read-only summary counts (`sent`, `failed`, `bounced`, `suppressed`, opens, clicks). |
+| `GET /api/v1/projects/{id}/stats` | Read-only summary counts (`total`, `sent`, `failed`, `bounced`, `suppressed`, `opened`). |
 
 Every other endpoint requires cookie auth — see the next section. As a rule of thumb: **anything that mutates project, workspace, template, subscriber, webhook or audit-log state is cookie-only**, because role-based capabilities key off the user identity that an API key doesn't carry.
 
@@ -190,6 +190,76 @@ POST /api/v1/auth/2fa
 ```
 
 `code` is a TOTP code or a recovery code. On success, session cookies are set the same way as a regular login. The intermediate token is short-lived (a few minutes) and only valid for this exchange.
+
+## Email-verified signup (Cloud)
+
+On the managed cloud, accounts are created through a public signup endpoint and must verify their email before they can log in.
+
+### Sign up
+
+```
+POST /api/v1/auth/signup
+```
+
+```json
+{ "email": "user@example.com", "password": "yourpassword", "name": "Your Name" }
+```
+
+Creates the account as **inactive** and emails a verification link. Returns `201` with `{"message":"Check your email to activate your account."}`. The account cannot log in until the link is used. Rate-limited per IP and per email.
+
+### Verify email
+
+```
+POST /api/v1/auth/verify
+```
+
+```json
+{ "token": "..." }
+```
+
+The token comes from the emailed link (`/auth/verify?token=...`), valid for 24 h and single-use. On success the email is marked verified and, for signup, the session is started — login cookies are set in the same response.
+
+### Resend verification
+
+```
+POST /api/v1/auth/resend-verification
+```
+
+```json
+{ "email": "user@example.com" }
+```
+
+Re-sends the link to an unverified account. Returns `200` whether or not the account exists/needs activation, so you can't probe which emails are registered.
+
+> Self-hosted instances use the setup screen + admin **Create user** instead — there is no public signup endpoint in that mode.
+
+## Device confirmation (Cloud, login)
+
+Logging in from a **new device** with no 2FA sends an email confirmation instead of a normal login.
+
+### Login (new device)
+
+When `POST /api/v1/auth/login` succeeds but the device isn't trusted, it returns:
+
+```json
+{ "requires_device_confirmation": true }
+```
+
+and emails a confirmation link. Trusted devices (a `device_id` cookie already verified) skip this and log in normally.
+
+The link (`/auth/verify?token=...`) only **approves** the pending login — it never starts a session on the device that opens it. The device that started the login polls and completes:
+
+```
+GET /api/v1/auth/pending-login/status
+```
+
+Reads the `pending_login` cookie and returns `{ "approved": true }` once the link has been opened (and `{ "approved": false }` until then, or if the attempt is missing or expired).
+
+```
+POST /api/v1/auth/pending-login/complete
+```
+
+Completes the login **on the device that started it** — login cookies are set here, and the `pending_login` cookie is cleared. This is what lets you open the emailed link on your phone and still sign in on your computer.
 
 ## First-boot setup
 

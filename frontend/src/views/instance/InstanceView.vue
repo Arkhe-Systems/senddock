@@ -36,7 +36,7 @@ const forbidden = ref(false)
 
 const publicUrlWarning = computed(() => {
     const raw = publicUrl.value.trim()
-    if (!raw) return 'Newsletters cannot be sent until this is set to a public address.'
+    if (!raw) return 'Broadcasts and campaigns cannot be sent until this is set to a public address.'
     if (!hasHttpScheme(raw)) return 'Include the scheme, for example https://mail.example.com'
     if (isLoopbackUrl(raw)) {
         return 'This points at your own machine. Unsubscribe and tracking links will not work in outgoing emails.'
@@ -115,7 +115,7 @@ async function save() {
             <header class="md:hidden sticky top-0 z-30 bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between gap-3">
                 <h1 class="text-base font-semibold text-white">Instance</h1>
                 <button type="button" @click="mobileNavOpen = !mobileNavOpen"
-                    class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                    class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-850 transition cursor-pointer"
                     :aria-expanded="mobileNavOpen" aria-label="Toggle navigation">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -130,7 +130,7 @@ async function save() {
                     ? 'fixed top-[57px] left-0 right-0 bottom-0 z-30 p-4 border-t overflow-y-auto'
                     : 'hidden'
             ]">
-                <RouterLink to="/dashboard" class="hidden md:inline-flex text-sm text-zinc-400 hover:text-white transition mb-6 items-center gap-1">
+                <RouterLink to="/dashboard" class="hidden md:inline-flex text-sm text-zinc-300 hover:text-white transition mb-6 items-center gap-1">
                     &larr; Projects
                 </RouterLink>
 
@@ -143,7 +143,7 @@ async function save() {
                 <div class="max-w-2xl mx-auto space-y-8">
                     <div>
                         <h2 class="text-2xl font-bold text-white">Instance</h2>
-                        <p class="text-sm text-zinc-500 mt-1">Settings that apply to this SendDock installation.</p>
+                        <p class="text-sm text-zinc-400 mt-1">Settings that apply to this SendDock installation.</p>
                     </div>
 
                     <AppAlert v-if="forbidden" type="error"
@@ -153,7 +153,7 @@ async function save() {
                         <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
                             <div>
                                 <h3 class="text-sm font-semibold text-white">Public URL</h3>
-                                <p class="text-xs text-zinc-500 mt-1">
+                                <p class="text-xs text-zinc-400 mt-1">
                                     The address where this instance is reachable from the internet. Used to build
                                     unsubscribe and tracking links inside outgoing emails.
                                 </p>
@@ -167,7 +167,7 @@ async function save() {
                         <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
                             <div>
                                 <h3 class="text-sm font-semibold text-white">Session timeout</h3>
-                                <p class="text-xs text-zinc-500 mt-1">
+                                <p class="text-xs text-zinc-400 mt-1">
                                     Sign users out after this many minutes without any activity. Between 5 and 1440.
                                 </p>
                             </div>
@@ -187,7 +187,7 @@ async function save() {
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <h3 class="text-sm font-semibold text-white">License</h3>
-                                    <p class="text-xs text-zinc-500 mt-1">
+                                    <p class="text-xs text-zinc-400 mt-1">
                                         Paste the key you received by email after purchasing. It takes effect
                                         immediately — no restart, no editing files on the server.
                                     </p>
@@ -197,7 +197,7 @@ async function save() {
                                 </span>
                             </div>
 
-                            <p v-if="licenseStore.status?.has_license" class="text-xs text-zinc-400">
+                            <p v-if="licenseStore.status?.has_license" class="text-xs text-zinc-300">
                                 A key is already stored. Pasting a new one replaces it.
                             </p>
                             <p v-if="licenseStore.status?.has_license && licenseStore.status?.reason" class="text-xs text-amber-300">

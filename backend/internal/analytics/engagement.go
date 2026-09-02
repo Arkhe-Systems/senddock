@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Breakdown struct {
@@ -49,6 +52,18 @@ func (h *Handler) Engagement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nlFilter, nlAliased := "", ""
+	nlArgs := []any{}
+	if newsletterID := strings.TrimSpace(r.URL.Query().Get("newsletter_id")); newsletterID != "" {
+		if _, err := uuid.Parse(newsletterID); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid newsletter_id")
+			return
+		}
+		nlFilter = " AND newsletter_id = $4"
+		nlAliased = " AND l.newsletter_id = $4"
+		nlArgs = append(nlArgs, newsletterID)
+	}
+
 	out := Engagement{
 		Devices: []Breakdown{},
 		Clients: []Breakdown{},
@@ -60,8 +75,8 @@ func (h *Handler) Engagement(w http.ResponseWriter, r *http.Request) {
 		SELECT COALESCE(ec.user_agent, '')
 		FROM email_clicks ec
 		JOIN email_logs l ON l.id = ec.log_id
-		WHERE l.project_id = $1 AND ec.clicked_at >= $2 AND ec.clicked_at < $3
-	`, projectID, from, to)
+		WHERE l.project_id = $1 AND ec.clicked_at >= $2 AND ec.clicked_at < $3`+nlAliased+`
+	`, append([]any{projectID, from, to}, nlArgs...)...)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to load engagement")
 		return
@@ -92,20 +107,20 @@ func (h *Handler) Engagement(w http.ResponseWriter, r *http.Request) {
 			COUNT(*) FILTER (WHERE opened_at IS NOT NULL),
 			COUNT(*) FILTER (WHERE clicked_at IS NOT NULL)
 		FROM email_logs
-		WHERE project_id = $1 AND sent_at >= $2 AND sent_at < $3
-	`, projectID, from, to).Scan(&out.Funnel.Sent, &out.Funnel.Opened, &out.Funnel.Clicked); err != nil {
+		WHERE project_id = $1 AND sent_at >= $2 AND sent_at < $3`+nlFilter+`
+	`, append([]any{projectID, from, to}, nlArgs...)...).Scan(&out.Funnel.Sent, &out.Funnel.Opened, &out.Funnel.Clicked); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to compute funnel")
 		return
 	}
 
-	series, err := h.engagementSeries(r.Context(), projectID, from, to, granularity)
+	series, err := h.engagementSeries(r.Context(), projectID, from, to, granularity, nlFilter, nlArgs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to compute engagement series")
 		return
 	}
 	out.Series = series
 
-	heatmap, err := h.clickHeatmap(r.Context(), projectID, from, to)
+	heatmap, err := h.clickHeatmap(r.Context(), projectID, from, to, nlFilter, nlArgs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to compute heatmap")
 		return
@@ -115,16 +130,16 @@ func (h *Handler) Engagement(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-func (h *Handler) engagementSeries(ctx context.Context, projectID string, from, to time.Time, granularity string) ([]EngagementBucket, error) {
+func (h *Handler) engagementSeries(ctx context.Context, projectID string, from, to time.Time, granularity, nlFilter string, nlArgs []any) ([]EngagementBucket, error) {
 	byBucket := map[string]*EngagementBucket{}
 
 	tally := func(column string, assign func(*EngagementBucket, int64)) error {
 		rows, err := h.db.QueryContext(ctx, fmt.Sprintf(`
 			SELECT to_char(date_trunc('%s', %s) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS bucket, COUNT(*)
 			FROM email_logs
-			WHERE project_id = $1 AND %s IS NOT NULL AND %s >= $2 AND %s < $3
+			WHERE project_id = $1 AND %s IS NOT NULL AND %s >= $2 AND %s < $3` + nlFilter + `
 			GROUP BY bucket
-		`, granularity, column, column, column, column), projectID, from, to)
+		`, granularity, column, column, column, column), append([]any{projectID, from, to}, nlArgs...)...)
 		if err != nil {
 			return err
 		}
@@ -165,16 +180,16 @@ func (h *Handler) engagementSeries(ctx context.Context, projectID string, from, 
 	return out, nil
 }
 
-func (h *Handler) clickHeatmap(ctx context.Context, projectID string, from, to time.Time) ([]HeatCell, error) {
+func (h *Handler) clickHeatmap(ctx context.Context, projectID string, from, to time.Time, nlFilter string, nlArgs []any) ([]HeatCell, error) {
 	rows, err := h.db.QueryContext(ctx, `
 		SELECT EXTRACT(DOW FROM clicked_at AT TIME ZONE 'UTC')::int AS weekday,
 		       EXTRACT(HOUR FROM clicked_at AT TIME ZONE 'UTC')::int AS hour,
 		       COUNT(*)
 		FROM email_logs
-		WHERE project_id = $1 AND clicked_at IS NOT NULL AND clicked_at >= $2 AND clicked_at < $3
+		WHERE project_id = $1 AND clicked_at IS NOT NULL AND clicked_at >= $2 AND clicked_at < $3` + nlFilter + `
 		GROUP BY weekday, hour
 		ORDER BY weekday, hour
-	`, projectID, from, to)
+	`, append([]any{projectID, from, to}, nlArgs...)...)
 	if err != nil {
 		return nil, err
 	}

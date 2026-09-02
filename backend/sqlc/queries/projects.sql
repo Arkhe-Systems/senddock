@@ -37,6 +37,14 @@ WHERE id = $1
   AND workspace_id IN (SELECT wm.workspace_id FROM workspace_members wm WHERE wm.user_id = $2)
 RETURNING *;
 
+-- name: UpdateProjectUnsubscribeTemplate :one
+UPDATE projects SET
+    unsubscribe_template_id = sqlc.narg(unsubscribe_template_id),
+    updated_at = NOW()
+WHERE id = $1
+  AND workspace_id IN (SELECT wm.workspace_id FROM workspace_members wm WHERE wm.user_id = $2)
+RETURNING *;
+
 -- name: UpdateProjectSMTP :one
 UPDATE projects SET
     smtp_host = $3,

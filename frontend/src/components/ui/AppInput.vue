@@ -37,7 +37,7 @@ const passwordManagerAttrs = props.autocomplete ? {} : ignoreAttrs
             autocomplete="off"
             v-bind="ignoreAttrs"
             rows="3"
-            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent transition resize-none"/>
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition resize-none"/>
 
         <input
             v-else
@@ -50,7 +50,7 @@ const passwordManagerAttrs = props.autocomplete ? {} : ignoreAttrs
             v-bind="passwordManagerAttrs"
             :class="[
                 'w-full px-3 py-2 bg-zinc-900 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:border-transparent transition',
-                error ? 'border-red-500/50 focus:ring-red-500/50' : 'border-zinc-800 focus:ring-zinc-500',
+                error ? 'border-red-500/50 focus:ring-red-500/50' : 'border-zinc-800 focus:ring-emerald-500',
             ]"
         />
 

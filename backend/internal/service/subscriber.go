@@ -300,7 +300,7 @@ func (s *SubscriberService) BulkImport(ctx context.Context, projectID string, su
 	return result, nil
 }
 
-func (s *SubscriberService) ListByProject(ctx context.Context, projectID string, limit, offset int32) ([]db.Subscriber, error) {
+func (s *SubscriberService) ListByProject(ctx context.Context, projectID string, limit, offset int32, statusFilter, tagFilter, newsletterFilter string) ([]db.Subscriber, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return nil, errors.New("invalid project id")
@@ -310,16 +310,34 @@ func (s *SubscriberService) ListByProject(ctx context.Context, projectID string,
 		ProjectID: pid,
 		Limit:     limit,
 		Offset:    offset,
+		Column4:   strings.TrimSpace(statusFilter),
+		Column5:   strings.TrimSpace(tagFilter),
+		Column6:   parseFilterUUID(newsletterFilter),
 	})
 }
 
-func (s *SubscriberService) CountByProject(ctx context.Context, projectID string) (int64, error) {
+func parseFilterUUID(raw string) uuid.UUID {
+	if raw == "" {
+		return uuid.Nil
+	}
+	if u, err := uuid.Parse(raw); err == nil {
+		return u
+	}
+	return uuid.Nil
+}
+
+func (s *SubscriberService) CountByProject(ctx context.Context, projectID string, statusFilter, tagFilter, newsletterFilter string) (int64, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return 0, errors.New("invalid project id")
 	}
 
-	return s.queries.CountSubscribersByProject(ctx, pid)
+	return s.queries.CountSubscribersByProject(ctx, db.CountSubscribersByProjectParams{
+		ProjectID: pid,
+		Column2:   strings.TrimSpace(statusFilter),
+		Column3:   strings.TrimSpace(tagFilter),
+		Column4:   parseFilterUUID(newsletterFilter),
+	})
 }
 
 func (s *SubscriberService) UpdateStatus(ctx context.Context, subscriberID, projectID, status string) (db.Subscriber, error) {

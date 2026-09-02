@@ -32,7 +32,7 @@ Tags and [custom fields](/guide/subscribers#custom-fields) are what make segment
 
 ## Using a segment
 
-When you send a broadcast (**Overview → Send Email → Newsletter**), a **segment selector** appears above the template picker. Leave it on *All active subscribers* to send to everyone, or pick a segment to send only to its members. Segment sends always exclude unsubscribed and suppressed addresses, exactly like a normal broadcast.
+When you send a broadcast (**Overview → Send Email → Broadcast**), a **segment selector** appears above the template picker. Leave it on *All active subscribers* to send to everyone, or pick a segment to send only to its members. Segment sends always exclude unsubscribed and suppressed addresses, exactly like a normal broadcast.
 
 On Pro deployments, the [Analytics](/guide/analytics) dashboard gains a segment filter too, so you can read open/click performance for just that audience.
 

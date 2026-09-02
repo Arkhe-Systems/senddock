@@ -150,6 +150,40 @@ type updateSMTPRequest struct {
 	FromEmail    string `json:"from_email"`
 }
 
+type updateUnsubscribeTemplateRequest struct {
+	TemplateID string `json:"template_id"`
+}
+
+func (h *ProjectHandler) UpdateUnsubscribeTemplate(w http.ResponseWriter, r *http.Request) {
+	projectID, userID, ok := requireCap(w, r, h.projectService, service.CapProjectSettings)
+	if !ok {
+		return
+	}
+
+	var req updateUnsubscribeTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: "invalid request body"})
+		return
+	}
+
+	project, err := h.projectService.SetUnsubscribeTemplate(r.Context(), projectID, userID, req.TemplateID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{Error: err.Error()})
+		return
+	}
+
+	if h.Audit != nil {
+		h.Audit.LogFromRequest(r, projectID, userID, "project.unsubscribe_template_updated", "project", projectID, map[string]any{"template_id": req.TemplateID})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response.FromProject(project))
+}
+
 func (h *ProjectHandler) UpdateSMTP(w http.ResponseWriter, r *http.Request) {
 	projectID, userID, ok := requireCap(w, r, h.projectService, service.CapProjectSettings)
 	if !ok {

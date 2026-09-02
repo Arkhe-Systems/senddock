@@ -15,7 +15,7 @@ const data = computed(() => ({
     datasets: [{
         data: props.values,
         backgroundColor: props.colors ?? seriesPalette,
-        borderColor: '#18181b',
+        borderColor: '#19191b',
         borderWidth: 2,
     }],
 }))

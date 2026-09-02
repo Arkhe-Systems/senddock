@@ -18,9 +18,9 @@ The list is **per-project**. Suppressing `user@example.com` in Project A does no
 
 | Source | Reason | When |
 |---|---|---|
-| **Hard bounce** (in-session 5xx, webhook ingest, IMAP poll) | `hard_bounce` | Automatically, see [Bounces](./bounces). |
+| **Hard bounce** (in-session 5xx, webhook ingest, IMAP poll) | `bounce` | Automatically, see [Bounces](./bounces). |
 | **Spam complaint** (FBL / complaint webhook) | `complaint` | When a recipient reports spam, see [Deliverability](./deliverability#spam-complaint-rate). |
-| **Unsubscribe** (one-click or manual) | `unsubscribed` | When a subscriber clicks unsubscribe or you flip their status. |
+| **Unsubscribe** (one-click or manual) | `unsubscribe` | When a subscriber clicks unsubscribe or you flip their status. |
 | **Manual add** | `manual` (or whatever reason you provide) | From the Suppressions tab or `POST /projects/{id}/suppressions`. |
 | **Bulk import** | `manual` | Pasting a list — or uploading a file — in the Suppressions tab, or sending an array to the API. |
 
@@ -30,32 +30,31 @@ Existing unsubscribed subscribers from before v0.6 were backfilled into the supp
 
 In the project's **Suppressions** tab you can:
 
-- **Filter** by reason (`hard_bounce`, `complaint`, `unsubscribed`, `manual`, ...).
+- **Filter** by reason (`bounce`, `complaint`, `unsubscribe`, `manual`, ...).
 - **Add** a single address with a reason.
 - **Bulk import** a list of addresses — paste them (one per line or comma-separated) or **choose a file** to upload.
 - **Remove** an entry — useful if you confirmed the bounce was a typo or the user wants back in.
 
 ## API
 
-The suppression list is managed from the dashboard (Project → **Suppressions** tab) and from the same endpoints under cookie auth — they require the `suppressions:write` capability and are not callable with a project-scoped API key.
+The suppression list is managed from the dashboard (Project → **Suppressions** tab) and from the same endpoints under **cookie auth** — the ordinary logged-in session, which carries the user's identity and role. These endpoints require the `suppressions:write` capability (a per-action permission granted through a dashboard user's role — see [Members & roles](./members#roles--capabilities)) and are not callable with a project-scoped API key, which carries no identity.
 
 The full request and response shape for `GET / POST / DELETE /api/v1/projects/{id}/suppressions` lives in the [Suppressions API reference](/api/suppressions). The bounce sources documented in [Bounces](./bounces) write to the same list automatically — you usually only call these endpoints by hand for one-off corrections (a typo'd address that bounced once but should still receive sends, an explicit blocklist you imported from another tool).
 
 ## Interaction with broadcast
 
-For a broadcast to a 10,000-subscriber list where 800 are suppressed, the result looks like:
+Suppression is checked **per recipient** as each broadcast job is processed. A broadcast to a 10,000-subscriber list enqueues all 10,000, and the immediate response reports them all as `sent` (meaning enqueued):
 
 ```json
 {
-  "sent": 9200,
-  "suppressed": 800,
+  "sent": 10000,
   "broadcast_id": "01H..."
 }
 ```
 
-`sent` here is the number of recipients enqueued for sending (each one becomes a `broadcast_job` row, then settles to `sent` / `failed` / `bounced` / `suppressed` as the worker drains the queue). It is **not** the count that have already left the SMTP server — for that, poll `GET /api/v1/projects/{id}/broadcasts` or watch the live progress in the dashboard.
+`sent` here is the number of recipients **enqueued** — each becomes a `broadcast_job` row, then settles to `sent` / `failed` / `bounced` / `suppressed` as the worker drains the queue. It is **not** the count that have already left the SMTP server — for those final tallies, poll `GET /api/v1/projects/{id}/broadcasts` or watch the live progress in the dashboard.
 
-Suppressed recipients never enter the queue. They don't count against rate limits, they don't generate webhook events, and they don't appear in the email log as `failed` — they appear as `suppressed`, which is the honest answer.
+Suppressed recipients are skipped before any SMTP attempt. They don't count against rate limits, they don't generate webhook events, and they don't appear in the email log as `failed` — they appear as `suppressed`, which is the honest answer.
 
 ## Why per-project
 

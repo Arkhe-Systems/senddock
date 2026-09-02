@@ -13,20 +13,29 @@ import (
 )
 
 const countBroadcastsByProject = `-- name: CountBroadcastsByProject :one
-SELECT COUNT(*) FROM broadcasts WHERE project_id = $1
+SELECT COUNT(*) FROM broadcasts
+WHERE project_id = $1
+AND ($2::text = '' OR status = $2::text)
+AND ($3::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $3::uuid)
 `
 
-func (q *Queries) CountBroadcastsByProject(ctx context.Context, projectID uuid.UUID) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countBroadcastsByProject, projectID)
+type CountBroadcastsByProjectParams struct {
+	ProjectID uuid.UUID
+	Column2   string
+	Column3   uuid.UUID
+}
+
+func (q *Queries) CountBroadcastsByProject(ctx context.Context, arg CountBroadcastsByProjectParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countBroadcastsByProject, arg.ProjectID, arg.Column2, arg.Column3)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const createBroadcast = `-- name: CreateBroadcast :one
-INSERT INTO broadcasts (project_id, template_id, subject, variables, html_fields, total_recipients)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields
+INSERT INTO broadcasts (project_id, template_id, subject, variables, html_fields, total_recipients, newsletter_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields, newsletter_id
 `
 
 type CreateBroadcastParams struct {
@@ -36,6 +45,7 @@ type CreateBroadcastParams struct {
 	Variables       json.RawMessage
 	HtmlFields      json.RawMessage
 	TotalRecipients int32
+	NewsletterID    uuid.NullUUID
 }
 
 func (q *Queries) CreateBroadcast(ctx context.Context, arg CreateBroadcastParams) (Broadcast, error) {
@@ -46,6 +56,7 @@ func (q *Queries) CreateBroadcast(ctx context.Context, arg CreateBroadcastParams
 		arg.Variables,
 		arg.HtmlFields,
 		arg.TotalRecipients,
+		arg.NewsletterID,
 	)
 	var i Broadcast
 	err := row.Scan(
@@ -62,12 +73,13 @@ func (q *Queries) CreateBroadcast(ctx context.Context, arg CreateBroadcastParams
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.HtmlFields,
+		&i.NewsletterID,
 	)
 	return i, err
 }
 
 const getBroadcast = `-- name: GetBroadcast :one
-SELECT id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields FROM broadcasts WHERE id = $1 AND project_id = $2
+SELECT id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields, newsletter_id FROM broadcasts WHERE id = $1 AND project_id = $2
 `
 
 type GetBroadcastParams struct {
@@ -92,6 +104,7 @@ func (q *Queries) GetBroadcast(ctx context.Context, arg GetBroadcastParams) (Bro
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.HtmlFields,
+		&i.NewsletterID,
 	)
 	return i, err
 }
@@ -124,8 +137,10 @@ func (q *Queries) IncrementBroadcastSuppressed(ctx context.Context, id uuid.UUID
 }
 
 const listBroadcastsByProject = `-- name: ListBroadcastsByProject :many
-SELECT id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields FROM broadcasts
+SELECT id, project_id, template_id, subject, variables, status, total_recipients, sent_count, failed_count, suppressed_count, started_at, finished_at, html_fields, newsletter_id FROM broadcasts
 WHERE project_id = $1
+AND ($4::text = '' OR status = $4::text)
+AND ($5::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $5::uuid)
 ORDER BY started_at DESC
 LIMIT $2 OFFSET $3
 `
@@ -134,10 +149,18 @@ type ListBroadcastsByProjectParams struct {
 	ProjectID uuid.UUID
 	Limit     int32
 	Offset    int32
+	Column4   string
+	Column5   uuid.UUID
 }
 
 func (q *Queries) ListBroadcastsByProject(ctx context.Context, arg ListBroadcastsByProjectParams) ([]Broadcast, error) {
-	rows, err := q.db.QueryContext(ctx, listBroadcastsByProject, arg.ProjectID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listBroadcastsByProject,
+		arg.ProjectID,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+		arg.Column5,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +182,7 @@ func (q *Queries) ListBroadcastsByProject(ctx context.Context, arg ListBroadcast
 			&i.StartedAt,
 			&i.FinishedAt,
 			&i.HtmlFields,
+			&i.NewsletterID,
 		); err != nil {
 			return nil, err
 		}

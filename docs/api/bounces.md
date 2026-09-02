@@ -9,6 +9,8 @@ There are two configurable sources, plus a public ingest endpoint that providers
 
 In-session SMTP detection (5xx on `RCPT TO`) needs no configuration and is always on.
 
+All three detection sources write the same suppression reason `bounce`; the parsed SMTP/DSN text is stored in the entry's `source` field (e.g. `webhook ingest: 550 …`, `imap dsn poll`, or `smtp 550 during rcpt: …`).
+
 All `/api/v1/...` endpoints on this page require **cookie auth** — bounce configuration is dashboard-managed, and project API keys cannot call it. The public ingest at `/webhooks/bounces/{projectId}` uses a per-project token instead and is the only endpoint here that is **not** under `/api/v1`.
 
 ## Get bounce IMAP config
@@ -123,7 +125,7 @@ This is the URL you give to your email provider. It's not under `/api/v1` becaus
 
 ### Request body — generic
 
-A single object (or an array of objects) with at least `email` and optional `reason` / `type`:
+A single object (or an array of objects) with at least `email` and optional `reason` / `type`. `reason` is free-text stored as the entry's `source`; if you send only `type` (e.g. `permanent`), it's used as that text. Every reported bounce is suppressed — SendDock does not distinguish permanent vs transient here, so only report hard bounces.
 
 ```json
 { "email": "user@example.com", "reason": "550 mailbox unavailable", "type": "permanent" }

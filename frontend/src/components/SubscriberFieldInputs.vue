@@ -9,7 +9,7 @@ const baseInput =
     'w-full px-3 py-2 bg-zinc-900 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:border-transparent transition'
 
 function inputClass(key: string) {
-    return [baseInput, props.errors?.[key] ? 'border-red-500/50 focus:ring-red-500/50' : 'border-zinc-800 focus:ring-zinc-500']
+    return [baseInput, props.errors?.[key] ? 'border-red-500/50 focus:ring-red-500/50' : 'border-zinc-800 focus:ring-emerald-500']
 }
 
 function setValue(key: string, value: any) {
@@ -74,7 +74,7 @@ function onNumber(key: string, raw: string) {
                 <AppCheckbox
                     :modelValue="!!model[def.key]"
                     @update:modelValue="(v: boolean) => setValue(def.key, v)" />
-                <span class="text-sm text-zinc-400">{{ def.label }}</span>
+                <span class="text-sm text-zinc-300">{{ def.label }}</span>
             </label>
 
             <p v-if="props.errors?.[def.key]" class="mt-1 text-xs text-red-400">{{ props.errors[def.key] }}</p>

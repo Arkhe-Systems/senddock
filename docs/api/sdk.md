@@ -93,9 +93,10 @@ All active subscribers, or a saved [segment](./segments):
 ```ts
 await senddock.broadcast({ template_id: 'tpl-id' })
 await senddock.broadcast({ template_id: 'tpl-id', segment_id: 'seg-id' })
+await senddock.broadcast({ template_id: 'tpl-id', newsletter_id: 'nl-id' })
 ```
 
-Broadcasts require the instance to have a [public URL](/guide/instance-settings#public-url) configured — recipients need a working unsubscribe link.
+Broadcasts require the instance to have a [public URL](/guide/instance-settings#public-url) configured — recipients need a working unsubscribe link. A newsletter broadcast targets that publication's active members and gives each recipient a per-newsletter unsubscribe link — leaving the rest of the list and their project status untouched. `segment_id` and `newsletter_id` are mutually exclusive.
 
 ## Importing subscribers
 
@@ -135,7 +136,7 @@ app.post('/webhooks/senddock', express.raw({ type: 'application/json' }), (req, 
 })
 ```
 
-The check is timing-safe and rejects timestamps older than 5 minutes (configurable via `toleranceSeconds`). The secret is shown once, when the webhook is created.
+The check is timing-safe and rejects timestamps older than 5 minutes (configurable via `toleranceSeconds`). The secret is shown once, when the webhook is created. The SDK's event-type union includes `subscriber.newsletter_unsubscribed` (new in v0.8.2) alongside the core `email.*` and `subscriber.*` events.
 
 ## Error handling
 

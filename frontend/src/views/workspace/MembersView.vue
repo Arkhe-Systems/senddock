@@ -14,11 +14,13 @@ import {
 import { useToastStore } from '@/stores/toast'
 import { ApiError } from '@/api/client'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppFilterChip from '@/components/ui/AppFilterChip.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
 import AppLoader from '@/components/ui/AppLoader.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
 import { checkoutUrl } from '@/config/checkout'
 import { useAppStore } from '@/stores/app'
@@ -241,7 +243,7 @@ onMounted(async () => {
     <div class="min-h-screen bg-zinc-950 p-4 sm:p-6 md:p-8">
         <div class="max-w-3xl mx-auto">
             <button @click="router.push('/dashboard')"
-                class="text-sm text-zinc-400 hover:text-white transition mb-6 inline-flex items-center gap-1 cursor-pointer">
+                class="text-sm text-zinc-300 hover:text-white transition mb-6 inline-flex items-center gap-1 cursor-pointer">
                 &larr; Dashboard
             </button>
 
@@ -256,13 +258,13 @@ onMounted(async () => {
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                     <div>
                         <h1 class="text-2xl font-bold text-white">{{ workspace?.name || 'Workspace' }}</h1>
-                        <p class="text-sm text-zinc-500 mt-1">{{ members.length }} {{ members.length === 1 ? 'member' : 'members' }}</p>
+                        <p class="text-sm text-zinc-400 mt-1">{{ members.length }} {{ members.length === 1 ? 'member' : 'members' }}</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <AppButton variant="ghost" size="sm" v-if="isOwner" @click="openRename">Rename</AppButton>
-                        <AppButton variant="danger" size="sm" v-if="canDelete" @click="showDelete = true">Delete</AppButton>
-                        <AppButton variant="ghost" size="sm" v-if="isOwner && canManageTeam" @click="openInvite('existing')">+ Add existing</AppButton>
-                        <AppButton size="sm" v-if="isOwner && canManageTeam" @click="openInvite('new')">+ Create user</AppButton>
+                        <AppButton variant="ghost" size="md" v-if="isOwner" @click="openRename">Rename</AppButton>
+                        <AppButton variant="danger" size="md" v-if="canDelete" @click="showDelete = true">Delete</AppButton>
+                        <AppButton variant="ghost" size="md" v-if="isOwner && canManageTeam" @click="openInvite('existing')">+ Add existing</AppButton>
+                        <AppButton size="md" v-if="isOwner && canManageTeam" @click="openInvite('new')">+ Create user</AppButton>
                     </div>
                 </div>
 
@@ -274,15 +276,15 @@ onMounted(async () => {
                                 {{ isCloud ? 'Growth plan' : 'Team plan' }}
                             </div>
                             <h2 class="text-base font-semibold text-white mb-1">{{ isCloud ? 'Upgrade to Growth to invite people' : "You're on Pro — upgrade to Team to invite people" }}</h2>
-                            <p v-if="isCloud" class="text-sm text-zinc-400">Adding members, creating user accounts and changing roles need the Growth plan or higher.</p>
-                            <p v-else class="text-sm text-zinc-400">Adding members, creating user accounts and changing roles need the Team plan. Your Pro license stays untouched and you keep Analytics, Webhooks and Audit log.</p>
+                            <p v-if="isCloud" class="text-sm text-zinc-300">Adding members, creating user accounts and changing roles need the Growth plan or higher.</p>
+                            <p v-else class="text-sm text-zinc-300">Adding members, creating user accounts and changing roles need the Team plan. Your Pro license stays untouched and you keep Analytics, Webhooks and Audit log.</p>
                         </div>
-                        <button v-if="isCloud" @click="router.push('/billing')"
-                            class="shrink-0 inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition cursor-pointer">
+                        <AppButton size="md" v-if="isCloud" @click="router.push('/billing')"
+                            class="shrink-0">
                             Upgrade to Growth
-                        </button>
+                        </AppButton>
                         <a v-else :href="teamCheckoutUrl" target="_blank" rel="noopener"
-                            class="shrink-0 inline-block px-4 py-2 text-sm font-medium bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition">
+                            class="shrink-0 inline-block px-4 py-2 text-sm font-medium rounded-lg border border-emerald-500/45 bg-emerald-500/12 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/70 hover:text-emerald-200 transition cursor-pointer">
                             Upgrade to Team — $29/mo
                         </a>
                     </div>
@@ -292,9 +294,9 @@ onMounted(async () => {
                     <table class="w-full min-w-[640px]">
                         <thead>
                             <tr class="border-b border-zinc-800">
-                                <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Member</th>
-                                <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Role</th>
-                                <th class="text-left px-4 py-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">Joined</th>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Member</th>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Role</th>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-zinc-300 uppercase tracking-wide">Joined</th>
                                 <th class="px-4 py-3"></th>
                             </tr>
                         </thead>
@@ -302,20 +304,20 @@ onMounted(async () => {
                             <tr v-for="m in members" :key="m.user_id" class="border-b border-zinc-800 last:border-0">
                                 <td class="px-4 py-3">
                                     <div class="text-sm text-white font-medium">{{ m.name || m.email }}</div>
-                                    <div class="text-xs text-zinc-500">{{ m.email }}</div>
+                                    <div class="text-xs text-zinc-400">{{ m.email }}</div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <select v-if="isOwner && canManageTeam" :value="m.role"
                                         @change="changeRole(m, ($event.target as HTMLSelectElement).value as WorkspaceRole)"
-                                        class="px-2 py-1 text-xs bg-zinc-950 border border-zinc-800 rounded-md text-white cursor-pointer">
+                                        class="px-2 py-1 text-xs bg-zinc-900 border border-zinc-800 rounded-md text-white cursor-pointer">
                                         <option v-for="r in ASSIGNABLE_ROLES" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
                                     </select>
                                     <span v-else class="text-xs text-zinc-300">{{ ROLE_LABEL[m.role] }}</span>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-zinc-400">{{ fmtDate(m.joined_at) }}</td>
+                                <td class="px-4 py-3 text-sm text-zinc-300">{{ fmtDate(m.joined_at) }}</td>
                                 <td class="px-4 py-3 text-right">
                                     <button v-if="isOwner && canManageTeam && m.user_id !== auth.userId" @click="openRemove(m)"
-                                        class="text-xs text-zinc-500 hover:text-red-400 transition cursor-pointer">
+                                        class="text-xs text-zinc-400 hover:text-red-400 transition cursor-pointer">
                                         Remove
                                     </button>
                                 </td>
@@ -328,24 +330,22 @@ onMounted(async () => {
                     <div v-for="r in ASSIGNABLE_ROLES" :key="r"
                         class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                         <h3 class="text-sm font-semibold text-white mb-1">{{ ROLE_LABEL[r] }}</h3>
-                        <p class="text-xs text-zinc-500 leading-relaxed">{{ ROLE_DESCRIPTION[r] }}</p>
+                        <p class="text-xs text-zinc-400 leading-relaxed">{{ ROLE_DESCRIPTION[r] }}</p>
                     </div>
                 </div>
             </template>
 
             <AppModal :show="showInvite" :title="inviteMode === 'new' ? 'Create user' : 'Add existing user'" @close="showInvite = false">
                 <form @submit.prevent="handleInvite" class="space-y-4">
-                    <div class="flex bg-zinc-950 border border-zinc-800 rounded-lg p-1">
-                        <button type="button" @click="inviteMode = 'existing'"
-                            :class="['flex-1 px-3 py-1.5 text-xs rounded-md transition cursor-pointer', inviteMode === 'existing' ? 'bg-zinc-800 text-white' : 'text-zinc-400']">
+                    <div class="flex gap-2">
+                        <AppFilterChip class="flex-1" :active="inviteMode === 'existing'" @click="inviteMode = 'existing'">
                             Existing user
-                        </button>
-                        <button type="button" @click="inviteMode = 'new'"
-                            :class="['flex-1 px-3 py-1.5 text-xs rounded-md transition cursor-pointer', inviteMode === 'new' ? 'bg-zinc-800 text-white' : 'text-zinc-400']">
+                        </AppFilterChip>
+                        <AppFilterChip class="flex-1" :active="inviteMode === 'new'" @click="inviteMode = 'new'">
                             New user
-                        </button>
+                        </AppFilterChip>
                     </div>
-                    <p class="text-xs text-zinc-500">
+                    <p class="text-xs text-zinc-400">
                         <template v-if="inviteMode === 'existing'">The user must already have a SendDock account on this instance.</template>
                         <template v-else>Create a new user account and add them to this workspace. Pass the password to them out of band.</template>
                     </p>
@@ -353,19 +353,17 @@ onMounted(async () => {
                     <template v-if="inviteMode === 'new'">
                         <AppInput v-model="newUserName" label="Name" placeholder="Jane Doe" required />
                         <div>
-                            <label class="block text-xs text-zinc-400 mb-1">Temporary password</label>
+                            <label class="block text-xs text-zinc-300 mb-1">Temporary password</label>
                             <input v-model="newUserPassword" type="password" minlength="8" required
-                                class="w-full px-3 py-2 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white" />
-                            <p class="text-xs text-zinc-500 mt-1">At least 8 characters. The user can change it after first login.</p>
+                                class="w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" />
+                            <p class="text-xs text-zinc-400 mt-1">At least 8 characters. The user can change it after first login.</p>
                         </div>
                     </template>
                     <div>
-                        <label class="block text-xs text-zinc-400 mb-1">Role</label>
-                        <select v-model="inviteRole"
-                            class="w-full px-3 py-2 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white cursor-pointer">
-                            <option v-for="r in ASSIGNABLE_ROLES" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
-                        </select>
-                        <p class="text-xs text-zinc-500 mt-1">{{ ROLE_DESCRIPTION[inviteRole] }}</p>
+                        <label class="block text-xs text-zinc-300 mb-1">Role</label>
+                        <AppSelect v-model="inviteRole" size="md" class="w-full"
+                            :options="ASSIGNABLE_ROLES.map(r => ({ value: r, label: ROLE_LABEL[r] }))" />
+                        <p class="text-xs text-zinc-400 mt-1">{{ ROLE_DESCRIPTION[inviteRole] }}</p>
                     </div>
                     <AppAlert :message="inviteError" />
                     <AppButton :loading="inviteLoading">

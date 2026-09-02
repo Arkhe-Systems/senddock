@@ -12,6 +12,7 @@ import BarChart from '@/components/charts/BarChart.vue'
 import DonutChart from '@/components/charts/DonutChart.vue'
 import StackedBarChart from '@/components/charts/StackedBarChart.vue'
 import AppProPaywall from '@/components/ui/AppProPaywall.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import AppLoader from '@/components/ui/AppLoader.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -217,10 +218,10 @@ onMounted(async () => {
     <div>
         <div class="mb-6">
             <div class="flex items-center gap-2">
-                <h2 class="text-2xl font-bold text-white">Reports</h2>
+                <h2 class="text-xl font-semibold text-white">Reports</h2>
                 <span class="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">Pro</span>
             </div>
-            <p class="text-sm text-zinc-500 mt-1">Build your own breakdowns — pick a dataset, a measure, how to group it, and how to see it.</p>
+            <p class="text-sm text-zinc-400 mt-1">Build your own breakdowns — pick a dataset, a measure, how to group it, and how to see it.</p>
         </div>
 
         <AppProPaywall v-if="!licenseStore.allowsPro"
@@ -229,71 +230,54 @@ onMounted(async () => {
 
         <template v-else-if="schema">
             <div class="flex flex-wrap items-center gap-2 mb-4">
-                <select v-model="editingId" @change="() => { const r = savedReports.find(s => s.id === editingId); if (r) loadReport(r) }"
-                    class="px-3 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none">
-                    <option value="">New report…</option>
-                    <option v-for="r in savedReports" :key="r.id" :value="r.id">{{ r.name }}</option>
-                </select>
-                <AppButton size="sm" variant="secondary" @click="newReport">New</AppButton>
-                <AppButton size="sm" @click="openSave">{{ editingId ? 'Save' : 'Save as…' }}</AppButton>
-                <AppButton v-if="editingId" size="sm" variant="danger"
+                <AppSelect v-model="editingId" size="sm"
+                    :options="[{ value: '', label: 'New report…' }, ...savedReports.map(r => ({ value: r.id, label: r.name }))]"
+                    @change="() => { const r = savedReports.find(s => s.id === editingId); if (r) loadReport(r) }" />
+                <AppButton size="md" variant="secondary" @click="newReport">New</AppButton>
+                <AppButton size="md" @click="openSave">{{ editingId ? 'Save' : 'Save as…' }}</AppButton>
+                <AppButton v-if="editingId" size="md" variant="danger"
                     @click="deleteTarget = savedReports.find(s => s.id === editingId) ?? null">Delete</AppButton>
                 <div class="flex-1"></div>
-                <AppButton size="sm" variant="secondary" @click="exportCsv">Export CSV</AppButton>
+                <AppButton size="md" variant="primary" @click="exportCsv">Export CSV</AppButton>
             </div>
 
             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Dataset</span>
-                    <select v-model="dataset" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
-                        <option v-for="d in schema.datasets" :key="d.key" :value="d.key">{{ d.label }}</option>
-                    </select>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Dataset</span>
+                    <AppSelect v-model="dataset" size="sm" class="mt-1 w-full" :options="schema.datasets.map(d => ({ value: d.key, label: d.label }))" />
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Measure</span>
-                    <select v-model="measure" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
-                        <option v-for="m in measures" :key="m.key" :value="m.key">{{ m.label }}</option>
-                    </select>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Measure</span>
+                    <AppSelect v-model="measure" size="sm" class="mt-1 w-full" :options="measures.map(m => ({ value: m.key, label: m.label }))" />
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Group by</span>
-                    <select v-model="dim1" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
-                        <option v-for="d in dims" :key="d.key" :value="d.key">{{ d.label }}</option>
-                    </select>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Group by</span>
+                    <AppSelect v-model="dim1" size="sm" class="mt-1 w-full" :options="dims.map(d => ({ value: d.key, label: d.label }))" />
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Then by (pivot)</span>
-                    <select v-model="dim2" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
-                        <option value="">— none —</option>
-                        <option v-for="d in dim2Options" :key="d.key" :value="d.key">{{ d.label }}</option>
-                    </select>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Then by (pivot)</span>
+                    <AppSelect v-model="dim2" size="sm" class="mt-1 w-full" :options="[{ value: '', label: '— none —' }, ...dim2Options.map(d => ({ value: d.key, label: d.label }))]" />
                 </label>
                 <label v-if="usesTime" class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Granularity</span>
-                    <select v-model="gran" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
-                        <option v-for="g in schema.granularities" :key="g" :value="g">{{ g }}</option>
-                    </select>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Granularity</span>
+                    <AppSelect v-model="gran" size="sm" class="mt-1 w-full" :options="schema.granularities" />
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Filter (segment)</span>
-                    <select v-model="segmentFilter" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none">
-                        <option value="">All</option>
-                        <option v-for="s in segments" :key="s.id" :value="s.id">{{ s.name }}</option>
-                    </select>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Filter (segment)</span>
+                    <AppSelect v-model="segmentFilter" size="sm" class="mt-1 w-full" :options="[{ value: '', label: 'All' }, ...segments.map(sg => ({ value: sg.id, label: sg.name }))]" />
                 </label>
                 <label v-if="dataset === 'emails'" class="block col-span-2">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Date range</span>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Date range</span>
                     <div class="mt-1 flex items-center gap-1">
-                        <input type="date" v-model="fromDate" class="flex-1 px-2 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-300 [color-scheme:dark] focus:outline-none" />
+                        <input type="date" v-model="fromDate" class="flex-1 px-2 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-300 [color-scheme:dark] focus:outline-none" />
                         <span class="text-zinc-600 text-xs">→</span>
-                        <input type="date" v-model="toDate" class="flex-1 px-2 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-300 [color-scheme:dark] focus:outline-none" />
+                        <input type="date" v-model="toDate" class="flex-1 px-2 py-1.5 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-300 [color-scheme:dark] focus:outline-none" />
                     </div>
                 </label>
                 <label class="block">
-                    <span class="text-xs text-zinc-500 uppercase tracking-wide">Chart</span>
-                    <select v-model="viz" class="mt-1 w-full px-3 py-1.5 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none capitalize">
-                        <option v-for="v in vizOptions" :key="v" :value="v">{{ v }}</option>
-                    </select>
+                    <span class="text-xs text-zinc-400 uppercase tracking-wide">Chart</span>
+                    <AppSelect v-model="viz" size="sm" class="mt-1 w-full capitalize"
+                        :options="vizOptions" />
                 </label>
             </div>
 
@@ -306,7 +290,7 @@ onMounted(async () => {
                     <LineChart v-else-if="viz === 'line' || viz === 'area'" :labels="pivotSeries.labels" :series="pivotSeries.series" />
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead class="text-zinc-500 text-xs uppercase tracking-wide border-b border-zinc-800">
+                            <thead class="text-zinc-400 text-xs uppercase tracking-wide border-b border-zinc-800">
                                 <tr>
                                     <th class="text-left px-3 py-2">{{ dim1 }}</th>
                                     <th v-for="c in pivot.columns" :key="c" class="text-right px-3 py-2">{{ c }}</th>
@@ -328,7 +312,7 @@ onMounted(async () => {
                     <LineChart v-else-if="viz === 'line' || viz === 'area'" :labels="singleLine.labels" :series="singleLine.series" />
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead class="text-zinc-500 text-xs uppercase tracking-wide border-b border-zinc-800">
+                            <thead class="text-zinc-400 text-xs uppercase tracking-wide border-b border-zinc-800">
                                 <tr>
                                     <th class="text-left px-3 py-2">{{ dim1 }}</th>
                                     <th class="text-right px-3 py-2">{{ measureLabel }}</th>
@@ -344,15 +328,15 @@ onMounted(async () => {
                     </div>
                 </template>
 
-                <p v-else class="text-sm text-zinc-500 py-12 text-center">No data for this selection.</p>
+                <p v-else class="text-sm text-zinc-400 py-12 text-center">No data for this selection.</p>
             </div>
         </template>
 
         <AppModal :show="saveModalOpen" title="Save report" @close="saveModalOpen = false">
             <label class="block">
-                <span class="text-sm text-zinc-400">Name</span>
+                <span class="text-sm text-zinc-300">Name</span>
                 <input v-model="saveName" type="text" placeholder="e.g. Subscribers by plan"
-                    class="mt-1 w-full px-3 py-2 text-sm bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none" @keyup.enter="confirmSave" />
+                    class="mt-1 w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" @keyup.enter="confirmSave" />
             </label>
             <div class="flex gap-2 justify-end mt-4">
                 <AppButton variant="secondary" @click="saveModalOpen = false">Cancel</AppButton>

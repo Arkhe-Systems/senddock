@@ -16,7 +16,7 @@ The single most important setting. It's the address recipients' mail clients rea
 
 - The **unsubscribe** links inside every outgoing email.
 - The **open-tracking pixel** and **click-redirect** URLs (`/t/...`, `/c/...`) — without a reachable public URL, no opens or clicks are ever recorded.
-- The **CORS origin** the dashboard is served from.
+- The **CORS origin** the dashboard is served from (on the single-binary image the SPA is served from this origin; in a split-frontend setup `FRONTEND_URL` overrides it — see [Environment variables](./environment)).
 
 Set it to your public HTTPS domain, e.g. `https://mail.example.com`. Changes take effect immediately.
 
@@ -30,7 +30,7 @@ Signs users out after a stretch of inactivity. Enter any whole number of **minut
 
 ## Pro license
 
-If you bought Pro or Team, paste the license key you received by email into the **License** section and activate it. SendDock validates it, stores it **encrypted** in the database, and unlocks the paid features **immediately** — the validator rebuilds in place, no restart. The current plan (Free / Pro / Team) is shown once it's active.
+If you bought Pro or Team, paste the license key you received by email into the **License** section and activate it. SendDock validates it, stores it **encrypted** in the database, and unlocks the paid features **immediately** — the license check re-runs right away, so the new tier takes effect without a container restart. The current plan (Free / Pro / Team) is shown once it's active.
 
 See [Plans and licensing](/self-hosting/configuration#plans-and-licensing) for what each tier unlocks.
 

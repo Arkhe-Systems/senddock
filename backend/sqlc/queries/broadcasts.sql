@@ -1,6 +1,6 @@
 -- name: CreateBroadcast :one
-INSERT INTO broadcasts (project_id, template_id, subject, variables, html_fields, total_recipients)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO broadcasts (project_id, template_id, subject, variables, html_fields, total_recipients, newsletter_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: IncrementBroadcastSent :exec
@@ -32,11 +32,16 @@ WHERE b.status IN ('sending', 'interrupted')
 -- name: ListBroadcastsByProject :many
 SELECT * FROM broadcasts
 WHERE project_id = $1
+AND ($4::text = '' OR status = $4::text)
+AND ($5::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $5::uuid)
 ORDER BY started_at DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CountBroadcastsByProject :one
-SELECT COUNT(*) FROM broadcasts WHERE project_id = $1;
+SELECT COUNT(*) FROM broadcasts
+WHERE project_id = $1
+AND ($2::text = '' OR status = $2::text)
+AND ($3::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR newsletter_id = $3::uuid);
 
 -- name: GetBroadcast :one
 SELECT * FROM broadcasts WHERE id = $1 AND project_id = $2;

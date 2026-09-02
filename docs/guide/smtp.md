@@ -11,7 +11,7 @@ Go to **SMTP Settings** in the project sidebar and fill in:
 | Field | Description | Example |
 |-------|-------------|---------|
 | SMTP Host | Your SMTP server hostname | `smtp.gmail.com` |
-| Port | SMTP port (usually 587 for TLS) | `587` |
+| Port | SMTP port (usually 587 for TLS). Port 465 expects TLS from the first byte; ports 25 and 587 start plaintext and upgrade via STARTTLS. SendDock auto-detects the mode per port — use whichever your provider requires. | `587` |
 | Username | SMTP authentication username | `you@gmail.com` |
 | Password | SMTP password or app-specific password | `xxxx xxxx xxxx xxxx` |
 | From Name | Display name for the sender (optional) | `My Newsletter` |

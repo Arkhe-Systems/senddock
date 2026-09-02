@@ -1,8 +1,67 @@
 @import "tailwindcss";
 
+@theme {
+    --color-zinc-950: #111113;
+    --color-zinc-900: #19191b;
+    --color-zinc-850: #292a2e;
+    --color-zinc-800: #393a40;
+    --color-zinc-700: #46484f;
+    --color-zinc-600: #5f606a;
+    --color-zinc-500: #6c6e79;
+    --color-zinc-400: #b2b3bd;
+    --color-zinc-300: #b2b3bd;
+    --color-zinc-200: #eeeef0;
+    --color-zinc-100: #eeeef0;
+
+    --color-emerald-950: #082217;
+    --color-emerald-900: #0a2e20;
+    --color-emerald-700: #006949;
+    --color-emerald-600: #008a60;
+    --color-emerald-500: #00af7b;
+    --color-emerald-400: #3bba89;
+    --color-emerald-300: #95d6b7;
+    --color-emerald-200: #ccefdd;
+
+    --color-red-950: #32100e;
+    --color-red-900: #431614;
+    --color-red-700: #9d2627;
+    --color-red-600: #c93938;
+    --color-red-500: #fa4f4d;
+    --color-red-400: #ff6962;
+    --color-red-300: #ffaca4;
+    --color-red-200: #ffdcd8;
+
+    --color-amber-950: #291803;
+    --color-amber-900: #382102;
+    --color-amber-700: #7b4d01;
+    --color-amber-600: #a06601;
+    --color-amber-500: #cb8202;
+    --color-amber-400: #db8d08;
+    --color-amber-300: #ebbb84;
+    --color-amber-200: #fbe0c2;
+
+    --color-blue-950: #0e1c34;
+    --color-blue-900: #132646;
+    --color-blue-700: #2355a6;
+    --color-blue-600: #3470d3;
+    --color-blue-500: #4e91ff;
+    --color-blue-400: #659fff;
+    --color-blue-300: #a3c6ff;
+    --color-blue-200: #d7e6ff;
+
+    --color-orange-950: #2f1406;
+    --color-orange-900: #3f1b07;
+    --color-orange-700: #8f3d00;
+    --color-orange-600: #b95100;
+    --color-orange-500: #ea6800;
+    --color-orange-400: #f3792f;
+    --color-orange-300: #fcb18b;
+    --color-orange-200: #ffddcc;
+}
+
 * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(82, 82, 91, 0.6) transparent;
+    scrollbar-color: rgba(95, 96, 106, 0.6) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -15,14 +74,14 @@
 }
 
 *::-webkit-scrollbar-thumb {
-    background-color: rgba(82, 82, 91, 0.5);
+    background-color: rgba(95, 96, 106, 0.5);
     border-radius: 6px;
     border: 2px solid transparent;
     background-clip: content-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(113, 113, 122, 0.8);
+    background-color: rgba(108, 110, 121, 0.8);
 }
 
 *::-webkit-scrollbar-corner {

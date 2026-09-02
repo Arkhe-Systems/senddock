@@ -157,6 +157,40 @@ func (s *ProjectService) UpdateSMTP(ctx context.Context, projectID, userID, smtp
 	})
 }
 
+func (s *ProjectService) SetUnsubscribeTemplate(ctx context.Context, projectID, userID, templateID string) (db.Project, error) {
+	pid, err := uuid.Parse(projectID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid project id")
+	}
+
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return db.Project{}, errors.New("invalid user id")
+	}
+
+	target := uuid.NullUUID{}
+	if templateID != "" {
+		tid, err := uuid.Parse(templateID)
+		if err != nil {
+			return db.Project{}, errors.New("invalid template id")
+		}
+		template, err := s.queries.GetTemplateByID(ctx, db.GetTemplateByIDParams{ID: tid, ProjectID: pid})
+		if err != nil {
+			return db.Project{}, errors.New("template not found")
+		}
+		if template.Type != "page" {
+			return db.Project{}, errors.New("template must be a page template")
+		}
+		target = uuid.NullUUID{UUID: tid, Valid: true}
+	}
+
+	return s.queries.UpdateProjectUnsubscribeTemplate(ctx, db.UpdateProjectUnsubscribeTemplateParams{
+		ID:                    pid,
+		UserID:                uid,
+		UnsubscribeTemplateID: target,
+	})
+}
+
 func (s *ProjectService) Delete(ctx context.Context, projectID, userID string) error {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {

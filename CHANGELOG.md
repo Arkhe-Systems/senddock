@@ -7,9 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases are also published on [GitHub](https://github.com/arkhe-systems/senddock/releases) and the `ghcr.io/arkhe-systems/senddock` image carries the matching tag.
 
-## [Unreleased]
+## [0.8.2] — 2026-09-01
 
-_Nothing here yet. Track upcoming work on the [open issues](https://github.com/arkhe-systems/senddock/issues)._
+Audience & white-label: multiple newsletters per project with per-newsletter unsubscribe, and branded unsubscribe pages.
+
+### Added
+
+- **Newsletters (Core).** A project can now hold several named publications — one subscriber base, per-newsletter memberships. Broadcasts and campaigns can target a newsletter (`newsletter_id`, mutually exclusive with `segment_id`), and those emails carry an unsubscribe link scoped to it: the reader leaves that one newsletter while their project status, other newsletters and transactional email stay untouched. The `List-Unsubscribe` header carries the same scoped URL, so Gmail/Outlook one-click unsubscribe inherits the per-newsletter semantics. Old links keep working and remain project-wide; links for a deleted newsletter degrade to project-wide. Manage memberships from the subscriber editor, bulk actions (`add_newsletter` / `remove_newsletter`) or the API, and listen for the new `subscriber.newsletter_unsubscribed` webhook event.
+- **Branded unsubscribe pages (Core).** Templates now have a **type** — `email` or `page`. Assign a page template under **Project → Settings → Unsubscribe page** and the public unsubscribe confirmation and done pages render your design instead of the built-in one, with `{{project_name}}`, `{{email}}`, `{{newsletter_name}}` and `{{confirm_button}}` placeholders. Page HTML is sanitized (scripts, iframes, forms and event handlers stripped; inline styles and `<style>` blocks are preserved), the unsubscribe button is force-injected if omitted, and invalid links always render the neutral built-in page.
+- **Newsletter and status filters.** Analytics (Overview, Campaigns, Engagement) gains an *All project / newsletter* scope; email logs, broadcasts and subscribers gain `newsletter_id` filters; broadcasts also filter by `status` and subscribers by `status` and `tag`. Email logs are newsletter-attributed at send time (`email_logs.newsletter_id`).
+
+### Changed
+
+- **"Newsletters" tab renamed to "Campaigns".** The scheduled-send feature was using the name the new publication concept needed. Endpoints and API shapes are unchanged.
+- **Send composer redesigned.** The Send Email modal is wider, two-column, with a clear audience picker (all subscribers / segment / newsletter).
+- **Copyable IDs.** Project, template and newsletter IDs render as a copy pill with visible feedback wherever the dashboard shows them.
+- **Visual redesign (mint brand).** The dashboard moved from a monochrome light/dark palette to a single **mint/emerald** brand palette (with tuned gray, red, amber, blue and orange scales), and screen headings were unified so the app reads as one consistent interface.
+- **One shared control language.** Status pills, filter dropdowns and toolbar/row buttons now come from the same component set (`AppStatusPill` with a tone map, a new `AppSelect`, and `AppButton` outline/danger-outline variants), so the same control — a log status, a list filter, a destructive row action — renders identically on every screen. Page-level actions (create, export, save) share one size and one style across screens, while modal footers and in-row actions keep their own compact sizes.
+
+### Fixed
+
+- **Visual builder reliability.** The GrapeJS email builder had a batch of drag-and-drop and save problems: buttons were tables with an inner link that dragged on its own (making them vanish), text typed in the editor was lost on save, columns used rigid table cells that trapped content, and every keystroke re-parsed the whole template. The builder now uses div-based columns and single-component buttons, persists text edits reliably, debounces saving, loads templates sanitized (scripts stripped via DOMPurify), inlines CSS at send time on every path, converts div columns to real `<table>`s for Outlook, and keeps `<style>`/classes on branded pages. Undo/redo survives and switching Code ↔ Visual no longer resets the canvas.
+- **Email confirmation signs in the right device.** The email login-confirmation link used to start a session on whichever device opened it — opening it on your phone left your computer waiting while the phone got logged in. It now only *approves* the pending login; the device that started it polls and completes, so the link can be opened on any device and still sign in the original one.
+- **Clearer template variables.** The template editor now shows every available variable as a `{{variable}}` pill — detected, system and custom fields — grouped and clickable to insert at the cursor. Subscriber custom fields are hidden on page templates, where they aren't rendered.
+- **Unsubscribing from a deleted newsletter.** A per-newsletter unsubscribe link stayed clickable after its newsletter was deleted, but on branded pages the confirm form dropped `?n=`, the token no longer matched and the reader hit "Link expired or invalid" instead of being unsubscribed. The confirm now keeps the scope and degrades to a project-wide unsubscribe, exactly like the built-in page — and no button ever reads "Unsubscribe from " with an empty name.
+- **Suppressed sends stay on their newsletter's log.** Email-log rows for recipients skipped during a newsletter broadcast lost the `newsletter_id`, so they vanished from that newsletter's filter in Email Logs. They now carry it, and are cleared only when the newsletter itself is deleted, like every other row.
+- **CSV export honors the newsletter filter.** The logs CSV export ignored `newsletter_id`, so it could return rows from other newsletters while the on-screen list was filtered to one. Both now agree.
+- **Campaigns validate their audience scope.** Campaign create/update now refuses a `template_id` or `newsletter_id` that belongs to another project, instead of storing a campaign whose send would fail or link the wrong newsletter.
 
 ## [0.8.1] — 2026-08-20
 

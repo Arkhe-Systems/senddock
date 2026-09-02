@@ -62,7 +62,7 @@ Rows that fail any check are skipped. The **import results modal** breaks the in
 - **Suppressed** — emails on the project's [suppression list](./suppressions); skipped without insert.
 - **Rejected** — failed validation. Each rejected row is listed below with the reason (`syntax_invalid`, `no_mx`, `disposable`).
 
-The five counts plus `imported` sum exactly to the number of rows your file had — every input row is accounted for.
+The four categories above — imported, duplicates, suppressed and rejected — sum exactly to the number of rows in your file, so every input row is accounted for.
 
 You can fix rejected rows in your source file and re-import. Existing rows are deduplicated, so re-running the same file just makes the new rows go through and the rest count as duplicates.
 
@@ -76,14 +76,20 @@ You can fix rejected rows in your source file and re-import. Existing rows are d
 
 Only `active` subscribers receive broadcast emails. Unsubscribed subscribers are also added to the project's [suppression list](./suppressions) so transactional sends skip them too.
 
+A `pending` subscriber never receives broadcasts and does not become `active` on its own — activate them from the subscribers table, the bulk action, or the API. There is no automatic confirmation link: `pending` is a manual holding state for leads you haven't approved yet.
+
+Status is the project-wide switch. On top of it, subscribers can hold per-[newsletter](./newsletters) memberships — leaving one newsletter doesn't change the status or suppress anything.
+
 ## Managing Subscribers
 
 From the subscribers table, on a single row you can:
 
 - **Activate** a pending or unsubscribed subscriber
 - **Unsubscribe** an active subscriber
-- **Edit** a subscriber's name, custom fields and tags
+- **Edit** a subscriber's name, custom fields, tags and [newsletter](./newsletters) memberships
 - **Delete** a subscriber permanently
+
+The table filters by **status**, **tag** and **newsletter**, combinable with each other.
 
 ### Bulk actions
 
@@ -91,6 +97,7 @@ Tick the checkboxes on several rows (or the header checkbox to select the page) 
 
 - **Change status** — set them all to active, unsubscribed or pending.
 - **Tags** — add or remove tags (see [Tags](#tags)).
+- **Newsletter** — add them all to or remove them all from one [newsletter](./newsletters).
 - **Delete** — remove them all permanently (asks you to confirm first).
 
 ## Custom Fields
@@ -145,7 +152,7 @@ POST /api/v1/projects/{id}/waitlist
 {"email": "user@example.com", "template_id": "uuid"}
 ```
 
-This creates a subscriber with `pending` status and optionally sends a confirmation email. No authentication needed — safe to call from frontend JavaScript.
+This creates a subscriber with `pending` status. Include `template_id` — the ID of an `email`-type template — to send that template as a confirmation email (the address is available to the template as the `{{email}}` variable); omit it to create the subscriber silently. The email is informational: it does **not** flip the subscriber to `active`, which stays a manual step. No authentication needed — safe to call from frontend JavaScript.
 
 Use it to build pre-launch waitlists, beta signups, or email collection forms.
 

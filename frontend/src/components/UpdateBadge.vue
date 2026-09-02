@@ -124,15 +124,15 @@ function stopPolling() {
 <template>
     <div v-if="release && release.enabled">
         <button v-if="release.outdated" @click="showModal = true"
-            class="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/20 transition cursor-pointer">
+            class="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition cursor-pointer">
             <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-400"></span>
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
             </span>
             Update available · v{{ release.latest }}
         </button>
         <button v-else @click="showModal = true"
-            class="flex items-center gap-1.5 px-2 py-1 text-xs font-mono text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-md transition cursor-pointer">
+            class="flex items-center gap-1.5 px-2 py-1 text-xs font-mono text-zinc-400 hover:text-white hover:bg-zinc-850 rounded-md transition cursor-pointer">
             v{{ release.current }}
         </button>
 
@@ -140,22 +140,22 @@ function stopPolling() {
             <div class="space-y-5">
                 <div v-if="release.outdated && !polling" class="flex items-center gap-3">
                     <div class="px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg">
-                        <p class="text-[11px] text-zinc-500 uppercase tracking-wide">Current</p>
+                        <p class="text-[11px] text-zinc-400 uppercase tracking-wide">Current</p>
                         <p class="text-sm text-white font-mono">v{{ release.current }}</p>
                     </div>
                     <span class="text-zinc-600">&rarr;</span>
-                    <div class="px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                        <p class="text-[11px] text-yellow-400/80 uppercase tracking-wide">Latest</p>
-                        <p class="text-sm text-yellow-300 font-mono">v{{ release.latest }}</p>
+                    <div class="px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                        <p class="text-[11px] text-amber-400/80 uppercase tracking-wide">Latest</p>
+                        <p class="text-sm text-amber-300 font-mono">v{{ release.latest }}</p>
                     </div>
                 </div>
 
                 <div v-if="polling" class="space-y-3 text-sm text-zinc-300">
                     <div class="flex items-center gap-3">
-                        <span class="inline-block w-4 h-4 border-2 border-zinc-700 border-t-yellow-400 rounded-full animate-spin"></span>
+                        <span class="inline-block w-4 h-4 border-2 border-zinc-700 border-t-amber-400 rounded-full animate-spin"></span>
                         <span>Watchtower is pulling v{{ release.latest }} and recreating the container. This usually takes 30–90 seconds.</span>
                     </div>
-                    <p class="text-xs text-zinc-500">
+                    <p class="text-xs text-zinc-400">
                         Your session may briefly disconnect. When the new version is live, this dialog will update automatically.
                     </p>
                 </div>
@@ -163,18 +163,18 @@ function stopPolling() {
                 <template v-else-if="release.outdated">
                     <div v-if="canOneClick" class="space-y-3">
                         <button @click="triggerUpdate" :disabled="triggering"
-                            class="w-full px-4 py-3 text-sm font-semibold bg-yellow-500 text-zinc-950 rounded-lg hover:bg-yellow-400 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="w-full px-4 py-3 text-sm font-semibold bg-amber-500 text-zinc-950 rounded-lg hover:bg-amber-400 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                             {{ triggering ? 'Triggering...' : `Update now to v${release.latest}` }}
                         </button>
-                        <p class="text-xs text-zinc-500 text-center">
-                            Watchtower at <code class="text-zinc-400">{{ watchtower?.url }}</code> will pull the new image and recreate the container. Postgres and Redis volumes are preserved.
+                        <p class="text-xs text-zinc-400 text-center">
+                            Watchtower at <code class="text-zinc-300">{{ watchtower?.url }}</code> will pull the new image and recreate the container. Postgres and Redis volumes are preserved.
                         </p>
                         <details class="text-xs">
-                            <summary class="text-zinc-500 hover:text-zinc-300 cursor-pointer">Or run it manually</summary>
+                            <summary class="text-zinc-400 hover:text-zinc-300 cursor-pointer">Or run it manually</summary>
                             <div class="mt-2 flex items-center gap-2">
                                 <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white font-mono select-all">{{ updateCommand }}</code>
                                 <button @click="copyCommand"
-                                    class="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">
+                                    class="px-3 py-2 text-xs bg-zinc-850 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">
                                     Copy
                                 </button>
                             </div>
@@ -188,24 +188,24 @@ function stopPolling() {
                             is unreachable. <span v-if="watchtower.last_error" class="text-red-400">({{ watchtower.last_error }})</span>
                         </div>
 
-                        <div class="p-4 bg-yellow-500/5 border border-yellow-500/30 rounded-lg">
-                            <p class="text-sm font-semibold text-yellow-200 mb-1">Deployed via Dokploy, Coolify, Portainer or similar?</p>
+                        <div class="p-4 bg-amber-500/5 border border-amber-500/30 rounded-lg">
+                            <p class="text-sm font-semibold text-amber-200 mb-1">Deployed via Dokploy, Coolify, Portainer or similar?</p>
                             <p class="text-xs text-zinc-300">Trigger a <strong class="text-white">rebuild / redeploy</strong> of this project from your hosting panel. It pulls the new image and recreates the container in ~30–60 seconds. Postgres and Redis volumes are preserved.</p>
                         </div>
 
                         <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
                             <p class="text-sm font-medium text-white mb-1">Direct Docker control</p>
-                            <p class="text-xs text-zinc-400 mb-3">Bare-metal installs (including <code class="text-zinc-300 font-mono text-[11px]">install.sh</code>) and manual <code class="text-zinc-300 font-mono text-[11px]">docker-compose.yml</code> users — run this from the folder with your compose file:</p>
+                            <p class="text-xs text-zinc-300 mb-3">Bare-metal installs (including <code class="text-zinc-300 font-mono text-[11px]">install.sh</code>) and manual <code class="text-zinc-300 font-mono text-[11px]">docker-compose.yml</code> users — run this from the folder with your compose file:</p>
                             <div class="flex items-center gap-2">
                                 <code class="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white font-mono select-all">{{ updateCommand }}</code>
                                 <button @click="copyCommand"
-                                    class="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">
+                                    class="px-3 py-2 text-xs bg-zinc-850 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">
                                     Copy
                                 </button>
                             </div>
                         </div>
 
-                        <p v-if="!watchtower?.configured" class="text-xs text-zinc-500">
+                        <p v-if="!watchtower?.configured" class="text-xs text-zinc-400">
                             Tip: wire up
                             <a href="https://docs.senddock.dev/self-hosting/updating#one-click-updates-from-the-dashboard-watchtower"
                                 target="_blank" rel="noopener"
@@ -226,7 +226,7 @@ function stopPolling() {
 
                 <div class="flex justify-between items-center text-xs">
                     <a v-if="release.release_url" :href="release.release_url" target="_blank" rel="noopener"
-                        class="text-zinc-400 hover:text-white transition underline decoration-zinc-700 underline-offset-2">
+                        class="text-zinc-300 hover:text-white transition underline decoration-zinc-700 underline-offset-2">
                         Full release on GitHub &rarr;
                     </a>
                     <span class="text-zinc-600">Checked {{ new Date(release.checked_at).toLocaleString() }}</span>
@@ -241,7 +241,7 @@ function stopPolling() {
 .release-notes :deep(h2) {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #fafafa;
+    color: #eeeef0;
     margin: 1rem 0 0.5rem;
 }
 .release-notes :deep(h2):first-child,
@@ -251,7 +251,7 @@ function stopPolling() {
 .release-notes :deep(h3) {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #fafafa;
+    color: #eeeef0;
     margin: 0.75rem 0 0.4rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -270,19 +270,19 @@ function stopPolling() {
     margin: 0.2rem 0;
 }
 .release-notes :deep(li)::marker {
-    color: #71717a;
+    color: #6c6e79;
 }
 .release-notes :deep(code) {
-    background: #18181b;
+    background: #19191b;
     border-radius: 4px;
     padding: 0.05rem 0.35rem;
     font-size: 0.8em;
-    color: #e4e4e7;
+    color: #eeeef0;
     word-break: break-word;
 }
 .release-notes :deep(pre) {
-    background: #09090b;
-    border: 1px solid #27272a;
+    background: #111113;
+    border: 1px solid #292a2e;
     border-radius: 6px;
     padding: 0.6rem 0.8rem;
     font-size: 0.78rem;
@@ -301,21 +301,21 @@ function stopPolling() {
     overflow-wrap: inherit;
 }
 .release-notes :deep(a) {
-    color: #fbbf24;
+    color: #db8d08;
     text-decoration: underline;
-    text-decoration-color: #52525b;
+    text-decoration-color: #5f606a;
     text-underline-offset: 2px;
 }
 .release-notes :deep(a):hover {
-    text-decoration-color: #fbbf24;
+    text-decoration-color: #db8d08;
 }
 .release-notes :deep(strong) {
-    color: #fafafa;
+    color: #eeeef0;
     font-weight: 600;
 }
 .release-notes :deep(hr) {
     border: none;
-    border-top: 1px solid #27272a;
+    border-top: 1px solid #292a2e;
     margin: 0.8rem 0;
 }
 </style>

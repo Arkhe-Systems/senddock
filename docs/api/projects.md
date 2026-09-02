@@ -32,6 +32,7 @@ POST /api/v1/projects
   "smtp_host": null,
   "smtp_port": null,
   "smtp_user": null,
+  "unsubscribe_template_id": null,
   "created_at": "2026-01-01T00:00:00Z",
   "updated_at": "2026-01-01T00:00:00Z"
 }
@@ -86,7 +87,7 @@ PUT /api/v1/projects/{id}/smtp
 }
 ```
 
-Required fields: `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`.
+All four fields — `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password` — are required on every update; omitting `smtp_password` returns `400`, it does **not** keep the stored credential. To change only the host/port/user, re-send the current password alongside them.
 
 ## Test SMTP
 
@@ -94,4 +95,18 @@ Required fields: `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`.
 POST /api/v1/projects/{id}/smtp/test
 ```
 
-Sends a test email to verify the SMTP configuration is correct. Returns an error message if the connection fails.
+Sends a single test message to the project's `from_email` (falling back to the SMTP username). Returns `200` with `{"message":"SMTP connection successful. Test email sent."}` on acceptance; a connection or delivery failure returns `400` with the SMTP error in the `error` field.
+
+## Unsubscribe page template
+
+```
+PUT /api/v1/projects/{id}/unsubscribe-template
+```
+
+```json
+{"template_id": "uuid"}
+```
+
+Sets the [page template](/api/templates#template-types) rendered on the public unsubscribe pages (both the confirmation and the done page). The template must belong to the project and have `type: "page"` — anything else returns `400`. Send `{"template_id": ""}` to clear the setting and fall back to the built-in page. Requires the `project:settings` capability. Deleting the template clears the setting automatically.
+
+Invalid or tampered unsubscribe links always render the built-in error page, never the branded template.

@@ -26,7 +26,7 @@ SendDock lets developers send transactional emails and run broadcast campaigns f
 - [Suppressions API](https://docs.senddock.dev/api/suppressions): List, add and remove per-project suppressed addresses; what `/send` and `/broadcast` consult before every send.
 - [Bounces API](https://docs.senddock.dev/api/bounces): Configure IMAP poller, webhook ingest URL and rotate the bounce token. Includes the public ingest endpoint shape (generic JSON + Mailgun).
 - [API Keys API](https://docs.senddock.dev/api/api-keys): Create, list, revoke. Hashed at rest, shown once on creation.
-- [Webhooks API](https://docs.senddock.dev/api/webhooks): Full CRUD + delivery history (Core, no license). Seven event types (`email.sent`, `email.failed`, `email.bounced`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`), HMAC-SHA256 signing, exponential-backoff retries.
+- [Webhooks API](https://docs.senddock.dev/api/webhooks): Full CRUD + delivery history (Core, no license). Eight event types (`email.sent`, `email.failed`, `email.bounced`, `email.opened`, `email.clicked`, `subscriber.created`, `subscriber.unsubscribed`, `subscriber.newsletter_unsubscribed`), HMAC-SHA256 signing, exponential-backoff retries.
 - [Analytics API (Pro)](https://docs.senddock.dev/api/analytics): Funnel, opens-over-time, top templates, top clicked links, trend pills, optional `segment_id` filter.
 - [Audit log API (Pro)](https://docs.senddock.dev/api/audit-log): Read every sensitive action with actor, IP, metadata. Cookie-only.
 

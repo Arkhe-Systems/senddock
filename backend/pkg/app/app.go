@@ -405,6 +405,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	segmentService := service.NewSegmentService(queries, a.conn)
 	emailService.SetSegmentService(segmentService)
 	segmentHandler := handler.NewSegmentHandler(segmentService, projectService)
+	newsletterService := service.NewNewsletterService(queries)
+	newsletterHandler := handler.NewNewsletterHandler(newsletterService, projectService)
 
 	webhookService := service.NewWebhookService(queries)
 	webhookHandler := handler.NewWebhookHandler(webhookService, projectService)
@@ -428,6 +430,8 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	fieldHandler.Audit = a.audit
 	instanceSettingsHandler.Audit = a.audit
 	segmentHandler.Audit = a.audit
+	newsletterHandler.Audit = a.audit
+	subscriberHandler.Newsletters = newsletterService
 	webhookHandler.Audit = a.audit
 	apiKeyHandler.Audit = a.audit
 	emailHandler.Audit = a.audit
@@ -637,6 +641,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("PUT /api/v1/projects/{id}", authMW(http.HandlerFunc(projectHandler.Update)))
 	mux.Handle("DELETE /api/v1/projects/{id}", authMW(http.HandlerFunc(projectHandler.Delete)))
 	mux.Handle("PUT /api/v1/projects/{id}/smtp", authMW(http.HandlerFunc(projectHandler.UpdateSMTP)))
+	mux.Handle("PUT /api/v1/projects/{id}/unsubscribe-template", authMW(http.HandlerFunc(projectHandler.UpdateUnsubscribeTemplate)))
 	mux.Handle("GET /api/v1/projects/{id}/bounce-webhook", authMW(http.HandlerFunc(projectHandler.GetBounceWebhook)))
 	mux.Handle("POST /api/v1/projects/{id}/bounce-webhook/rotate", authMW(http.HandlerFunc(projectHandler.RotateBounceToken)))
 	mux.Handle("GET /api/v1/projects/{id}/bounce-imap", authMW(http.HandlerFunc(projectHandler.GetBounceIMAP)))
@@ -668,6 +673,12 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	mux.Handle("GET /api/v1/projects/{id}/tags", authMW(http.HandlerFunc(subscriberHandler.ListTags)))
 	mux.Handle("PUT /api/v1/projects/{id}/subscribers/{subscriberId}/tags", authMW(http.HandlerFunc(subscriberHandler.SetTags)))
 
+	mux.Handle("POST /api/v1/projects/{id}/newsletters", authMW(http.HandlerFunc(newsletterHandler.Create)))
+	mux.Handle("GET /api/v1/projects/{id}/newsletters", authMW(http.HandlerFunc(newsletterHandler.List)))
+	mux.Handle("PATCH /api/v1/projects/{id}/newsletters/{newsletterId}", authMW(http.HandlerFunc(newsletterHandler.Update)))
+	mux.Handle("DELETE /api/v1/projects/{id}/newsletters/{newsletterId}", authMW(http.HandlerFunc(newsletterHandler.Delete)))
+	mux.Handle("GET /api/v1/projects/{id}/subscribers/{subscriberId}/newsletters", authMW(http.HandlerFunc(newsletterHandler.ListForSubscriber)))
+	mux.Handle("PUT /api/v1/projects/{id}/subscribers/{subscriberId}/newsletters", authMW(http.HandlerFunc(newsletterHandler.SetForSubscriber)))
 	mux.Handle("POST /api/v1/projects/{id}/segments", authMW(http.HandlerFunc(segmentHandler.Create)))
 	mux.Handle("GET /api/v1/projects/{id}/segments", authMW(http.HandlerFunc(segmentHandler.List)))
 	mux.Handle("POST /api/v1/projects/{id}/segments/preview", authMW(http.HandlerFunc(segmentHandler.Preview)))

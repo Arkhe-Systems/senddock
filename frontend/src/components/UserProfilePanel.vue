@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '@/stores/workspaces'
 import { useLicenseStore } from '@/stores/license'
 import { useToastStore } from '@/stores/toast'
 import { User, CreditCard, HardDrive, LogOut } from 'lucide-vue-next'
+import AppNavLink from '@/components/ui/AppNavLink.vue'
 
 const auth = useAuthStore()
 const appStore = useAppStore()
@@ -55,12 +56,12 @@ async function handleLogout() {
 <template>
     <div class="border-t border-zinc-800 pt-4 mt-4">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-9 h-9 rounded-full bg-zinc-800 text-zinc-200 flex items-center justify-center text-xs font-semibold shrink-0">
+            <div class="w-9 h-9 rounded-full bg-zinc-850 text-zinc-200 flex items-center justify-center text-xs font-semibold shrink-0">
                 {{ initials }}
             </div>
             <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-white truncate">{{ auth.name || 'User' }}</p>
-                <p class="text-xs text-zinc-500 truncate">{{ auth.email || '—' }}</p>
+                <p class="text-xs text-zinc-400 truncate">{{ auth.email || '—' }}</p>
             </div>
             <span :class="['text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border whitespace-nowrap', planClass]">
                 {{ planLabel }}
@@ -68,23 +69,20 @@ async function handleLogout() {
         </div>
 
         <div class="space-y-1">
-            <RouterLink to="/account" active-class="bg-zinc-800 text-white"
-                class="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+            <AppNavLink to="/account">
                 <User class="w-4 h-4 shrink-0" />
                 <span>Account</span>
-            </RouterLink>
-            <RouterLink to="/billing" active-class="bg-zinc-800 text-white"
-                class="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+            </AppNavLink>
+            <AppNavLink to="/billing">
                 <CreditCard class="w-4 h-4 shrink-0" />
                 <span>Billing</span>
-            </RouterLink>
-            <RouterLink v-if="isSelfHosted" to="/instance" active-class="bg-zinc-800 text-white"
-                class="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+            </AppNavLink>
+            <AppNavLink v-if="isSelfHosted" to="/instance">
                 <HardDrive class="w-4 h-4 shrink-0" />
                 <span>Instance</span>
-            </RouterLink>
+            </AppNavLink>
             <button type="button" @click="handleLogout"
-                class="w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer">
+                class="w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-850 transition cursor-pointer">
                 <LogOut class="w-4 h-4 shrink-0" />
                 <span>Logout</span>
             </button>

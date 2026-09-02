@@ -93,11 +93,12 @@ type sendRequest struct {
 }
 
 type broadcastRequest struct {
-	TemplateID string            `json:"template_id"`
-	Subject    string            `json:"subject"`
-	Variables  map[string]string `json:"variables"`
-	HtmlFields []string          `json:"html_fields"`
-	SegmentID  string            `json:"segment_id"`
+	TemplateID   string            `json:"template_id"`
+	Subject      string            `json:"subject"`
+	Variables    map[string]string `json:"variables"`
+	HtmlFields   []string          `json:"html_fields"`
+	SegmentID    string            `json:"segment_id"`
+	NewsletterID string            `json:"newsletter_id"`
 }
 
 type batchRecipient struct {
@@ -223,7 +224,7 @@ func (h *EmailHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		varsJSON, _ = json.Marshal(req.Variables)
 	}
 
-	result, err := h.emailService.Broadcast(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.Subject, varsJSON, req.HtmlFields, req.SegmentID)
+	result, err := h.emailService.Broadcast(service.WithAuthorizedProject(r.Context(), projectID), projectID, req.TemplateID, req.Subject, varsJSON, req.HtmlFields, req.SegmentID, req.NewsletterID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -337,11 +338,12 @@ func (h *EmailHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filters := service.LogFilters{
-		Status:     r.URL.Query().Get("status"),
-		From:       r.URL.Query().Get("from"),
-		To:         r.URL.Query().Get("to"),
-		Search:     r.URL.Query().Get("q"),
-		TemplateID: r.URL.Query().Get("template_id"),
+		Status:       r.URL.Query().Get("status"),
+		From:         r.URL.Query().Get("from"),
+		To:           r.URL.Query().Get("to"),
+		Search:       r.URL.Query().Get("q"),
+		TemplateID:   r.URL.Query().Get("template_id"),
+		NewsletterID: r.URL.Query().Get("newsletter_id"),
 	}
 
 	logs, total, err := h.emailService.GetLogs(service.WithAuthorizedProject(r.Context(), projectID), projectID, limit, offset, filters)
@@ -401,11 +403,12 @@ func (h *EmailHandler) LogsExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filters := service.LogFilters{
-		Status:     r.URL.Query().Get("status"),
-		From:       r.URL.Query().Get("from"),
-		To:         r.URL.Query().Get("to"),
-		Search:     r.URL.Query().Get("q"),
-		TemplateID: r.URL.Query().Get("template_id"),
+		Status:       r.URL.Query().Get("status"),
+		From:         r.URL.Query().Get("from"),
+		To:           r.URL.Query().Get("to"),
+		Search:       r.URL.Query().Get("q"),
+		TemplateID:   r.URL.Query().Get("template_id"),
+		NewsletterID: r.URL.Query().Get("newsletter_id"),
 	}
 
 	logs, err := h.emailService.ExportLogs(service.WithAuthorizedProject(r.Context(), projectID), projectID, filters)
@@ -458,7 +461,7 @@ func (h *EmailHandler) ListBroadcasts(w http.ResponseWriter, r *http.Request) {
 		offset = int32(v)
 	}
 
-	broadcasts, total, err := h.emailService.ListBroadcasts(service.WithAuthorizedProject(r.Context(), projectID), projectID, limit, offset)
+	broadcasts, total, err := h.emailService.ListBroadcasts(service.WithAuthorizedProject(r.Context(), projectID), projectID, limit, offset, r.URL.Query().Get("status"), r.URL.Query().Get("newsletter_id"))
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -498,14 +501,20 @@ func (h *EmailHandler) UnsubscribePage(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("id")
 	subscriberID := r.PathValue("subscriberId")
 	token := r.URL.Query().Get("t")
+	newsletterID := r.URL.Query().Get("n")
 
-	ctx, err := h.emailService.ResolveUnsubscribe(r.Context(), projectID, subscriberID, token)
+	ctx, err := h.emailService.ResolveUnsubscribe(r.Context(), projectID, subscriberID, newsletterID, token)
 	if err != nil {
 		writeUnsubscribeHTML(w, http.StatusNotFound, unsubscribeInvalidPage())
 		return
 	}
 
-	writeUnsubscribeHTML(w, http.StatusOK, unsubscribeConfirmPage(ctx.ProjectName, ctx.Email, projectID, subscriberID, token))
+	if ctx.PageHTML != "" {
+		writeUnsubscribeHTML(w, http.StatusOK, renderBrandedUnsubscribePage(ctx.PageHTML, ctx, unsubPageConfirm, projectID, subscriberID, token))
+		return
+	}
+
+	writeUnsubscribeHTML(w, http.StatusOK, unsubscribeConfirmPage(ctx, projectID, subscriberID, newsletterID, token))
 }
 
 func (h *EmailHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
@@ -513,8 +522,14 @@ func (h *EmailHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 	subscriberID := r.PathValue("subscriberId")
 	token := r.URL.Query().Get("t")
 
-	if err := h.emailService.Unsubscribe(r.Context(), projectID, subscriberID, token); err != nil {
+	ctx, err := h.emailService.Unsubscribe(r.Context(), projectID, subscriberID, r.URL.Query().Get("n"), token)
+	if err != nil {
 		writeUnsubscribeHTML(w, http.StatusNotFound, unsubscribeInvalidPage())
+		return
+	}
+
+	if ctx.PageHTML != "" {
+		writeUnsubscribeHTML(w, http.StatusOK, renderBrandedUnsubscribePage(ctx.PageHTML, ctx, unsubPageDone, projectID, subscriberID, token))
 		return
 	}
 
@@ -550,10 +565,33 @@ form{margin:0}
 </style></head><body>` + content + `</body></html>`
 }
 
-func unsubscribeConfirmPage(projectName, email, projectID, subscriberID, token string) string {
-	safeProject := html.EscapeString(projectName)
-	safeEmail := html.EscapeString(email)
+func unsubscribeConfirmPage(ctx service.UnsubscribeContext, projectID, subscriberID, newsletterID, token string) string {
+	safeProject := html.EscapeString(ctx.ProjectName)
+	safeEmail := html.EscapeString(ctx.Email)
+
+	if newsletterID != "" && ctx.NewsletterID != "" && ctx.NewsletterName != "" {
+		safeNewsletter := html.EscapeString(ctx.NewsletterName)
+		action := "/unsubscribe/" + projectID + "/" + subscriberID + "?n=" + ctx.NewsletterID + "&t=" + token
+		return unsubscribePageShell(`
+<div class="card">
+	<div class="icon">&#9993;</div>
+	<h1>Unsubscribe from <span class="project">` + safeNewsletter + `</span>?</h1>
+	<p>You will stop receiving this newsletter from ` + safeProject + ` at</p>
+	<span class="email">` + safeEmail + `</span>
+	<form method="POST" action="` + action + `">
+		<button type="submit" class="danger">Unsubscribe from ` + safeNewsletter + `</button>
+	</form>
+	<form method="POST" action="/unsubscribe/` + projectID + `/` + subscriberID + `?t=` + ctx.AllToken + `">
+		<button type="submit" class="muted">Unsubscribe from all emails</button>
+	</form>
+	<p class="hint">If you reached this page by accident, just close this tab.</p>
+</div>`)
+	}
+
 	action := "/unsubscribe/" + projectID + "/" + subscriberID + "?t=" + token
+	if newsletterID != "" {
+		action = "/unsubscribe/" + projectID + "/" + subscriberID + "?n=" + newsletterID + "&t=" + token
+	}
 	return unsubscribePageShell(`
 <div class="card">
 	<div class="icon">&#9993;</div>

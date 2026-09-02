@@ -9,7 +9,7 @@ SendDock is an open-source, self-hosted email marketing and transactional platfo
 - **Open core, AGPL-3.0.** The Community edition is fully usable without a license.
 - **API-first.** Every dashboard action has a REST endpoint. Cookie auth for the UI, per-project API keys (`Authorization: Bearer sk_...`) for everything else.
 - **Single-binary Go backend + Vue dashboard, deployed by Docker Compose.** One container for the app, Postgres for storage, Redis for rate limits.
-- **Pro and Team are tier flags on the same binary.** Activate a license from the dashboard (**Instance → License**) and the validator unlocks the corresponding endpoints. No separate build.
+- **Pro and Team are tier flags on the same binary.** The binary contains a license validator that checks your activated key against [Lemon Squeezy](https://lemonsqueezy.com) — the vendor that issues Pro/Team keys — at startup and periodically, unlocking only the endpoints your key entitles you to. No separate build.
 
 ## How you use it
 
@@ -18,9 +18,11 @@ SendDock is an open-source, self-hosted email marketing and transactional platfo
 3. Configure **SMTP** under the project's Settings.
 4. Add **subscribers** manually, via the API, or by [importing CSV/JSON](./subscribers#import) with email validation.
 5. Build **templates** in the visual editor or write raw HTML.
-6. **Send** — `/send` for transactional, `/send/batch` for fan-out, `/broadcast` for full-list campaigns. Suppressed addresses and bounced recipients are skipped automatically.
+6. **Send** — `/send` for transactional (one-off, single-recipient emails), `/send/batch` for several explicit recipients at once, `/broadcast` for full-list campaigns to your saved subscribers. Suppressed addresses and bounced recipients are skipped automatically.
 
 ## Community vs Pro vs Team
+
+Throughout these docs, **Core** means the free feature set: everything in the Community tier, available with no license key. Pro and Team keys add the gated rows marked below.
 
 | Feature | Community | Pro | Team |
 |---------|:---------:|:---:|:----:|
@@ -55,7 +57,7 @@ SendDock is an open-source, self-hosted email marketing and transactional platfo
 | Pro | $9 | $90 |
 | Team | $29 | $290 |
 
-On self-hosted you activate the license from the dashboard under **Instance → License** ([Instance settings](./instance-settings#pro-license)); it's stored in the database and validated against Lemon Squeezy, re-checked periodically. Without a key the binary stays in Community mode and Pro/Team endpoints return `402 Payment Required` until one is activated. See [Configuration](../self-hosting/configuration).
+On self-hosted you activate the license from the dashboard under **Instance → License** ([Instance settings](./instance-settings#pro-license)). SendDock stores the key and its license validator re-checks it against Lemon Squeezy's licensing API at startup and periodically, unlocking only what the key entitles you to. Without a key the binary stays in Community mode and Pro/Team endpoints return `402 Payment Required` until one is activated. See [Configuration](../self-hosting/configuration).
 
 ## License
 

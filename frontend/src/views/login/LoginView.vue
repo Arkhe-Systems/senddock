@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
@@ -55,6 +55,7 @@ async function handleLogin() {
         }
         if (result.requires_device_confirmation) {
             deviceConfirmation.value = true
+            startPendingPolling()
             return
         }
         router.push('/dashboard')
@@ -94,6 +95,7 @@ async function handleVerify() {
 }
 
 function backToLogin() {
+    stopPendingPolling()
     twoFactorToken.value = null
     twoFactorCode.value = ''
     twoFactorError.value = ''
@@ -101,6 +103,29 @@ function backToLogin() {
     needsVerification.value = false
     password.value = ''
 }
+
+let pendingPollTimer: ReturnType<typeof setInterval> | null = null
+
+function startPendingPolling() {
+    stopPendingPolling()
+    pendingPollTimer = setInterval(async () => {
+        try {
+            if (await auth.pendingStatus()) {
+                await auth.pendingComplete()
+                router.push('/dashboard')
+            }
+        } catch {}
+    }, 2000)
+}
+
+function stopPendingPolling() {
+    if (pendingPollTimer) {
+        clearInterval(pendingPollTimer)
+        pendingPollTimer = null
+    }
+}
+
+onBeforeUnmount(stopPendingPolling)
 </script>
 
 <template>
@@ -124,7 +149,7 @@ function backToLogin() {
                     </g>
                 </svg>
                 <h1 class="text-2xl font-bold text-white">SendDock</h1>
-                <p class="text-zinc-400 mt-2">Sign in to your account</p>
+                <p class="text-zinc-300 mt-2">Sign in to your account</p>
             </div>
 
             <AppAlert v-if="reason && !twoFactorToken" :message="reasonMessages[reason] ?? ''" type="info" class="mb-4" />
@@ -151,10 +176,10 @@ function backToLogin() {
                     </svg>
                 </div>
                 <h2 class="text-base font-semibold text-white">New device detected</h2>
-                <p class="text-sm text-zinc-400">
-                    For your security, we sent a confirmation link to <span class="text-white">{{ email }}</span>. Click it to finish signing in on this device.
+                <p class="text-sm text-zinc-300">
+                    For your security, we sent a confirmation link to <span class="text-white">{{ email }}</span>. Open it on any device and this one will finish signing you in automatically.
                 </p>
-                <button type="button" @click="backToLogin" class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
+                <button type="button" @click="backToLogin" class="text-xs text-zinc-400 hover:text-white transition cursor-pointer">
                     &larr; Use a different account
                 </button>
             </div>
@@ -176,14 +201,14 @@ function backToLogin() {
                         </svg>
                     </div>
                     <h2 class="text-base font-semibold text-white">Two-factor authentication</h2>
-                    <p class="text-sm text-zinc-400 mt-1">
+                    <p class="text-sm text-zinc-300 mt-1">
                         Enter the 6-digit code from your authenticator app, or a recovery code.
                     </p>
                 </div>
 
                 <input v-model="twoFactorCode" type="text" inputmode="text" autocomplete="one-time-code"
                     maxlength="20" autofocus
-                    class="w-full px-4 py-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-center text-2xl font-mono tracking-[0.3em] focus:outline-none focus:border-zinc-600 transition" />
+                    class="w-full px-4 py-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-center text-2xl font-mono tracking-[0.3em] focus:outline-none focus:border-emerald-500 transition" />
 
                 <AppAlert :message="twoFactorError" />
 
@@ -192,13 +217,13 @@ function backToLogin() {
                 </AppButton>
 
                 <p class="text-center">
-                    <button type="button" @click="backToLogin" class="text-xs text-zinc-500 hover:text-white transition cursor-pointer">
+                    <button type="button" @click="backToLogin" class="text-xs text-zinc-400 hover:text-white transition cursor-pointer">
                         &larr; Use a different account
                     </button>
                 </p>
             </form>
 
-            <p v-if="isCloud && !twoFactorToken && !deviceConfirmation" class="text-center text-sm text-zinc-400 mt-6">
+            <p v-if="isCloud && !twoFactorToken && !deviceConfirmation" class="text-center text-sm text-zinc-300 mt-6">
                 Don't have an account?
                 <RouterLink to="/register" class="text-white hover:text-zinc-300 underline">Create one</RouterLink>
             </p>

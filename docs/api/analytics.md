@@ -2,12 +2,12 @@
 
 The endpoints behind the [Analytics dashboard](/guide/analytics). Cookie auth required.
 
-Analytics is **free** — part of Core, no license needed. (The one exception is the Deliverability tab, which has its own [Pro endpoints](./deliverability).) The `overview` endpoint below backs the Overview tab; the Campaigns, Audience and Engagement tabs each have a sibling endpoint under `…/analytics/…`, plus a CSV export.
+Analytics is **free** — part of Core, no license needed. (The one exception is the Deliverability tab, which has its own [Pro endpoints](./deliverability).) The tabs map to sibling endpoints under `/api/v1/projects/{id}/analytics/`: `/overview` (documented below), `/campaigns`, `/campaigns/{broadcastId}` (a single broadcast's breakdown), `/audience`, and `/engagement`, plus a CSV export at `/analytics/export`. Each accepts the same `from` / `to` window and the `segment_id` / `newsletter_id` filters described below.
 
 ## Overview
 
 ```
-GET /api/v1/projects/{id}/analytics/overview?from=...&to=...&segment_id=...
+GET /api/v1/projects/{id}/analytics/overview?from=...&to=...&segment_id=...&newsletter_id=...
 ```
 
 | Query | Required | Format | Description |
@@ -15,8 +15,9 @@ GET /api/v1/projects/{id}/analytics/overview?from=...&to=...&segment_id=...
 | `from` | yes | RFC 3339 | Start of the window (UTC). |
 | `to` | yes | RFC 3339 | End of the window (UTC). |
 | `segment_id` | no | UUID | Restrict every metric to subscribers matching this [segment](/api/segments). Omit for all subscribers. Returns `404` if the segment doesn't exist in the project. |
+| `newsletter_id` | no | UUID | Restrict every metric to sends attributed to this [newsletter](/api/newsletters). Combinable with `segment_id`. A malformed UUID returns `400`. |
 
-The bucket granularity (`hour` / `day` / `week` / `month`) is decided server-side from the range length — clients don't pick it. The `previous` block in the response covers the same-length window immediately before `from`, used for trend comparisons. When `segment_id` is set it is echoed back in the response and applied to every metric except *broadcasts in flight* (which is not per-subscriber).
+The bucket granularity (`hour` / `day` / `week` / `month`) is decided server-side from the range length — clients don't pick it. The `previous` block in the response covers the same-length window immediately before `from`, used for trend comparisons. When `segment_id` is set it is echoed back in the response and applied to every metric except *broadcasts in flight* (which is not per-subscriber). `newsletter_id` is echoed back the same way; only emails sent after the newsletter feature shipped carry the attribution, so older sends fall outside any newsletter scope. The campaign-stats and engagement endpoints backing the dashboard's other tabs accept the same `newsletter_id` parameter.
 
 **Response**
 

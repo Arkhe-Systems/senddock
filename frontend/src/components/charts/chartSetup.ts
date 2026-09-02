@@ -22,15 +22,15 @@ Chart.register(
 )
 
 export const chartColors = {
-    grid: 'rgba(63, 63, 70, 0.4)',
-    tick: '#a1a1aa',
-    indigo: '#818cf8',
-    indigoFill: 'rgba(129, 140, 248, 0.15)',
-    violet: '#c084fc',
-    emerald: '#34d399',
-    amber: '#fbbf24',
-    red: '#f87171',
-    zinc: '#71717a',
+    grid: 'rgba(57, 58, 64, 0.45)',
+    tick: '#b2b3bd',
+    indigo: '#4e91ff',
+    indigoFill: 'rgba(78, 145, 255, 0.16)',
+    violet: '#d6b1ff',
+    emerald: '#4ec695',
+    amber: '#ffd099',
+    red: '#ef5853',
+    zinc: '#eceef9',
 }
 
 export const seriesPalette = [
@@ -45,11 +45,11 @@ export function baseOptions() {
         plugins: {
             legend: { labels: { color: chartColors.tick, boxWidth: 12, boxHeight: 12 } },
             tooltip: {
-                backgroundColor: '#18181b',
-                borderColor: '#3f3f46',
+                backgroundColor: '#19191b',
+                borderColor: '#46484f',
                 borderWidth: 1,
-                titleColor: '#fafafa',
-                bodyColor: '#d4d4d8',
+                titleColor: '#eeeef0',
+                bodyColor: '#b2b3bd',
                 padding: 10,
             },
         },

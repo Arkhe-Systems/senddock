@@ -161,7 +161,7 @@ onMounted(async () => {
             <header class="md:hidden sticky top-0 z-30 bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between gap-3">
                 <h1 class="text-base font-semibold text-white">Account</h1>
                 <button type="button" @click="mobileNavOpen = !mobileNavOpen"
-                    class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                    class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-850 transition cursor-pointer"
                     :aria-expanded="mobileNavOpen" aria-label="Toggle navigation">
                     <svg v-if="!mobileNavOpen" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -181,7 +181,7 @@ onMounted(async () => {
                     ? 'fixed top-[57px] left-0 right-0 bottom-0 z-30 p-4 border-t overflow-y-auto'
                     : 'hidden'
             ]">
-                <RouterLink to="/dashboard" class="hidden md:inline-flex text-sm text-zinc-400 hover:text-white transition mb-6 items-center gap-1">
+                <RouterLink to="/dashboard" class="hidden md:inline-flex text-sm text-zinc-300 hover:text-white transition mb-6 items-center gap-1">
                     &larr; Projects
                 </RouterLink>
 
@@ -194,26 +194,26 @@ onMounted(async () => {
                 <div class="max-w-2xl mx-auto space-y-8">
                     <div>
                         <h2 class="text-2xl font-bold text-white">Account</h2>
-                        <p class="text-sm text-zinc-500 mt-1">Manage your profile and password.</p>
+                        <p class="text-sm text-zinc-400 mt-1">Manage your profile and password.</p>
                     </div>
 
                     <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
                         <h3 class="text-sm font-semibold text-white mb-4">Profile</h3>
                         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Name</dt>
+                                <dt class="text-xs uppercase tracking-wide text-zinc-400 mb-1">Name</dt>
                                 <dd class="text-white">{{ auth.name || '—' }}</dd>
                             </div>
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Email</dt>
+                                <dt class="text-xs uppercase tracking-wide text-zinc-400 mb-1">Email</dt>
                                 <dd class="text-white break-all">{{ auth.email || '—' }}</dd>
                             </div>
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Plan</dt>
+                                <dt class="text-xs uppercase tracking-wide text-zinc-400 mb-1">Plan</dt>
                                 <dd class="text-white">{{ planLabel }}</dd>
                             </div>
                             <div>
-                                <dt class="text-xs uppercase tracking-wide text-zinc-500 mb-1">Member since</dt>
+                                <dt class="text-xs uppercase tracking-wide text-zinc-400 mb-1">Member since</dt>
                                 <dd class="text-white">{{ memberSince }}</dd>
                             </div>
                         </dl>
@@ -226,7 +226,7 @@ onMounted(async () => {
                         <div class="flex items-start gap-4 mb-4">
                             <div :class="[
                                 'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
-                                auth.totpEnabled ? 'bg-green-500/10 text-green-400' : 'bg-zinc-800 text-zinc-400'
+                                auth.totpEnabled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-850 text-zinc-300'
                             ]">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -238,14 +238,14 @@ onMounted(async () => {
                                     <span :class="[
                                         'inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border',
                                         auth.totpEnabled
-                                            ? 'bg-green-500/10 text-green-400 border-green-500/30'
-                                            : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                            : 'bg-zinc-850 text-zinc-300 border-zinc-700'
                                     ]">
-                                        <span :class="['w-1.5 h-1.5 rounded-full', auth.totpEnabled ? 'bg-green-400' : 'bg-zinc-500']"></span>
+                                        <span :class="['w-1.5 h-1.5 rounded-full', auth.totpEnabled ? 'bg-emerald-400' : 'bg-zinc-500']"></span>
                                         {{ auth.totpEnabled ? 'enabled' : 'disabled' }}
                                     </span>
                                 </div>
-                                <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
+                                <p class="text-xs text-zinc-400 mt-1 leading-relaxed">
                                     {{ auth.totpEnabled
                                         ? 'You\'ll be asked for a 6-digit code from your authenticator app on every sign-in. Recovery codes can be used if you lose access to your device.'
                                         : 'Add an extra layer of security using a TOTP app (Google Authenticator, Authy, 1Password, Bitwarden, etc.). Strongly recommended for any account exposed to the internet.' }}
@@ -259,7 +259,7 @@ onMounted(async () => {
 
                         <div v-else class="flex flex-wrap gap-2 pt-1">
                             <button @click="showRegenerate = true"
-                                class="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition cursor-pointer">
+                                class="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-200 bg-zinc-850 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition cursor-pointer">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                                 </svg>
@@ -281,7 +281,7 @@ onMounted(async () => {
                             <AppInput v-model="currentPassword" type="password" label="Current password" required />
                             <AppInput v-model="newPassword" type="password" label="New password" required />
                             <AppInput v-model="confirmPassword" type="password" label="Confirm new password" required />
-                            <p class="text-xs text-zinc-500">
+                            <p class="text-xs text-zinc-400">
                                 At least 8 characters, with one uppercase letter, one number and one special character.
                             </p>
                             <AppAlert :message="formError" />
@@ -306,7 +306,7 @@ onMounted(async () => {
                 <AppAlert :message="disableError" />
                 <div class="flex gap-2 justify-end">
                     <button type="button" @click="showDisable2FA = false"
-                        class="px-3 py-2 text-sm text-zinc-400 hover:text-white transition cursor-pointer">Cancel</button>
+                        class="px-3 py-2 text-sm text-zinc-300 hover:text-white transition cursor-pointer">Cancel</button>
                     <AppButton variant="danger" :loading="disabling" :disabled="disabling">
                         {{ disabling ? 'Disabling...' : 'Disable 2FA' }}
                     </AppButton>
@@ -324,7 +324,7 @@ onMounted(async () => {
                     <AppAlert :message="regenError" />
                     <div class="flex gap-2 justify-end">
                         <button type="button" @click="closeRegenerate"
-                            class="px-3 py-2 text-sm text-zinc-400 hover:text-white transition cursor-pointer">Cancel</button>
+                            class="px-3 py-2 text-sm text-zinc-300 hover:text-white transition cursor-pointer">Cancel</button>
                         <AppButton :loading="regenerating" :disabled="regenerating">
                             {{ regenerating ? 'Generating...' : 'Generate new codes' }}
                         </AppButton>
@@ -332,17 +332,17 @@ onMounted(async () => {
                 </form>
             </div>
             <div v-else class="space-y-4">
-                <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-sm text-green-300">
+                <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-sm text-emerald-300">
                     ✓ New recovery codes generated. Previous codes no longer work.
                 </div>
-                <p class="text-xs text-zinc-400">
+                <p class="text-xs text-zinc-300">
                     Each code can be used <strong>once</strong>. Store them somewhere safe — they won't be shown again.
                 </p>
                 <div class="grid grid-cols-2 gap-2 bg-zinc-950 border border-zinc-800 rounded-lg p-4 font-mono text-sm">
                     <code v-for="code in newRecoveryCodes" :key="code" class="text-zinc-200 select-all">{{ code }}</code>
                 </div>
                 <div class="flex justify-between">
-                    <button @click="copyNewCodes" class="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">Copy all</button>
+                    <button @click="copyNewCodes" class="px-3 py-2 text-xs bg-zinc-850 hover:bg-zinc-700 text-white rounded-lg transition cursor-pointer">Copy all</button>
                     <AppButton @click="closeRegenerate">I've saved them — done</AppButton>
                 </div>
             </div>
