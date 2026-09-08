@@ -91,8 +91,6 @@ cat > .env <<EOF
 POSTGRES_PASSWORD=$(openssl rand -base64 32)
 JWT_SECRET=$(openssl rand -hex 32)
 SENDDOCK_PORT=8080
-# License is activated from the dashboard (Instance → License); this env var is deprecated.
-SENDDOCK_LICENSE_KEY=
 EOF
 ```
 
