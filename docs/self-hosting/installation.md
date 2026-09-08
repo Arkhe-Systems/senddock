@@ -171,7 +171,7 @@ The image is the same in all cases; the license just toggles the gated routes. O
 ```yaml
 services:
   senddock:
-    image: ghcr.io/arkhe-systems/senddock:0.8.1
+    image: ghcr.io/arkhe-systems/senddock:0.8.2
 ```
 
 See available tags on [GHCR](https://github.com/Arkhe-Systems/senddock/pkgs/container/senddock). Only versioned tags (`X.Y.Z`, `X.Y`, `X`) and `:latest` are public — pre-release builds (`:dev`) live in a separate, private package and are not intended for end users.

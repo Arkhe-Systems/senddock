@@ -159,9 +159,8 @@ SENDDOCK_WATCHTOWER_TOKEN=${SENDDOCK_WATCHTOWER_TOKEN}
 
 SENDDOCK_PORT=${SENDDOCK_PORT}
 
-# Pro / Team license key from senddock.dev. Empty = Community tier (free).
-# Paste your key here and run: docker compose up -d
-SENDDOCK_LICENSE_KEY=
+# License: activate it from the dashboard under Instance -> License. It is stored
+# in the database; no env var is needed.
 EOF
   )
   chmod 600 .env
@@ -308,9 +307,8 @@ ${b}Next steps${n}
 
   4. Configure your SMTP relay from the dashboard (Settings → SMTP).
 
-     A Pro / Team license key is the one thing still set by hand: paste it into
-     SENDDOCK_LICENSE_KEY in ${INSTALL_DIR}/.env and run:
-       cd ${INSTALL_DIR} && docker compose up -d
+     For Pro / Team, activate your license key from the dashboard under
+     Instance -> License. It's stored in the database — no env var needed.
 
      If "Test Connection" times out, your ISP (residential connections especially)
      may block outbound SMTP ports. See the diagnostic + workarounds at:

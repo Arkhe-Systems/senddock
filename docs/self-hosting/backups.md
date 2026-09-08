@@ -49,7 +49,7 @@ Recommended cadence:
 
 - **Daily** Postgres dump, retained 7 days locally + 30 days off-site.
 - **Weekly** full backup that also captures `.env` and `docker-compose.yml`.
-- **Before every upgrade** — a one-off dump labeled with the source and target version (`senddock-pre-0.8.1.dump`). This is the lowest-friction rollback path if a migration goes sideways.
+- **Before every upgrade** — a one-off dump labeled with the source and target version (`senddock-pre-0.8.2.dump`). This is the lowest-friction rollback path if a migration goes sideways.
 
 ### Off-site & encryption
 
