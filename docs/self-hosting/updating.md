@@ -160,11 +160,11 @@ The dashboard's "Update available" badge and the Watchtower one-click button are
 
 ```json
 {
-  "current": "0.6.5.1",
-  "latest": "0.6.5.1",
+  "current": "0.8.2",
+  "latest": "0.8.2",
   "update_available": false,
   "release_notes": "...",
-  "release_url": "https://github.com/arkhe-systems/senddock/releases/tag/v0.6.5.1"
+  "release_url": "https://github.com/arkhe-systems/senddock/releases/tag/v0.8.2"
 }
 ```
 

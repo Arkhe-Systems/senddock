@@ -120,9 +120,9 @@ JWT_SECRET=change-me-openssl-rand-hex-32
 # Host port to expose. The container always listens on 8080 internally.
 # SENDDOCK_PORT=8080
 
-# Pro / Team license key from senddock.dev. Empty = Community tier (free).
-# Deprecated on self-host: activate it from the dashboard (Instance -> License) instead. Removed in v0.9.
-SENDDOCK_LICENSE_KEY=
+# Pro / Team license: activate it from the dashboard under Instance -> License.
+# It's stored in the database. The legacy SENDDOCK_LICENSE_KEY env var (removed
+# in v0.9) is no longer needed and is not part of a fresh install.
 
 # Per-IP request cap, rolling 60s window. Default 600. Only enforced with Redis.
 # RATE_LIMIT_PER_MINUTE=600
