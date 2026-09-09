@@ -1,5 +1,13 @@
 # SendDock Roadmap
 
+> **Estado, reconciliado con el código.** Los ítems de las fases de abajo están verificados contra el
+> código, no contra lo que se creía. Lo que sigue sin marcar sigue pendiente **de verdad** — entre otros:
+> validación de email antes de enviar, onboarding de cloud, recuperación de contraseña, request logging y
+> reset mensual de usage.
+>
+> Este archivo describe **dirección de producto**. El trabajo activo y los bugs abiertos se trackean en
+> [issues](https://github.com/Arkhe-Systems/senddock/issues), no acá.
+
 ## Phase 1: Core Backend
 - [x] Project structure (Go modules, internal/, cmd/)
 - [x] HTTP server with net/http stdlib
@@ -18,14 +26,14 @@
 - [x] Makefile with dev commands
 - [x] Refresh token rotation (HttpOnly cookies, SHA-256 hashing)
 - [x] Logout with token invalidation
-- [ ] Validate project limits per plan (cloud mode)
+- [x] Validate project limits per plan (cloud mode) — enforced in `senddock-pro` (`internal/cloud/quota.go`)
 
 ## Phase 2: Frontend Foundation
 - [x] Vue 3 + TypeScript + Vite project setup
 - [x] Tailwind CSS 4 configuration
 - [x] API client (fetch wrapper)
 - [x] Auth store (Pinia)
-- [ ] Update auth store to work with HttpOnly cookies (remove localStorage)
+- [x] Update auth store to work with HttpOnly cookies (remove localStorage) — auth no longer touches localStorage; only the active workspace id is kept there
 - [x] Vue Router with auth guards
 - [x] Reusable UI components (AppInput, AppButton, AppAlert, AppCard)
 - [x] Login page
@@ -56,51 +64,51 @@
 - [x] Email worker with asynq (Redis-based job queue)
 - [x] Broadcast endpoint (send to all subscribers)
 - [ ] Email validation before sending
-- [ ] Campaign builder UI (scheduled sends)
+- [x] Campaign builder UI (scheduled sends)
 
 ## Phase 5: Email Verification & Security
-- [ ] Email verification on registration (send code)
-- [ ] Verification page
+- [x] Email verification on registration (send code) — cloud sign-up (`/auth/verify`, `/auth/resend-verification`)
+- [x] Verification page
 - [ ] Onboarding flow (additional user info for cloud)
 - [ ] Password reset flow
-- [ ] Session expiration (7 days inactivity)
-- [ ] Account lockout after failed attempts
+- [x] Session expiration — configurable inactivity timeout (5–1440 min) set under **Instance** in the dashboard
+- [x] Account lockout after failed attempts
 
 ## Phase 6: Tracking & Analytics
 - [x] Open tracking (pixel injection) — Core
 - [x] Click tracking (link rewriting + HMAC redirect) — Core
 - [x] Unsubscribe handling (one-click + confirmation page, RFC 8058)
 - [x] Analytics table + migration
-- [x] Analytics endpoints (sent, failed, opened, clicked) — PRO
+- [x] Analytics endpoints (sent, failed, opened, clicked) — Core (moved from Pro in v0.8.0)
 - [x] Logs table + migration
 - [x] System logs endpoint
-- [x] Analytics dashboard UI with charts — PRO
+- [x] Analytics dashboard UI with charts — Core (moved from Pro in v0.8.0)
 
 ## Phase 7: API Keys & Security
 - [x] API keys table + migration
-- [x] API key generation (public pk_ / secret sdk_)
+- [x] API key generation (`sk_` prefix, SHA-256 hashed secret)
 - [x] API key authentication middleware
 - [x] Per-project rate limiting on `/send`, `/send/batch` and `/broadcast` (Redis-backed)
 - [ ] Request logging
 - [x] API keys management UI
 
 ## Phase 8: Payments & Plans (Cloud mode)
-- [ ] Lemon Squeezy webhook handler
-- [ ] Subscription lifecycle (created, updated, cancelled, expired)
-- [ ] Plan upgrade/downgrade logic
-- [ ] Coupon/discount support (handled by Lemon Squeezy)
+- [x] Lemon Squeezy webhook handler — `senddock-pro` (`internal/cloud/billing.go`, signature verified)
+- [x] Subscription lifecycle (created, updated, cancelled, expired)
+- [x] Plan upgrade/downgrade logic — per-tier checkout + billing portal
+- [x] Coupon/discount support — delegated to Lemon Squeezy's hosted checkout; nothing to build
 - [ ] Monthly usage reset cron job
 - [x] Deployment mode config (cloud vs self-hosted)
 - [x] Feature gating based on plan (license validator + paywall states in UI)
 - [x] License key activation/validation against Lemon Squeezy
-- [ ] Billing page UI
+- [x] Billing page UI
 
 ## Phase 9: Webhooks
 - [x] Webhook configuration per project — Core UI/API + dispatcher (management moved from Pro to Core: webhooks are developer table stakes)
 - [x] Webhook dispatcher (FOR UPDATE SKIP LOCKED, batch claim) — Core
-- [x] Webhook retry logic with exponential backoff (30s → 2h, 5 attempts) — Core
+- [x] Webhook retry logic with exponential backoff (30s, 2m, 10m, 30m — 5 attempts) — Core
 - [x] Webhook signature verification (HMAC-SHA256, `X-SendDock-Signature: t=<ts>,v1=<hex>`) — Core
-- [x] Webhook event types (email.sent/failed/opened/clicked, subscriber.created/unsubscribed) — Core
+- [x] Webhook event types (email.sent/failed/bounced/opened/clicked, subscriber.created/unsubscribed/newsletter_unsubscribed) — Core
 - [x] Webhooks management UI — Core
 - [x] Per-webhook deliveries view — Core
 
@@ -109,8 +117,8 @@
 - [x] Docker Compose for self-hosting (app + postgres + redis)
 - [x] Go serves Vue static files (single binary/container)
 - [x] Health check endpoints for container orchestration
-- [ ] Graceful shutdown handling
-- [ ] Environment configuration documentation
+- [x] Graceful shutdown handling — SIGINT/SIGTERM with a drain window (`cmd/server/main.go`, `pkg/app/app.go`)
+- [x] Environment configuration documentation — `docs/guide/environment.md`
 
 ---
 
@@ -139,7 +147,7 @@ Lower the friction of bringing users and existing subscriber lists into the plat
 What teams evaluate before committing their list. Plus the first phase of drips — linear sequences cover most automation demand on their own.
 
 - [ ] Drip automations · Phase 1: linear sequences — [#77](https://github.com/Arkhe-Systems/senddock/issues/77) — Pro
-- [ ] DNS deliverability check (SPF / DKIM / DMARC) — [#64](https://github.com/Arkhe-Systems/senddock/issues/64) — Pro
+- [x] DNS deliverability check (SPF / DKIM / DMARC) — [#64](https://github.com/Arkhe-Systems/senddock/issues/64) — Pro — shipped as the Deliverability tab
 - [ ] GDPR / data subject tools — [#46](https://github.com/Arkhe-Systems/senddock/issues/46) — Core
 
 ### Milestone: Automation parity
@@ -171,4 +179,4 @@ Captured for visibility, not actively scoped. Will be promoted when there is a c
 
 ---
 
-Items marked **Pro** or **Team** live in the private `senddock-pro` repository and are gated by `SENDDOCK_LICENSE_KEY`. They are not part of the AGPL Community edition.
+Items marked **Pro** or **Team** live in the private `senddock-pro` repository and are gated by the Pro/Team license, activated from the dashboard under **Instance → License**. They are not part of the AGPL Community edition.
