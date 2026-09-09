@@ -16,28 +16,41 @@ const (
 	broadcastWorkerCount     = 5
 	broadcastWorkerIdleSleep = 2 * time.Second
 	broadcastJobMaxAttempts  = 5
+
+	// broadcastJobLease is how long a claimed job belongs to the worker that took it.
+	// Startup recovery only reclaims jobs whose lease has expired, so the lease has to
+	// outlive a full send attempt (connect + session timeouts). If it did not, restarting
+	// one instance could reclaim a job another instance is still delivering and send the
+	// same email twice.
+	broadcastJobLease = 5 * time.Minute
 )
 
 type BroadcastWorker struct {
 	queries      *db.Queries
 	emailService *EmailService
+	workerID     uuid.UUID
 }
 
 func NewBroadcastWorker(queries *db.Queries, emailService *EmailService) *BroadcastWorker {
-	return &BroadcastWorker{queries: queries, emailService: emailService}
+	return &BroadcastWorker{queries: queries, emailService: emailService, workerID: uuid.New()}
+}
+
+// leaseDeadline is when a job claimed at now stops being owned by this process.
+func leaseDeadline(now time.Time) time.Time {
+	return now.Add(broadcastJobLease)
 }
 
 func (w *BroadcastWorker) Start(ctx context.Context) {
-	if rows, err := w.queries.ResetStuckSendingJobs(ctx); err != nil {
+	if rows, err := w.queries.ResetStuckSendingJobs(ctx, time.Now()); err != nil {
 		slog.Error("broadcast worker: reset stuck jobs failed", "error", err)
 	} else if rows > 0 {
-		slog.Warn("broadcast worker: reset stuck sending jobs to retry", "jobs", rows)
+		slog.Warn("broadcast worker: reclaimed abandoned broadcast jobs", "jobs", rows)
 	}
 
 	for i := 0; i < broadcastWorkerCount; i++ {
 		go w.run(ctx, i)
 	}
-	slog.Info("broadcast worker started", "goroutines", broadcastWorkerCount)
+	slog.Info("broadcast worker started", "goroutines", broadcastWorkerCount, "worker_id", w.workerID)
 }
 
 func (w *BroadcastWorker) run(ctx context.Context, id int) {
@@ -56,7 +69,10 @@ func (w *BroadcastWorker) run(ctx context.Context, id int) {
 		default:
 		}
 
-		job, err := w.queries.ClaimBroadcastJob(ctx)
+		job, err := w.queries.ClaimBroadcastJob(ctx, db.ClaimBroadcastJobParams{
+			WorkerID:       w.workerID,
+			LeaseExpiresAt: leaseDeadline(time.Now()),
+		})
 		if errors.Is(err, sql.ErrNoRows) {
 			select {
 			case <-ctx.Done():

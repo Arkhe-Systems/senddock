@@ -65,6 +65,8 @@ type BroadcastJob struct {
 	ScheduledAt    time.Time
 	CompletedAt    sql.NullTime
 	CreatedAt      time.Time
+	WorkerID       uuid.NullUUID
+	LeaseExpiresAt sql.NullTime
 }
 
 type Campaign struct {

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases are also published on [GitHub](https://github.com/arkhe-systems/senddock/releases) and the `ghcr.io/arkhe-systems/senddock` image carries the matching tag.
 
+## [Unreleased]
+
+### Fixed
+
+- **A restart no longer re-sends a broadcast another instance is delivering.** Broadcast jobs left in `sending` were reset to `retry` on every startup regardless of who owned them, so starting or rolling one instance re-queued jobs another instance was still sending, and those recipients received the same email twice. A claimed job now carries the worker's id and a lease, and startup recovery only reclaims jobs whose lease has expired — work in flight is left alone.
+
 ## [0.8.2] — 2026-09-01
 
 Audience & white-label: multiple newsletters per project with per-newsletter unsubscribe, and branded unsubscribe pages.

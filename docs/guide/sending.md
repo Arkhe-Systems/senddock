@@ -163,12 +163,12 @@ When you call `/broadcast` (or a scheduled campaign reaches its time), SendDock 
 
 1. A `broadcasts` row is created with `status=sending` and `total_recipients=N`.
 2. One row per recipient is inserted into `broadcast_jobs` with `status=pending`.
-3. Five worker goroutines pull jobs concurrently using `SELECT … FOR UPDATE SKIP LOCKED`, so jobs never get sent twice even with multiple workers (or multiple SendDock instances on the same database).
+3. Five worker goroutines pull jobs concurrently using `SELECT … FOR UPDATE SKIP LOCKED`. Each claim also stamps the row with the worker's id and a **lease**, so a job is owned by exactly one worker at a time — across goroutines and across SendDock instances sharing the same database.
 4. As each job finishes, the worker increments the broadcast's `sent_count`, `failed_count`, or `suppressed_count`. When the queue drains, the broadcast flips to `status=completed` and any linked campaign moves from `sending` to `sent` with the real counts.
 
 This design has three consequences worth knowing:
 
-- **Server restart mid-send is safe.** Jobs that were in `sending` when the process died are rescheduled to `retry` on the next startup; nothing is lost and nothing is double-sent.
+- **Server restart mid-send is safe.** On startup a worker reclaims jobs left in `sending` **whose lease has expired**, rescheduling them to `retry`. A job still inside its lease is owned by a worker that is actively delivering it, so it is left untouched: a restart never reclaims work in flight, and nothing is lost or sent twice.
 - **Per-recipient retries with exponential backoff.** Transient errors (DNS failures, network timeouts, SMTP 4xx) reschedule the job — backoff steps are 30s, 2m, 8m, 30m, 1h. After 5 attempts the job is marked `failed`. SMTP 5xx bounces are *not* retried (they are tagged `bounced` and the recipient is added to the suppression list immediately).
 - **Live progress is visible while sending.** The Campaigns list, Broadcasts tab, and the "broadcasts in flight" panel in Analytics all read counts from the live broadcast row, refreshing every 5 seconds while at least one broadcast is in flight. You see `42/213 → 87/213 → 213/213`, not a sudden jump at the end.
 
