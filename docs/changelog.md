@@ -20,6 +20,10 @@ Pre-1.0 minor releases may contain breaking changes — check the version's note
 
 - **A restart no longer re-sends a broadcast another instance is delivering.** Broadcast jobs left in `sending` were reset to `retry` on every startup regardless of who owned them, so starting or rolling one instance re-queued jobs another instance was still sending, and those recipients received the same email twice. A claimed job now carries the worker's id and a lease, and startup recovery only reclaims jobs whose lease has expired — work in flight is left alone.
 
+### Security
+
+- **Headers could be injected through the subject.** Subjects are built from subscriber-supplied text — their name, email and custom fields are substituted into them — and that text was written into the message headers as-is. A value containing a line break could therefore add headers of the attacker's choosing, a `Bcc` for example, to the message SendDock sent. Carriage returns and line feeds are now stripped from every value that reaches a header: the subject, the sender name, the recipient and the unsubscribe URL.
+
 ## [0.8.2] — 2026-09-01
 
 Audience & white-label: multiple newsletters per project with per-newsletter unsubscribe, and branded unsubscribe pages.

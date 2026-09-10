@@ -105,7 +105,7 @@ A rich value is **not** escaped — instead it runs through a strict HTML **sani
 
 See [Email Sending → Rich-text variables](/guide/sending#rich-text-variables) for the full workflow.
 
-The subject line is **not** escaped (subject is plain text, not HTML), but it is also not allowed to introduce headers — newlines are stripped to prevent SMTP header injection.
+The subject line is **not** escaped (subject is plain text, not HTML), but it cannot introduce headers: carriage returns and line feeds are stripped from every value that reaches a header — the subject, the sender name, the recipient and the unsubscribe URL — so a crafted value cannot inject one.
 
 ## Page templates
 

@@ -1151,18 +1151,31 @@ func (s *EmailService) sendSMTPWithTimeouts(project db.Project, to, subject, htm
 		from = fmt.Sprintf("%s <%s>", project.FromName.String, fromEmail)
 	}
 
-	inlinedBody := inlineCSS(htmlBody)
-
-	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n",
-		from, to, subject)
-	if unsubscribeURL != "" {
-		headers += fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", unsubscribeURL)
-	}
-	msg := headers + "\r\n" + inlinedBody
+	msg := buildMIME(from, to, subject, unsubscribeURL, inlineCSS(htmlBody))
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	return deliverSMTP(host, addr, user, pass, fromEmail, to, []byte(msg), port == 465, connectTimeout, sessionTimeout)
+	return deliverSMTP(host, addr, user, pass, fromEmail, to, msg, port == 465, connectTimeout, sessionTimeout)
+}
+
+// headerSafe strips CR and LF so a value cannot end its header line early. Subjects
+// carry subscriber-supplied text — their name, email and custom fields are substituted
+// into them — so without this a crafted value could inject arbitrary headers into the
+// message, a Bcc for example.
+func headerSafe(value string) string {
+	return strings.NewReplacer("\r", "", "\n", "").Replace(value)
+}
+
+// buildMIME assembles the message that goes on the wire: headers, a blank line, then the
+// rendered body. Every interpolated header value is stripped of line breaks here, at the
+// single point where headers are built, so no caller can bypass it.
+func buildMIME(from, to, subject, unsubscribeURL, body string) []byte {
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n",
+		headerSafe(from), headerSafe(to), headerSafe(subject))
+	if unsubscribeURL != "" {
+		headers += fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", headerSafe(unsubscribeURL))
+	}
+	return []byte(headers + "\r\n" + body)
 }
 
 const (
