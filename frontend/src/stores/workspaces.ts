@@ -11,7 +11,7 @@ export interface Workspace {
     role?: string
 }
 
-export type WorkspaceRole = 'owner' | 'admin' | 'developer' | 'member' | 'viewer'
+export type WorkspaceRole = 'owner' | 'admin' | 'developer' | 'viewer'
 
 export interface WorkspaceMember {
     user_id: string
@@ -25,7 +25,6 @@ export const ROLE_LABEL: Record<WorkspaceRole, string> = {
     owner: 'Owner',
     admin: 'Admin',
     developer: 'Developer',
-    member: 'Member',
     viewer: 'Viewer',
 }
 
@@ -33,7 +32,6 @@ export const ROLE_DESCRIPTION: Record<WorkspaceRole, string> = {
     owner: 'Full access — can manage members, delete the workspace, and do everything an admin can.',
     admin: 'Everything project-related: settings, templates, subscribers, sends, broadcasts, API keys.',
     developer: 'Send transactional email only (`/send`). Read-only on templates, subscribers, logs.',
-    member: 'Legacy role kept for backward compatibility. Same access as admin.',
     viewer: 'Read-only — view templates, subscribers, logs, analytics. Cannot send or modify anything.',
 }
 
@@ -96,7 +94,7 @@ export const useWorkspaceStore = defineStore('workspaces', () => {
         return res.members || []
     }
 
-    async function addMember(id: string, email: string, role: WorkspaceRole = 'member') {
+    async function addMember(id: string, email: string, role: WorkspaceRole = 'developer') {
         return api<WorkspaceMember>(`/workspaces/${id}/members`, {
             method: 'POST',
             body: { email, role },

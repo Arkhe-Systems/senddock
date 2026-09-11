@@ -10,12 +10,12 @@ import (
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/pkg/license"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	WorkspaceRoleOwner  = "owner"
-	WorkspaceRoleMember = "member"
+	WorkspaceRoleOwner = "owner"
 )
 
 var (
@@ -273,7 +273,7 @@ func (s *WorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, ac
 	if err := s.requireOwner(ctx, workspaceID, actorID); err != nil {
 		return err
 	}
-	if role == WorkspaceRoleMember {
+	if demotionNeedsOwnerGuard(role) {
 		if err := s.guardLastOwner(ctx, workspaceID, targetID); err != nil {
 			return err
 		}
@@ -283,7 +283,32 @@ func (s *WorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, ac
 		UserID:      targetID,
 		Role:        role,
 	})
-	return err
+	if err != nil {
+		// The database rejects a role it does not know. That is a bad request, not a
+		// server failure, so do not let the constraint error surface as a 500.
+		if isCheckConstraintViolation(err) {
+			return ErrInvalidRole
+		}
+		return err
+	}
+	return nil
+}
+
+// demotionNeedsOwnerGuard reports whether moving a member to role can strip the last owner
+// from the workspace. Only a target of owner leaves ownership intact; every other role
+// needs the guard, which is why it cannot be tied to one specific role.
+func demotionNeedsOwnerGuard(role string) bool {
+	return role != WorkspaceRoleOwner
+}
+
+// isCheckConstraintViolation reports whether the database rejected the value itself rather
+// than failing to execute the statement.
+func isCheckConstraintViolation(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "23514"
+	}
+	return false
 }
 
 func (s *WorkspaceService) RemoveMember(ctx context.Context, workspaceID, actorID, targetID uuid.UUID) error {
@@ -373,12 +398,9 @@ func normalizeRole(role string) string {
 		return WorkspaceRoleDeveloper
 	case WorkspaceRoleViewer:
 		return WorkspaceRoleViewer
-	case WorkspaceRoleMember:
-		return WorkspaceRoleMember
 	default:
-		// Empty or unrecognized roles fall through to "" so callers reject them
-		// with ErrInvalidRole, instead of silently defaulting to the
-		// near-admin "member" role.
+		// Empty or unrecognized roles fall through to "" so callers reject them with
+		// ErrInvalidRole instead of quietly picking a role for the caller.
 		return ""
 	}
 }

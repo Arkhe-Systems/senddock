@@ -117,7 +117,7 @@ Owner only.
 
 The user must already have a SendDock account on this instance. Returns `404` (`{"error":"user not found"}`) if no account uses that email — use the [Create user](#create-user) endpoint below instead.
 
-`role` defaults to `member`. Valid values: `owner`, `admin`, `developer`, `member`, `viewer`. See the [role matrix](../guide/workspaces#roles-capabilities).
+`role` is required — omitting it or sending an unknown value returns `400`. Valid values: `owner`, `admin`, `developer`, `viewer`. See the [role matrix](../guide/workspaces#roles-capabilities).
 
 **Response — 201 Created**
 
@@ -155,7 +155,7 @@ Owner only. Creates a new SendDock account and adds them to the workspace at the
 | `email` | yes | Must be unique. Returns `409 email already registered` otherwise. |
 | `name` | yes | Display name shown in member lists and audit log. |
 | `password` | yes | Minimum 8 characters. Pass it to the user out of band; they can change it after first login. |
-| `role` | no | Defaults to `member`. Same enum as [Add member](#add-existing-member). |
+| `role` | yes | Same enum as [Add member](#add-existing-member): `owner`, `admin`, `developer`, `viewer`. |
 
 **Response — 201 Created**
 

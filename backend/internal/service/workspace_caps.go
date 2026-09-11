@@ -11,17 +11,17 @@ import (
 type Capability string
 
 const (
-	CapMembersManage      Capability = "members.manage"
-	CapWorkspaceDelete    Capability = "workspace.delete"
-	CapProjectSettings    Capability = "project.settings"
-	CapTemplatesWrite     Capability = "templates.write"
-	CapSubscribersWrite   Capability = "subscribers.write"
-	CapSendTransactional  Capability = "send.transactional"
-	CapBroadcast          Capability = "broadcast"
-	CapCampaignsWrite     Capability = "campaigns.write"
-	CapAPIKeysManage      Capability = "api_keys.manage"
-	CapSuppressionsWrite  Capability = "suppressions.write"
-	CapWebhooksWrite      Capability = "webhooks.write"
+	CapMembersManage     Capability = "members.manage"
+	CapWorkspaceDelete   Capability = "workspace.delete"
+	CapProjectSettings   Capability = "project.settings"
+	CapTemplatesWrite    Capability = "templates.write"
+	CapSubscribersWrite  Capability = "subscribers.write"
+	CapSendTransactional Capability = "send.transactional"
+	CapBroadcast         Capability = "broadcast"
+	CapCampaignsWrite    Capability = "campaigns.write"
+	CapAPIKeysManage     Capability = "api_keys.manage"
+	CapSuppressionsWrite Capability = "suppressions.write"
+	CapWebhooksWrite     Capability = "webhooks.write"
 )
 
 const (
@@ -46,11 +46,6 @@ var capabilities = map[string]map[Capability]bool{
 	},
 	WorkspaceRoleDeveloper: {
 		CapSendTransactional: true,
-	},
-	WorkspaceRoleMember: {
-		CapProjectSettings: true, CapTemplatesWrite: true, CapSubscribersWrite: true,
-		CapSendTransactional: true, CapBroadcast: true, CapCampaignsWrite: true,
-		CapAPIKeysManage: true, CapSuppressionsWrite: true, CapWebhooksWrite: true,
 	},
 	WorkspaceRoleViewer: {},
 }

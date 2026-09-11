@@ -9,7 +9,13 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 ## [Unreleased]
 
+### Removed
+
+- **The `member` workspace role.** The API accepted it and this changelog advertised it, but the database constraint never allowed it, so assigning it failed with a 500 after leaving an account behind. Its capability set was also identical to `admin`. The roles are `owner`, `admin`, `developer` and `viewer`, which is what the database has permitted all along.
+
 ### Fixed
+
+- **Demoting the last workspace owner no longer leaves the workspace ownerless.** The guard that refuses to remove the last owner ran only when the target role was `member` — a value the database rejects — so demoting an owner to `admin`, `developer` or `viewer` went through and left the workspace with no owner, unrecoverable from the UI. The guard now runs for every target role except `owner`.
 
 - **A restart no longer re-sends a broadcast another instance is delivering.** Broadcast jobs left in `sending` were reset to `retry` on every startup regardless of who owned them, so starting or rolling one instance re-queued jobs another instance was still sending, and those recipients received the same email twice. A claimed job now carries the worker's id and a lease, and startup recovery only reclaims jobs whose lease has expired — work in flight is left alone.
 
