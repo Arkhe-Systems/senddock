@@ -22,6 +22,14 @@ func TestParsePredicateValidation(t *testing.T) {
 		{"bad tags op", `{"rules":[{"field":"tags","op":"eq","value":["x"]}]}`, true},
 		{"unknown field", `{"rules":[{"field":"foo","op":"eq","value":"x"}]}`, true},
 		{"bad custom key", `{"rules":[{"field":"custom.a-b","op":"eq","value":"x"}]}`, true},
+		{"custom gt with a date", `{"rules":[{"field":"custom.signup","op":"gt","value":"2026-01-01"}]}`, false},
+		{"custom gt with a number", `{"rules":[{"field":"custom.seats","op":"gt","value":42}]}`, false},
+		{"custom gt with a numeric string", `{"rules":[{"field":"custom.seats","op":"gt","value":"42"}]}`, false},
+		{"custom lt with a date", `{"rules":[{"field":"custom.signup","op":"lt","value":"2026-06-30"}]}`, false},
+		// A value the database cannot order would only fail when the segment is evaluated,
+		// so it has to be refused at save time.
+		{"custom gt with text", `{"rules":[{"field":"custom.plan","op":"gt","value":"pro"}]}`, true},
+		{"custom lt with an impossible date", `{"rules":[{"field":"custom.signup","op":"lt","value":"2026-13-45"}]}`, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -80,5 +88,43 @@ func TestBuildWhereEmpty(t *testing.T) {
 	where, args := BuildWhere(Predicate{Match: "all"}, 2)
 	if where != "" || args != nil {
 		t.Fatalf("expected empty where for no rules, got %q / %v", where, args)
+	}
+}
+
+// A date field stored as YYYY-MM-DD has to be compared as a date. Casting it to numeric is
+// what made a saved segment fail at query time, taking the preview and the broadcast with it.
+func TestBuildWhereCastsComparisonsByValue(t *testing.T) {
+	cases := []struct {
+		name     string
+		value    any
+		wantCast string
+	}{
+		{"date", "2026-01-01", "::date"},
+		{"padded date", " 2026-01-01 ", "::date"},
+		{"number", float64(42), "::numeric"},
+		{"numeric string", "42", "::numeric"},
+		{"decimal string", "4.5", "::numeric"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			where, args := BuildWhere(Predicate{
+				Match: "all",
+				Rules: []Rule{{Field: "custom.f", Op: "gt", Value: tc.value}},
+			}, 1)
+
+			if !strings.Contains(where, tc.wantCast) {
+				t.Fatalf("comparison %v compiled without %s: %q", tc.value, tc.wantCast, where)
+			}
+			other := "::numeric"
+			if tc.wantCast == "::numeric" {
+				other = "::date"
+			}
+			if strings.Contains(where, other) {
+				t.Fatalf("comparison %v compiled with the wrong cast %s: %q", tc.value, other, where)
+			}
+			if len(args) != 1 {
+				t.Fatalf("expected one argument, got %d", len(args))
+			}
+		})
 	}
 }

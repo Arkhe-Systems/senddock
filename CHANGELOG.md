@@ -15,6 +15,8 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 ### Fixed
 
+- **Date rules no longer break a segment.** `greater than` and `less than` compiled a custom field to a numeric cast, but date fields are stored as `YYYY-MM-DD`, so a rule that saved without complaint failed when the segment actually ran: the preview errored and any broadcast targeting it never sent. The comparison now casts to match the value — dates compare as dates, numbers as numbers — and a value that cannot be ordered is refused while the segment is being saved rather than when it is used.
+
 - **Demoting the last workspace owner no longer leaves the workspace ownerless.** The guard that refuses to remove the last owner ran only when the target role was `member` — a value the database rejects — so demoting an owner to `admin`, `developer` or `viewer` went through and left the workspace with no owner, unrecoverable from the UI. The guard now runs for every target role except `owner`.
 
 - **A restart no longer re-sends a broadcast another instance is delivering.** Broadcast jobs left in `sending` were reset to `retry` on every startup regardless of who owned them, so starting or rolling one instance re-queued jobs another instance was still sending, and those recipients received the same email twice. A claimed job now carries the worker's id and a lease, and startup recovery only reclaims jobs whose lease has expired — work in flight is left alone.

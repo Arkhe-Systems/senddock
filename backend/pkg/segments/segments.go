@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -13,7 +15,49 @@ import (
 var (
 	ErrInvalidPredicate = errors.New("invalid segment predicate")
 	keyPattern          = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+	datePattern         = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 )
+
+// comparisonCast picks the SQL cast for a greater/less-than rule. Custom field values live
+// in the metadata JSON as text, so the cast has to match the field: a date stored as
+// YYYY-MM-DD cast to numeric fails when the query runs, which turns a saved segment into a
+// preview error and a broadcast that never sends. The rule value carries the format the
+// picker produced, and that decides which cast applies.
+func comparisonCast(value any) string {
+	if isDateValue(value) {
+		return "::date"
+	}
+	return "::numeric"
+}
+
+func isDateValue(value any) bool {
+	s, ok := value.(string)
+	if !ok {
+		return false
+	}
+	s = strings.TrimSpace(s)
+	if !datePattern.MatchString(s) {
+		return false
+	}
+	_, err := time.Parse("2006-01-02", s)
+	return err == nil
+}
+
+// comparableValue reports whether a greater/less-than rule carries something the database
+// can order, so a rule that could only fail later is rejected while the segment is saved.
+func comparableValue(value any) bool {
+	switch v := value.(type) {
+	case float64, int, int64:
+		return true
+	case string:
+		if isDateValue(v) {
+			return true
+		}
+		_, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return err == nil
+	}
+	return false
+}
 
 type Predicate struct {
 	Match string `json:"match"`
@@ -63,7 +107,11 @@ func validateRule(rule Rule) error {
 			return fmt.Errorf("%w: invalid custom field key", ErrInvalidPredicate)
 		}
 		switch rule.Op {
-		case "eq", "neq", "contains", "gt", "lt":
+		case "eq", "neq", "contains":
+		case "gt", "lt":
+			if !comparableValue(rule.Value) {
+				return fmt.Errorf("%w: greater/less than needs a number or a YYYY-MM-DD date", ErrInvalidPredicate)
+			}
 		default:
 			return fmt.Errorf("%w: custom fields support eq/neq/contains/gt/lt", ErrInvalidPredicate)
 		}
@@ -116,9 +164,11 @@ func buildRuleSQL(rule Rule, argIdx int) (string, []any) {
 		case "contains":
 			return column + " ILIKE '%' || " + placeholder + " || '%'", []any{fmt.Sprintf("%v", rule.Value)}
 		case "gt":
-			return "(" + column + ")::numeric > " + placeholder, []any{rule.Value}
+			cast := comparisonCast(rule.Value)
+			return "(" + column + ")" + cast + " > " + placeholder + cast, []any{fmt.Sprintf("%v", rule.Value)}
 		case "lt":
-			return "(" + column + ")::numeric < " + placeholder, []any{rule.Value}
+			cast := comparisonCast(rule.Value)
+			return "(" + column + ")" + cast + " < " + placeholder + cast, []any{fmt.Sprintf("%v", rule.Value)}
 		default:
 			return column + " = " + placeholder, []any{fmt.Sprintf("%v", rule.Value)}
 		}
