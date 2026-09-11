@@ -1155,7 +1155,33 @@ func (s *EmailService) sendSMTPWithTimeouts(project db.Project, to, subject, htm
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	return deliverSMTP(host, addr, user, pass, fromEmail, to, msg, port == 465, connectTimeout, sessionTimeout)
+	return deliverSMTP(host, addr, user, pass, fromEmail, to, msg, port == 465, connectTimeout, sessionTimeout, project.SmtpAllowInsecureTls)
+}
+
+// smtpTLSConfig builds the TLS settings for outgoing mail. Certificates are verified
+// unless the project opted out, which exists for relays serving a self-signed or expired
+// certificate.
+func smtpTLSConfig(host string, allowInsecureTLS bool) *tls.Config {
+	config := &tls.Config{ServerName: host}
+	if allowInsecureTLS {
+		config.InsecureSkipVerify = true
+	}
+	return config
+}
+
+func isCertificateError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "x509:") || strings.Contains(msg, "failed to verify certificate")
+}
+
+// certificateError turns a failed handshake into something an operator can act on.
+// Verification is on by default now, so a self-signed relay fails with a message naming
+// the project setting that resolves it instead of a bare handshake error.
+func certificateError(host string, allowInsecureTLS bool, err error) error {
+	if allowInsecureTLS {
+		return fmt.Errorf("TLS handshake with %s failed: %w", host, err)
+	}
+	return fmt.Errorf("TLS certificate verification failed for %s: %w. Renew the certificate, or enable \"Allow insecure TLS\" for this project under Project -> SMTP if the relay uses a self-signed or expired one", host, err)
 }
 
 // headerSafe strips CR and LF so a value cannot end its header line early. Subjects
@@ -1203,8 +1229,8 @@ func wrapDialError(addr string, connectTimeout time.Duration, err error) error {
 	return fmt.Errorf("smtp connection failed: %w", err)
 }
 
-func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool, connectTimeout, sessionTimeout time.Duration) error {
-	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
+func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool, connectTimeout, sessionTimeout time.Duration, allowInsecureTLS bool) error {
+	tlsConfig := smtpTLSConfig(host, allowInsecureTLS)
 	dialer := &net.Dialer{Timeout: connectTimeout}
 
 	var conn net.Conn
@@ -1215,6 +1241,9 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 		conn, err = dialer.Dial("tcp", addr)
 	}
 	if err != nil {
+		if isCertificateError(err) {
+			return certificateError(host, allowInsecureTLS, err)
+		}
 		return wrapDialError(addr, connectTimeout, err)
 	}
 	defer conn.Close()
@@ -1232,6 +1261,9 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 	if !implicitTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
 			if err = client.StartTLS(tlsConfig); err != nil {
+				if isCertificateError(err) {
+					return certificateError(host, allowInsecureTLS, err)
+				}
 				return fmt.Errorf("smtp starttls failed: %w", err)
 			}
 		}

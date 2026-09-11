@@ -16,6 +16,8 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 ### Security
 
 - **Headers could be injected through the subject.** Subjects are built from subscriber-supplied text — their name, email and custom fields are substituted into them — and that text was written into the message headers as-is. A value containing a line break could therefore add headers of the attacker's choosing, a `Bcc` for example, to the message SendDock sent. Carriage returns and line feeds are now stripped from every value that reaches a header: the subject, the sender name, the recipient and the unsubscribe URL.
+- **Certificates are verified on outgoing SMTP.** Every connection accepted any certificate, so an attacker able to sit between the instance and the relay could read SMTP credentials and the mail itself while the connection still looked encrypted. Verification is now on for both implicit TLS and STARTTLS. A relay with a self-signed or expired certificate can be kept working per project under **Project → SMTP → Allow insecure TLS**, and the failure message names that setting so the fix is one click away.
+
 
 ## [0.8.2] — 2026-09-01
 

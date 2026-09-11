@@ -163,6 +163,7 @@ type Project struct {
 	BounceImapEnabled           bool
 	WorkspaceID                 uuid.UUID
 	UnsubscribeTemplateID       uuid.NullUUID
+	SmtpAllowInsecureTls        bool
 }
 
 type RefreshToken struct {

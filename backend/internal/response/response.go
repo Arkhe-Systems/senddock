@@ -18,6 +18,7 @@ type Project struct {
 	SmtpHost              *string `json:"smtp_host"`
 	SmtpPort              *int32  `json:"smtp_port"`
 	SmtpUser              *string `json:"smtp_user"`
+	SmtpAllowInsecureTls  bool    `json:"smtp_allow_insecure_tls"`
 	CreatedAt             string  `json:"created_at"`
 	UpdatedAt             string  `json:"updated_at"`
 	UnsubscribeTemplateID *string `json:"unsubscribe_template_id"`
@@ -126,6 +127,7 @@ func FromProject(p db.Project) Project {
 		SmtpHost:              nullStr(p.SmtpHost),
 		SmtpPort:              nullInt32(p.SmtpPort),
 		SmtpUser:              nullStr(p.SmtpUser),
+		SmtpAllowInsecureTls:  p.SmtpAllowInsecureTls,
 		CreatedAt:             p.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:             p.UpdatedAt.Format(time.RFC3339),
 		UnsubscribeTemplateID: nullUUIDString(p.UnsubscribeTemplateID),

@@ -53,6 +53,7 @@ UPDATE projects SET
     smtp_password_encrypted = $6,
     from_name = $7,
     from_email = $8,
+    smtp_allow_insecure_tls = $9,
     updated_at = NOW()
 WHERE id = $1
   AND workspace_id IN (SELECT wm.workspace_id FROM workspace_members wm WHERE wm.user_id = $2)
