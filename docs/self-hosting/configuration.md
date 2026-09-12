@@ -60,7 +60,7 @@ The bundled production composes already ship Redis. Only unset `REDIS_URL` for e
 Before exposing to the internet:
 
 - [ ] Generate `JWT_SECRET` from `openssl rand -hex 32` (or `base64 48`) — used for JWT signing **and** the HMAC on click-tracking URLs. Min 32 chars.
-- [ ] Generate `POSTGRES_PASSWORD` from `openssl rand -base64 32` instead of using a guessable value
+- [ ] Set `POSTGRES_PASSWORD` to the output of `openssl rand -base64 32` — the production composes refuse to start without it, so there is no default to forget
 - [ ] Set your public HTTPS domain under **Instance** in the dashboard (drives unsubscribe + tracking links inside outgoing emails, and the CORS origin)
 - [ ] Put SendDock behind HTTPS — `Secure: true` is set on auth cookies when the resolved URL starts with `https://`
 - [ ] Keep Redis enabled (it ships in the production composes); without it every rate limit is a no-op

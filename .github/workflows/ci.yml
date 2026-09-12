@@ -2,10 +2,12 @@ name: CI
 
 # Nothing ran the test suite before this workflow existed, so a regression could
 # reach main with every check green simply because there were no checks. This runs
-# the backend build, vet and tests plus the frontend type-check, build and tests.
+# the backend build, vet and tests, the frontend type-check, build and tests, and the
+# compose guards.
 #
 # CGO is disabled to match the released image: the Dockerfile builds with
-# CGO_ENABLED=0, and the tests do not need a database (they are unit tests).
+# CGO_ENABLED=0. The suite needs no database — the integration tests that use one skip
+# themselves unless DATABASE_URL is set.
 on:
   push:
     branches: [main]
@@ -60,3 +62,39 @@ jobs:
       - name: Test
         working-directory: frontend
         run: npm test
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A compose file that fills in a default for POSTGRES_PASSWORD starts a database
+      # with a password anyone can read, which is how docker-compose.prod.yml used to
+      # resolve its DSN to senddock:senddock. Each production compose has to refuse to
+      # interpolate without it and to interoperate once it is provided.
+      - name: The production composes require POSTGRES_PASSWORD
+        run: |
+          set -euo pipefail
+          export JWT_SECRET="$(head -c 48 /dev/urandom | base64)"
+          unset POSTGRES_PASSWORD
+
+          for file in docker-compose.prod.yml docker-compose.image.yml; do
+            if docker compose -f "$file" config >/dev/null 2>&1; then
+              echo "::error file=$file::$file resolved without POSTGRES_PASSWORD, so it carries a default someone can guess"
+              exit 1
+            fi
+            POSTGRES_PASSWORD=probe docker compose -f "$file" config >/dev/null
+          done
+
+      # The same trap one step earlier: an example env whose required values are
+      # placeholders boots a stack on a password published in the repository.
+      - name: The example env ships no secret
+        run: |
+          set -euo pipefail
+          for key in JWT_SECRET POSTGRES_PASSWORD; do
+            line="$(grep -E "^${key}=" .env.production.example || true)"
+            if [ "$line" != "${key}=" ]; then
+              echo "::error file=.env.production.example::$key must ship empty, found: ${line:-nothing}"
+              exit 1
+            fi
+          done

@@ -177,7 +177,7 @@ docker compose -f docker-compose.prod.yml down -v
 rm .env
 ```
 
-This wipes the Postgres volume. Recreate `.env` from `.env.production.example` and bring the stack back up with `docker compose -f docker-compose.prod.yml up -d --build`, which gives you matching credentials.
+This wipes the Postgres volume. Recreate `.env` from `.env.production.example`, set `JWT_SECRET` and `POSTGRES_PASSWORD` again — any values will do, since the volume that stored the old ones is gone — and bring the stack back up with `docker compose -f docker-compose.prod.yml up -d --build`.
 
 ### App container never becomes healthy after a source build
 

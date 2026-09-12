@@ -202,9 +202,13 @@ For self-hosters who want to compile Core from source — useful for audits, cus
 git clone https://github.com/arkhe-systems/senddock.git
 cd senddock
 cp .env.production.example .env
-# edit .env: set JWT_SECRET and POSTGRES_PASSWORD (e.g. openssl rand -hex 32)
+# edit .env and set the two required values:
+#   JWT_SECRET        -> openssl rand -hex 32
+#   POSTGRES_PASSWORD -> openssl rand -base64 32
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+Both values ship empty in the example on purpose: the compose refuses to start while either is missing, naming the variable, so skipping this step is a clear error instead of a stack running on a password anyone can read in the repository.
 
 Windows users run the same `docker compose` command from PowerShell — no separate script.
 

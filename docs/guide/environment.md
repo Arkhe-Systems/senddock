@@ -30,7 +30,7 @@ These are consumed by the bundled `docker-compose.image.yml` / `docker-compose.p
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `POSTGRES_PASSWORD` | Password for the bundled Postgres service. Required — the compose fails fast if it's unset. Generate with `openssl rand -base64 32`. | — |
+| `POSTGRES_PASSWORD` | Password for the bundled Postgres service. Required — both production composes refuse to start while it is unset or empty, which is why `.env.production.example` ships it empty. Generate with `openssl rand -base64 32`. | — |
 | `SENDDOCK_PORT` | Host port the SendDock container is exposed on. Mapped to `8080` inside the container (which is what `PORT` controls). Set to e.g. `9090` to reach SendDock at `http://host:9090`. | `8080` |
 
 ## Advanced overrides
