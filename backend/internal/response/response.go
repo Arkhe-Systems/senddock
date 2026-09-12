@@ -180,6 +180,9 @@ type Webhook struct {
 	CreatedAt string   `json:"created_at"`
 }
 
+// FromWebhook renders a stored webhook without its signing secret. The secret is
+// handed out only by FromCreatedWebhook, on the response that creates it, so every
+// later read of a webhook leaves the field empty.
 func FromWebhook(w db.Webhook) Webhook {
 	events := w.Events
 	if events == nil {
@@ -188,11 +191,20 @@ func FromWebhook(w db.Webhook) Webhook {
 	return Webhook{
 		ID:        w.ID.String(),
 		URL:       w.Url,
-		Secret:    w.Secret,
+		Secret:    "",
 		Events:    events,
 		Active:    w.Active,
 		CreatedAt: w.CreatedAt.UTC().Format(time.RFC3339),
 	}
+}
+
+// FromCreatedWebhook renders a webhook together with its signing secret, for the
+// one response that creates it. The secret cannot be read back afterwards, so a
+// client that loses it creates a new webhook.
+func FromCreatedWebhook(w db.Webhook) Webhook {
+	hook := FromWebhook(w)
+	hook.Secret = w.Secret
+	return hook
 }
 
 func FromWebhooks(hooks []db.Webhook) []Webhook {

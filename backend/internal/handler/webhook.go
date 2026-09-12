@@ -128,7 +128,7 @@ func (h *WebhookHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response.FromWebhook(hook))
+	json.NewEncoder(w).Encode(response.FromCreatedWebhook(hook))
 }
 
 func (h *WebhookHandler) List(w http.ResponseWriter, r *http.Request) {

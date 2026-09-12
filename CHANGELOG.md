@@ -25,6 +25,8 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 ### Security
 
+- **A webhook's signing secret can no longer be read back.** Listing, fetching or pausing a webhook returned its secret, and reading webhooks needs no capability at all, so every member of the workspace — a read-only viewer included — could take the signing key and sign deliveries of its own. The dashboard meanwhile told the user the secret was shown once, and the API docs said the field came back empty. It is now returned by the creation response only. A secret that is lost is replaced by creating a new webhook, which is the recovery path both documents already described.
+
 - **Headers could be injected through the subject.** Subjects are built from subscriber-supplied text — their name, email and custom fields are substituted into them — and that text was written into the message headers as-is. A value containing a line break could therefore add headers of the attacker's choosing, a `Bcc` for example, to the message SendDock sent. Carriage returns and line feeds are now stripped from every value that reaches a header: the subject, the sender name, the recipient and the unsubscribe URL.
 - **Certificates are verified on outgoing SMTP.** Every connection accepted any certificate, so an attacker able to sit between the instance and the relay could read SMTP credentials and the mail itself while the connection still looked encrypted. Verification is now on for both implicit TLS and STARTTLS. A relay with a self-signed or expired certificate can be kept working per project under **Project → SMTP → Allow insecure TLS**, and the failure message names that setting so the fix is one click away.
 
