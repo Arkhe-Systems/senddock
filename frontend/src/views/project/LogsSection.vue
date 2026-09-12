@@ -28,6 +28,7 @@ interface Template { id: string; name: string }
 
 const STATUS_CHIPS: { value: string; label: string }[] = [
     { value: '', label: 'All' },
+    { value: 'pending', label: 'Pending' },
     { value: 'sent', label: 'Sent' },
     { value: 'failed', label: 'Failed' },
     { value: 'bounced', label: 'Bounced' },

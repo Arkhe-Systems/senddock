@@ -761,13 +761,17 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 }
 
 func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, broadcastID, newsletterID uuid.NullUUID) uuid.UUID {
+	// The row has to exist before the send so the tracking pixel and the click links have a
+	// log id to point at, but until the relay answers the outcome is unknown. Recording it as
+	// sent up front counted attempts that never left the instance, and a crash left them
+	// counted as delivered forever.
 	logEntry, _ := s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
 		TemplateID:   templateID,
 		ToEmail:      toEmail,
 		Subject:      subject,
-		Status:       "sent",
+		Status:       "pending",
 		BroadcastID:  broadcastID,
 		NewsletterID: newsletterID,
 	})
@@ -830,6 +834,7 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 		s.dispatchEmail(ctx, "email.failed", projectID, logID, to, subject, sendErr.Error())
 	} else {
 		metrics.EmailSent()
+		s.markLogStatus(ctx, projectID, logID, "sent", nil)
 		s.dispatchEmail(ctx, "email.sent", projectID, logID, to, subject, "")
 	}
 	return sendErr

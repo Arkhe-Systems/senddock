@@ -15,6 +15,8 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 ### Fixed
 
+- **A log row no longer claims the send succeeded before it did.** The row is written before the SMTP call so the tracking pixel and the click links have an id to point at, and it was recorded as `sent` at that moment. A crash or a hung attempt therefore left a row that claimed a delivery which never happened, and the stats endpoint counted it. Rows now start as `pending` and settle to `sent` once the relay accepts the message.
+
 - **Date rules no longer break a segment.** `greater than` and `less than` compiled a custom field to a numeric cast, but date fields are stored as `YYYY-MM-DD`, so a rule that saved without complaint failed when the segment actually ran: the preview errored and any broadcast targeting it never sent. The comparison now casts to match the value — dates compare as dates, numbers as numbers — and a value that cannot be ordered is refused while the segment is being saved rather than when it is used.
 
 - **Demoting the last workspace owner no longer leaves the workspace ownerless.** The guard that refuses to remove the last owner ran only when the target role was `member` — a value the database rejects — so demoting an owner to `admin`, `developer` or `viewer` went through and left the workspace with no owner, unrecoverable from the UI. The guard now runs for every target role except `owner`.

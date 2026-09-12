@@ -12,7 +12,7 @@ Open it from **Logs** in the project sidebar.
 |---|---|
 | **To** | The recipient address. |
 | **Subject** | The rendered subject line. |
-| **Status** | `sent`, `failed`, `bounced` or `suppressed` (see [Sending → statuses](./sending) and [Bounces](./bounces)). |
+| **Status** | `pending`, `sent`, `failed`, `bounced` or `suppressed` (see [Sending → statuses](./sending) and [Bounces](./bounces)). |
 | **Engagement** | Whether the message was opened and/or clicked. |
 | **Date** | When it was processed. |
 

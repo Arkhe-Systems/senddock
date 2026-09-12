@@ -291,6 +291,7 @@ Pagination defaults to **50 rows per page** and accepts up to **100** via the `l
 
 | Status | When it lands |
 |---|---|
+| `pending` | The attempt was recorded and its outcome is not known yet — the process stopped before the relay answered. Not counted as sent. |
 | `sent` | SMTP relay accepted the message. |
 | `failed` | Soft failure (4xx) or unexpected error during the send. |
 | `bounced` | Hard failure (5xx) detected by [bounce ingestion](./bounces). The recipient is also added to the [suppression list](./suppressions). |
