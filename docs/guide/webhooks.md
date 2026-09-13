@@ -105,7 +105,7 @@ Every delivery is an HTTP `POST` with a JSON body shaped like an envelope:
   "subscriber_id": "uuid",
   "project_id": "uuid",
   "email": "user@example.com",
-  "name": "Sebastián",
+  "name": "John Doe",
   "status": "active"   // omitted on subscriber.unsubscribed
 }
 
@@ -116,7 +116,7 @@ Every delivery is an HTTP `POST` with a JSON body shaped like an envelope:
   "newsletter_id": "uuid",
   "newsletter_name": "Dev Tips",
   "email": "user@example.com",
-  "name": "Sebastián"
+  "name": "John Doe"
 }
 ```
 
