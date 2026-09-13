@@ -1,12 +1,12 @@
 # SendDock Roadmap
 
-> **Estado, reconciliado con el código.** Los ítems de las fases de abajo están verificados contra el
-> código, no contra lo que se creía. Lo que sigue sin marcar sigue pendiente **de verdad** — entre otros:
-> validación de email antes de enviar, onboarding de cloud, recuperación de contraseña, request logging y
-> reset mensual de usage.
+> **Status, reconciled with the code.** The items below are checked against the code, not against what
+> was believed to be true. Anything still unticked is still genuinely pending — among others: email
+> validation before sending, cloud onboarding, password reset, request logging and the monthly usage
+> reset.
 >
-> Este archivo describe **dirección de producto**. El trabajo activo y los bugs abiertos se trackean en
-> [issues](https://github.com/Arkhe-Systems/senddock/issues), no acá.
+> This file describes **product direction**. Active work and open bugs are tracked in
+> [issues](https://github.com/Arkhe-Systems/senddock/issues), not here.
 
 ## Phase 1: Core Backend
 - [x] Project structure (Go modules, internal/, cmd/)
