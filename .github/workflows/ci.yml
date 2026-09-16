@@ -2,8 +2,8 @@ name: CI
 
 # Nothing ran the test suite before this workflow existed, so a regression could
 # reach main with every check green simply because there were no checks. This runs
-# the backend build, vet and tests, the frontend type-check, build and tests, and the
-# compose guards.
+# the backend build, vet and tests, the frontend type-check, build and tests, the compose
+# guards, and the language check.
 #
 # CGO is disabled to match the released image: the Dockerfile builds with
 # CGO_ENABLED=0. The suite needs no database — the integration tests that use one skip
@@ -98,3 +98,15 @@ jobs:
               exit 1
             fi
           done
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The repository ships in English. A file mixing two languages is unreadable in
+      # review and cannot be translated later without guessing which half is current, so
+      # the rule is checked rather than trusted. It also runs locally:
+      #   scripts/check-language.sh
+      - name: Everything tracked is in English
+        run: scripts/check-language.sh
