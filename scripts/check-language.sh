@@ -33,11 +33,21 @@ accented_word='[A-Za-zÁÉÍÓÚÑáéíóúñ]*[áéíóúüñÁÉÍÓÚÜÑ¿�
 # exists so a stray match cannot block a build.
 word_threshold=3
 
+# The check has to name the words it looks for, so it contains Spanish itself. It is the one
+# file in the repository where they are allowed, and it is excluded by path rather than by
+# loosening the pattern for everybody else.
+self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
 failed=0
 checked=0
+exempt=0
 
 while IFS= read -r file; do
   [ -f "$file" ] || continue
+  if [ "$root/$file" = "$self" ]; then
+    exempt=$((exempt + 1))
+    continue
+  fi
   checked=$((checked + 1))
 
   # -I keeps binaries out: a screenshot is not prose and cannot be translated.
@@ -65,4 +75,8 @@ if [ "$failed" -gt 0 ]; then
   exit 1
 fi
 
-printf 'check-language: OK — %s tracked files, all in English\n' "$checked"
+if [ "$exempt" -gt 0 ]; then
+  printf 'check-language: OK — %s tracked files in English (%s exempt: the check itself)\n' "$checked" "$exempt"
+else
+  printf 'check-language: OK — %s tracked files, all in English\n' "$checked"
+fi
