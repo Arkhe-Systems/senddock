@@ -32,12 +32,13 @@ var (
 
 type WorkspaceService struct {
 	queries *db.Queries
+	conn    *sql.DB
 	gate    atomic.Value
 	quota   QuotaGate
 }
 
-func NewWorkspaceService(queries *db.Queries) *WorkspaceService {
-	s := &WorkspaceService{queries: queries}
+func NewWorkspaceService(queries *db.Queries, conn *sql.DB) *WorkspaceService {
+	s := &WorkspaceService{queries: queries, conn: conn}
 	s.gate.Store(licenseGateHolder{license.DenyAll()})
 	return s
 }
@@ -70,19 +71,29 @@ func (s *WorkspaceService) Create(ctx context.Context, userID uuid.UUID, name st
 	if name == "" {
 		return db.Workspace{}, errors.New("name is required")
 	}
-	ws, err := s.queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
-		Name:      name,
-		CreatedBy: userID,
+	// A workspace whose owner row never landed is invisible to everyone: no screen lists
+	// it and no screen can delete it. Both writes go in together.
+	var ws db.Workspace
+	err := withTransaction(ctx, s.conn, s.queries, func(q *db.Queries) error {
+		created, err := q.CreateWorkspace(ctx, db.CreateWorkspaceParams{
+			Name:      name,
+			CreatedBy: userID,
+		})
+		if err != nil {
+			return err
+		}
+		if _, err := q.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
+			WorkspaceID: created.ID,
+			UserID:      userID,
+			Role:        WorkspaceRoleOwner,
+			InvitedBy:   uuid.NullUUID{UUID: userID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		ws = created
+		return nil
 	})
 	if err != nil {
-		return db.Workspace{}, err
-	}
-	if _, err := s.queries.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
-		WorkspaceID: ws.ID,
-		UserID:      userID,
-		Role:        WorkspaceRoleOwner,
-		InvitedBy:   uuid.NullUUID{UUID: userID, Valid: true},
-	}); err != nil {
 		return db.Workspace{}, err
 	}
 	return ws, nil
@@ -236,30 +247,42 @@ func (s *WorkspaceService) CreateUserAndAddMember(ctx context.Context, workspace
 		return CreatedUser{}, err
 	}
 
-	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
-		Email:        email,
-		PasswordHash: sql.NullString{String: string(hash), Valid: true},
-		Name:         name,
+	// An account that never joins the workspace is a half-created account: the owner who
+	// created it cannot see it, but its email is taken for good.
+	var created CreatedUser
+	err = withTransaction(ctx, s.conn, s.queries, func(q *db.Queries) error {
+		user, err := q.CreateUser(ctx, db.CreateUserParams{
+			Email:        email,
+			PasswordHash: sql.NullString{String: string(hash), Valid: true},
+			Name:         name,
+		})
+		if err != nil {
+			if isUniqueViolation(err) {
+				return ErrEmailTaken
+			}
+			return err
+		}
+		if _, err := q.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
+			WorkspaceID: workspaceID,
+			UserID:      user.ID,
+			Role:        role,
+			InvitedBy:   uuid.NullUUID{UUID: actorID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		created = CreatedUser{
+			UserID: user.ID,
+			Email:  user.Email,
+			Name:   user.Name,
+			Role:   role,
+		}
+		return nil
 	})
 	if err != nil {
 		return CreatedUser{}, err
 	}
 
-	if _, err := s.queries.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
-		WorkspaceID: workspaceID,
-		UserID:      user.ID,
-		Role:        role,
-		InvitedBy:   uuid.NullUUID{UUID: actorID, Valid: true},
-	}); err != nil {
-		return CreatedUser{}, err
-	}
-
-	return CreatedUser{
-		UserID: user.ID,
-		Email:  user.Email,
-		Name:   user.Name,
-		Role:   role,
-	}, nil
+	return created, nil
 }
 
 func (s *WorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, actorID, targetID uuid.UUID, role string) error {
@@ -307,6 +330,17 @@ func isCheckConstraintViolation(err error) bool {
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) {
 		return pqErr.Code == "23514"
+	}
+	return false
+}
+
+// isUniqueViolation reports whether the error is a unique constraint rejection. The email
+// lookups that guard account creation are a courtesy to the caller: the constraint is what
+// actually holds, and losing that race is a taken email, not an internal failure.
+func isUniqueViolation(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "23505"
 	}
 	return false
 }

@@ -69,3 +69,25 @@ func TestIsCheckConstraintViolation(t *testing.T) {
 		}
 	}
 }
+
+// A unique rejection is what the database says when two registrations race past the email
+// lookup that guards account creation. It has to read as a taken email, not as an internal
+// failure, or the loser of the race gets a 500 for something they can act on.
+func TestIsUniqueViolation(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"unique violation", &pq.Error{Code: "23505"}, true},
+		{"wrapped unique violation", fmt.Errorf("create user: %w", &pq.Error{Code: "23505"}), true},
+		{"check violation", &pq.Error{Code: "23514"}, false},
+		{"foreign key violation", &pq.Error{Code: "23503"}, false},
+		{"plain error", errors.New("boom"), false},
+	}
+	for _, tc := range cases {
+		if got := isUniqueViolation(tc.err); got != tc.want {
+			t.Errorf("%s: isUniqueViolation(%v) = %v, want %v", tc.name, tc.err, got, tc.want)
+		}
+	}
+}
