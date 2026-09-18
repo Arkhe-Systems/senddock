@@ -52,7 +52,7 @@ The dashboard importer takes CSV only. To import a JSON array (with `fields` and
 Every row goes through three checks before it lands in the database:
 
 1. **Syntax** — the address must parse as a valid mailbox (RFC 5322).
-2. **MX record** — SendDock resolves the domain's MX records. Domains with no MX (typo, dead domain) are rejected.
+2. **MX record** — SendDock resolves the domain's MX records, falling back to A/AAAA. A domain that resolves to nothing at all (typo, dead domain) is rejected; one with an A record and no MX still passes.
 3. **Disposable-domain block-list** — a built-in list of throwaway providers (Mailinator, 10minutemail, etc.) is rejected by default.
 
 Rows that fail any check are skipped. The **import results modal** breaks the input down into:
