@@ -86,7 +86,7 @@ What happens:
 
 Same data preservation guarantees as the image flow.
 
-If the build fails or the app never becomes healthy, check `docker compose -f docker-compose.prod.yml logs senddock`.
+If the build fails or the app never becomes healthy, check `docker compose -f docker-compose.prod.yml logs app`.
 
 ---
 

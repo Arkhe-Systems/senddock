@@ -54,7 +54,6 @@ Single-recipient sends (`/send`) and `/send/batch` continue to work without a pu
 1. Open the dashboard → any project → **Settings** → check the "Instance URL" panel. The URL shown there is what every email will use.
 2. Set your public URL under **Instance** in the dashboard to the domain where SendDock is reachable, e.g. `https://email.mycompany.com`.
 3. Make sure your reverse proxy forwards `/unsubscribe/*` and `/t/*` (open-tracking pixel) to the backend, not just `/api/*`. With the single-binary deploy, both routes are served by the Go process on the same port as the API.
-4. Restart the backend so the new value takes effect.
 
 If you migrated from an older version, links generated **before** you set your public URL are signed against whatever URL/secret was active then — they will fail validation. New emails will work.
 
@@ -147,7 +146,7 @@ The public waitlist endpoint (`POST /api/v1/projects/{id}/waitlist`) is a public
 **Fix in production (Docker):** migrations run automatically via `goose` on container startup — the entrypoint script blocks until they finish before exec'ing the binary. If you see this error after pulling a new image, the container almost certainly hit the error during boot. Check the logs:
 
 ```bash
-docker compose logs app --tail 100 | grep -i 'goose\|migration'
+docker compose logs senddock --tail 100 | grep -i 'goose\|migration'
 ```
 
 If goose printed an error (e.g. couldn't connect to Postgres, or hit a conflicting schema), fix the underlying cause and restart with `docker compose up -d`. The next boot retries from where the last successful version stopped.
@@ -261,7 +260,7 @@ The `--force` flag rotates the task even when the image reference appears unchan
 
 **The binary boots without Redis, but you almost certainly do need it.** `REDIS_URL` is technically optional, and when unset:
 
-- The **global per-IP rate limiter** (default 600 req/min, every endpoint except `/health`) becomes a no-op.
+- The **global per-IP rate limiter** (default 600 req/min, every endpoint except `/health` and `/metrics`) becomes a no-op.
 - The **per-project sending limits** on `/send`, `/send/batch`, `/broadcast` become no-ops.
 - The **GitHub releases cache** is skipped — every dashboard load hits the GitHub API directly (you'll burn through the anonymous rate limit fast on busy instances).
 - Email stats fall back to direct database queries — slightly slower, but functionally identical.
