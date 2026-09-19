@@ -61,13 +61,19 @@ For the subscriber-send variant (`subscriber_id` + `template_id`):
 {"sent": 1, "failed": 0}
 ```
 
-When the recipient is on the project's [suppression list](./suppressions), the endpoint **does not** error — it returns `200 OK` with:
+When the recipient is on the project's [suppression list](./suppressions), the endpoint **does not** error — a send addressed with `to` (template or raw HTML) returns `200 OK` with:
 
 ```json
 {"message": "suppressed", "suppressed": 1}
 ```
 
-The send is recorded with status `suppressed` in the email log; no SMTP attempt is made. This is the same shape as the failure-counted version below — when present, `suppressed` always counts in addition to `sent` + `failed`.
+The subscriber-send variant instead returns its usual count shape, with the recipient counted as suppressed rather than sent:
+
+```json
+{"sent": 0, "failed": 0, "suppressed": 1}
+```
+
+The send is recorded with status `suppressed` in the email log; no SMTP attempt is made. When present, `suppressed` always counts in addition to `sent` + `failed`.
 
 ::: info Error contract
 A `template_id` or `subscriber_id` that doesn't exist in the project, a project without SMTP configured, or a subscriber that isn't `active` all return `400` with an `{error}` body. An SMTP-level rejection (the relay refused the message) also returns `400` with the SMTP error in `{error}` — the log row is marked `failed` or `bounced` accordingly. Only suppression is a "soft" `200`, shown above.
@@ -99,7 +105,7 @@ Sends a template to multiple recipients in one request. Each recipient can have 
 {"sent": 3, "failed": 0, "suppressed": 1}
 ```
 
-`suppressed` is omitted when zero. Recipients on the project's suppression list are skipped without an SMTP attempt and do **not** count towards `failed`.
+`suppressed` is always present, and is `0` when no recipient was skipped. Recipients on the project's suppression list are skipped without an SMTP attempt and do **not** count towards `failed`.
 
 ## Broadcast
 
@@ -130,10 +136,10 @@ Variables are replaced per subscriber. The `{{unsubscribe_url}}` is injected aut
 **Response**
 
 ```json
-{"sent": 150, "failed": 2, "suppressed": 8}
+{"sent": 150, "failed": 0, "broadcast_id": "uuid"}
 ```
 
-`suppressed` is the count of subscribers skipped because they were on the project's suppression list. They do **not** count towards `failed`. Field is omitted when zero.
+The response reports the **enqueue** result only: `sent` is the number of recipients queued, `failed` is always `0`, and `broadcast_id` identifies the broadcast whose progress is tracked below. No message has been attempted yet, so `suppressed` is not part of this response; the real `sent_count`, `failed_count` and `suppressed_count` are read from [List broadcasts](#list-broadcasts) as the worker drains the queue.
 
 ::: info Public URL required
 The instance must have a [public URL](../guide/instance-settings#public-url) configured — without it the endpoint refuses with `400` because unsubscribe links can't be built. See [A public URL is required](../guide/sending#a-public-url-is-required-for-broadcasts-and-campaigns).
@@ -178,10 +184,10 @@ Sends a test email to verify SMTP configuration. Cookie auth only.
 ## Open Tracking
 
 ```
-GET /t/{logId}
+GET /t/{logId}.gif
 ```
 
-Public endpoint (no auth required, no file extension on the path). Returns a 1×1 transparent GIF in the response body with `Content-Type: image/gif`. This pixel is automatically injected into **every** outgoing email — subscriber sends, broadcasts, and raw transactional sends to a non-subscriber address (`/send`, `/send/batch`). When the recipient's email client loads the image, SendDock records the `opened_at` timestamp on the corresponding email log entry. Only the first open is recorded.
+Public endpoint (no auth required). Returns a 1×1 transparent GIF in the response body with `Content-Type: image/gif`. SendDock emits the pixel as `/t/{logId}.gif` and the handler strips the `.gif` suffix. The pixel is automatically injected into **every** outgoing email — subscriber sends, broadcasts, and raw transactional sends to a non-subscriber address (`/send`, `/send/batch`). When the recipient's email client loads the image, SendDock records the `opened_at` timestamp on the corresponding email log entry. Only the first open is recorded.
 
 ## Click Tracking
 
@@ -246,14 +252,16 @@ GET /api/v1/projects/{id}/logs?status=bounced&from=2026-01-01T00:00:00Z&to=2026-
       "subject": "Welcome!",
       "status": "sent",
       "error": null,
-      "sent_at": "2026-01-01T00:00:00Z"
+      "sent_at": "2026-01-01T00:00:00Z",
+      "opened_at": "2026-01-01T00:02:14Z",
+      "clicked_at": null
     }
   ],
   "total": 1520
 }
 ```
 
-`opened_at` and `clicked_at` are **not** included in the log row (the row tracks delivery, not engagement). For per-email open/click data, use the detail endpoint below.
+`opened_at` and `clicked_at` come with the row and are `null` until the recipient opens or clicks. For the per-click detail — URL, user agent and time of every click — use the detail endpoint below.
 
 ### Email log detail
 
@@ -280,10 +288,10 @@ Cookie auth only. Backs the right-side drawer in the Logs page. Returns the full
   },
   "clicks": [
     {
+      "id": "uuid",
       "url": "https://example.com/pricing",
-      "user_agent": "Mozilla/5.0 ...",
-      "ip_address": "203.0.113.42",
-      "clicked_at": "2026-01-01T00:02:31Z"
+      "clicked_at": "2026-01-01T00:02:31Z",
+      "user_agent": "Mozilla/5.0 ..."
     }
   ]
 }
@@ -309,17 +317,18 @@ Cookie auth only. Returns the broadcast history for the project, newest first, w
       "template_id": "uuid",
       "newsletter_id": null,
       "status": "sending",
-      "total": 12500,
+      "total_recipients": 12500,
       "sent_count": 8472,
       "failed_count": 31,
-      "created_at": "2026-01-15T10:00:00Z",
-      "completed_at": null
+      "started_at": "2026-01-15T10:00:00Z",
+      "finished_at": null
     }
-  ]
+  ],
+  "total": 1
 }
 ```
 
-`status` is one of `pending`, `sending`, `completed`, `interrupted`. (`interrupted` is a legacy state from a mid-broadcast restart on older builds; current versions stay `sending` and resume from the job queue.) While a broadcast is `sending`, `sent_count` and `failed_count` reflect the live state of the per-recipient job queue. The dashboard polls this endpoint every five seconds to drive the live progress bars.
+`status` is one of `sending`, `completed`, `interrupted`. (`interrupted` is a legacy state from a mid-broadcast restart on older builds; current versions stay `sending` and resume from the job queue.) While a broadcast is `sending`, `sent_count` and `failed_count` reflect the live state of the per-recipient job queue. The envelope also carries `total`, the number of broadcasts matching the filters, for pagination. The dashboard polls this endpoint every five seconds to drive the live progress bars.
 
 ## Stats
 
