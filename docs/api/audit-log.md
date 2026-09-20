@@ -26,11 +26,11 @@ GET /api/v1/projects/{id}/audit-log
 {
   "entries": [
     {
-      "id": "01H...",
-      "user_id": "01H...",
+      "id": "b7c9e2f4-1a3d-4e6b-8c02-5f7a9d1e3b40",
+      "user_id": "9d1f4a6c-2b8e-4c31-a5d7-6e8f0b2c4a15",
       "action": "smtp.update",
       "target_type": "project",
-      "target_id": "01H...",
+      "target_id": "4e6b8c02-5f7a-49d1-9e3b-40b7c9e2f4a3",
       "metadata": {
         "smtp_host": "smtp.mailgun.org",
         "smtp_user": "postmaster@acme.com",
@@ -47,10 +47,10 @@ GET /api/v1/projects/{id}/audit-log
 
 | Field | Description |
 |---|---|
-| `id` | Unique entry id (ULID). |
+| `id` | Unique entry id (UUID). |
 | `user_id` | UUID of the user who took the action. Resolve to email via [`GET /workspaces/{id}/members`](./workspaces#list-members). |
 | `action` | Dotted action string. See the [full catalog](../guide/audit-log#what-gets-recorded). |
-| `target_type` / `target_id` | The entity acted on — `project`, `api_key`, `webhook`, `suppression`, `workspace`. |
+| `target_type` / `target_id` | The entity acted on — `project`, `api_key`, `webhook`, `suppression`, `workspace`, `field`, `subscriber`, `newsletter`, `segment`, `template`, `instance`. `suppression.add` records no `target_id`. |
 | `metadata` | Action-specific JSON. SMTP and bounce-IMAP entries record host / user / from address; never password fields. |
 | `ip_address` | IP of the request that triggered the action, parsed from `X-Forwarded-For` if present. |
 | `user_agent` | Browser / client UA. |
@@ -62,8 +62,8 @@ GET /api/v1/projects/{id}/audit-log
 |---|---|
 | `401` | Missing cookie session. |
 | `402` | No valid Pro license key. |
-| `403` | The authenticated user doesn't own this project. |
-| `404` | Project not found. |
+| `403` | The authenticated user isn't a member of the project's workspace (also returned for a project that doesn't exist). |
+| `404` | The project id in the path isn't a valid UUID. |
 
 ### Examples
 
