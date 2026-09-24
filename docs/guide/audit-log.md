@@ -1,6 +1,6 @@
 # Audit log <Badge type="warning" text="Pro" />
 
-The audit log records every sensitive action taken on a project (and, on Team plans, on the workspace itself — workspace and member changes are recorded with a `workspace` target) — who did it, when, against what, and from which IP. Available on Pro and Team. Without a Pro license the endpoint and UI tab are hidden, and the underlying actions still happen, they just aren't recorded.
+The audit log records every sensitive action taken on a project (and, on Team plans, on the workspace itself — workspace and member changes are recorded with a `workspace` target) — who did it, when, against what, and from which IP. Available on Pro and Team. Entries are written on every plan: the license gates **reading** the log, not recording it. Without a Pro license the UI tab is hidden and the endpoint answers `402 Payment Required`, and the actions are still recorded.
 
 ![The audit log with filterable actions](/screenshots/audit-log.png)
 
@@ -9,10 +9,16 @@ The audit log records every sensitive action taken on a project (and, on Team pl
 | Category | Actions |
 |---|---|
 | Project lifecycle | `project.create`, `project.update`, `project.delete` |
+| Unsubscribe page | `project.unsubscribe_template_updated` |
+| Instance settings | `instance.settings.updated` |
 | SMTP & deliverability config | `smtp.update`, `bounce_imap.update`, `bounce_token.rotate` |
 | API keys | `api_key.create`, `api_key.revoke` |
 | Webhooks | `webhook.create`, `webhook.delete` |
 | Suppressions | `suppression.add`, `suppression.delete` |
+| Subscribers | `subscriber.newsletters_updated`, `subscriber.bulk_delete`, `subscriber.bulk_update_status`, `subscriber.bulk_add_tags`, `subscriber.bulk_remove_tags`, `subscriber.bulk_add_newsletter`, `subscriber.bulk_remove_newsletter` |
+| Custom fields | `field.created`, `field.updated`, `field.deleted` |
+| Segments | `segment.created`, `segment.updated`, `segment.deleted` |
+| Newsletters | `newsletter.created`, `newsletter.updated`, `newsletter.deleted` |
 | Workspace (Team) | `workspace.create`, `workspace.rename`, `workspace.delete`, `workspace.member_added`, `workspace.member_removed`, `workspace.member_role_changed`, `workspace.user_created` |
 | Sends | `broadcast.send` |
 
@@ -21,13 +27,13 @@ Each entry stores:
 - **`created_at`** — UTC, ISO 8601.
 - **`user_id`** — UUID of the user who took the action. Resolve to email via [`GET /workspaces/{id}/members`](../api/workspaces#list-members) when displaying.
 - **`action`** — the string from the table above.
-- **`target_type`** + **`target_id`** — the entity affected (`project`, `api_key`, `webhook`, `suppression`, `workspace`).
+- **`target_type`** + **`target_id`** — the entity affected (`project`, `api_key`, `webhook`, `suppression`, `workspace`, `field`, `subscriber`, `newsletter`, `segment`, `template`, `instance`).
 - **`metadata`** — action-specific JSON (e.g. for `smtp.update` you get `smtp_host`, `smtp_user`, `from_email` — never the password).
 - **`ip_address`** + **`user_agent`** — request context, IP parsed from `X-Forwarded-For` if present.
 
 ## Where to see it
 
-In the project sidebar, open **Audit Log**. Filter by action, by actor, or by date range. Each entry expands to show the metadata JSON. Workspace-level entries (Team) appear alongside project entries in the workspace's project logs.
+In the project sidebar, open **Audit Log**. Filter by action or by date range. Each entry expands to show the metadata JSON. Workspace-level entries (Team) are recorded with a `workspace` target.
 
 ## API
 
@@ -78,7 +84,7 @@ The audit log is for **administrative** actions, not data-plane traffic. It does
 - Individual `/send` calls (those are in the email log — millions of rows).
 - Open or click events (those are in the analytics tables).
 - Read operations (`GET /subscribers`, etc.).
-- Login attempts (logged separately at the auth layer; surfaced in v0.7+).
+- Login attempts — the auth layer keeps only a short-lived Redis failure counter (10 failures per identifier in a 15-minute window) to lock out brute force. There is no login history stored anywhere and nothing to query.
 
 If you need a full request log, use your reverse proxy's access log — Nginx, Caddy and Traefik all log per-request and are the right tool for that. The audit log is the curated subset of events worth showing in a "Who changed our SMTP password?" investigation.
 
