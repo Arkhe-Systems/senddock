@@ -1,6 +1,6 @@
 # Segments API
 
-Segments are saved filters over your subscribers, evaluated fresh on every use (no materialized membership). A broadcast can target a segment instead of "all active subscribers". Cookie auth required; mutations need the `subscribers:write` role capability. Part of the free Core.
+Segments are saved filters over your subscribers, evaluated fresh on every use (no materialized membership). A broadcast can target a segment instead of "all active subscribers". Cookie auth required; mutations need the `subscribers.write` role capability. Part of the free Core.
 
 See the [Segments guide](/guide/segments) for concepts and examples.
 

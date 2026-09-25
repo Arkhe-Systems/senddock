@@ -39,7 +39,7 @@ POST https://<your-host>/webhooks/bounces/{project_id}?token=<bounce_token>
 
 The endpoint accepts:
 
-- **Generic JSON** — `{"recipient": "user@example.com", "reason": "..."}` (or an array of those).
+- **Generic JSON** — `{"email": "user@example.com", "reason": "..."}`. One address per request; when `reason` is omitted the `type` field is used instead.
 - **Mailgun event payloads** — sent verbatim from a Mailgun event-data webhook with `event=permanent_failure` or `event=failed`.
 
 Configure the destination in your provider's UI to point to that URL. The bounce token is shown in the project's **Settings** page (Bounce webhook section) and can be rotated from the same screen.
@@ -68,7 +68,7 @@ The poller never deletes messages — it only flags them as read.
 |---|---|
 | **Email logs** | The send row's status changes from `sent` to `bounced`. |
 | **Suppression list** | Bounced recipients appear with reason `bounce`. |
-| **Project stats** | `bounced` and `suppressed` are tracked separately from `sent` and `failed`. The dashboard's outcome cards show all four. |
+| **Project stats** | `bounced` and `suppressed` are tracked separately from `sent` and `failed` in the stats endpoint. The dashboard's Overview cards cover Total Emails, Sent and Failed. |
 | **Webhooks** | `email.bounced` fires once with `{ "log_id", "to_email", "subject", "smtp_code", "reason" }` in `data`. |
 | **Audit log (Pro)** | Bounce-mailbox config changes and bounce-token rotations are recorded. |
 

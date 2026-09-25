@@ -1,6 +1,6 @@
 # Newsletters API
 
-Newsletters are named publications inside a project. Subscribers keep a single project-level status, and on top of that hold per-newsletter memberships they can join and leave individually — unsubscribing from one newsletter never touches the others, the project status, or the suppression list. Cookie auth required; mutations need the `subscribers:write` role capability. Part of the free Core.
+Newsletters are named publications inside a project. Subscribers keep a single project-level status, and on top of that hold per-newsletter memberships they can join and leave individually — unsubscribing from one newsletter never touches the others, the project status, or the suppression list. Cookie auth required; mutations need the `subscribers.write` role capability. Part of the free Core.
 
 See the [Newsletters guide](/guide/newsletters) for concepts and the unsubscribe behavior.
 

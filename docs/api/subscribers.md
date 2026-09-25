@@ -1,6 +1,6 @@
 # Subscribers API
 
-All endpoints require cookie authentication, and access is granted by workspace membership rather than project ownership: reads need the caller to be a member of the project's workspace, writes need the `subscribers:write` capability (roles `owner` and `admin`). Two endpoints are exceptions — [Bulk Import](#bulk-import) also accepts an API key, and the [Waitlist](#waitlist-public) endpoint is public and takes no authentication.
+All endpoints require cookie authentication, and access is granted by workspace membership rather than project ownership: reads need the caller to be a member of the project's workspace, writes need the `subscribers.write` capability (roles `owner` and `admin`). Two endpoints are exceptions — [Bulk Import](#bulk-import) also accepts an API key, and the [Waitlist](#waitlist-public) endpoint is public and takes no authentication.
 
 ## Add Subscriber
 
@@ -160,7 +160,7 @@ Apply the same operation to many existing subscribers — the dashboard uses thi
 | `tags` | string[] | required for `add_tags` / `remove_tags` | Non-empty list of tags to add to or remove from every selected subscriber. |
 | `newsletter_id` | string | required for `add_newsletter` / `remove_newsletter` | The [newsletter](/api/newsletters) to add every selected subscriber to (clearing any opt-out) or remove them from. |
 
-Cookie auth only (the role must have `subscribers:write`). For ingesting fresh rows, use [Bulk Import](#bulk-import) — that endpoint takes raw `email`/`name` rows and accepts API keys; this one operates on already-stored subscriber ids.
+Cookie auth only (the role must have `subscribers.write`). For ingesting fresh rows, use [Bulk Import](#bulk-import) — that endpoint takes raw `email`/`name` rows and accepts API keys; this one operates on already-stored subscriber ids.
 
 **Response** `200 OK` with `{"message":"success"}`. Subscriber ids that don't belong to the project are silently skipped.
 

@@ -59,7 +59,7 @@ If you migrated from an older version, links generated **before** you set your p
 
 ### Tracking pixel never registers opens
 
-Same root cause as above. The pixel is `GET /t/{logId}` on the backend (returns a 1×1 transparent GIF; no file extension on the path). If your reverse proxy only forwards `/api/*`, the pixel returns 404 and opens never get marked.
+Same root cause as above. The pixel is `GET /t/{logId}.gif` on the backend (returns a 1×1 transparent GIF). If your reverse proxy only forwards `/api/*`, the pixel returns 404 and opens never get marked.
 
 ### "Sender address rejected" / SMTP authentication failed
 

@@ -169,7 +169,7 @@ The `attempts` counter increments on every retry; combined with the [retry sched
 | Code | When |
 |---|---|
 | `400` | Body fails validation — invalid URL, unknown event type, missing required field. |
-| `403` | Authenticated user does not own this project, or the role lacks `webhooks:write`. |
+| `403` | Authenticated user does not own this project, or the role lacks `webhooks.write`. |
 | `404` | Project or webhook not found. |
 | `500` | Server error. |
 

@@ -20,7 +20,7 @@ features:
   - title: Self-Hostable
     details: One command to deploy with Docker. Your data never leaves your servers.
   - title: API-First
-    details: Every feature available via REST API. Cookie auth for the dashboard, API keys for everything else.
+    details: Every feature available via REST API. Cookie auth for the dashboard, API keys for the send, batch, broadcast, stats and import endpoints.
   - title: Bring Your Own SMTP
     details: Connect Mailgun, SES, Postmark, your VPS, anything that speaks SMTP. No per-email markup.
   - title: Open + Click Tracking
