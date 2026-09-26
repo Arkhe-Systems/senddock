@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases are also published on [GitHub](https://github.com/arkhe-systems/senddock/releases) and the `ghcr.io/arkhe-systems/senddock` image carries the matching tag.
 
-## [Unreleased]
+## [0.8.3] — 2026-09-27
 
 ### Removed
 
 - **The `member` workspace role.** The API accepted it and this changelog advertised it, but the database constraint never allowed it, so assigning it failed with a 500 after leaving an account behind. Its capability set was also identical to `admin`. The roles are `owner`, `admin`, `developer` and `viewer`, which is what the database has permitted all along.
 
 ### Fixed
+
+- **A failed registration no longer leaves a half-created account behind.** Registering wrote the account first and its workspace afterwards, as separate statements, so a failure on the second write left an account that nobody could see or sign into — while holding an email that could never be registered again. The same shape sat in the paths that create a workspace (a workspace with no owner is invisible to everyone and cannot be deleted, and it blocks deleting its creator) and in the flow that adds a member to a workspace. Each of them now writes its rows in one transaction: either the account and its workspace and its membership all land, or none of them do.
 
 - **A log row no longer claims the send succeeded before it did.** The row is written before the SMTP call so the tracking pixel and the click links have an id to point at, and it was recorded as `sent` at that moment. A crash or a hung attempt therefore left a row that claimed a delivery which never happened, and the stats endpoint counted it. Rows now start as `pending` and settle to `sent` once the relay accepts the message.
 
@@ -23,6 +25,10 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 - **A restart no longer re-sends a broadcast another instance is delivering.** Broadcast jobs left in `sending` were reset to `retry` on every startup regardless of who owned them, so starting or rolling one instance re-queued jobs another instance was still sending, and those recipients received the same email twice. A claimed job now carries the worker's id and a lease, and startup recovery only reclaims jobs whose lease has expired — work in flight is left alone.
 
+- **The documentation was corrected against the product.** The API reference and the guides described fields, status codes, response shapes, defaults and permissions that the code does not have: an invented `403` body, a refresh token lifetime of seven days, a retry on every `5xx`, a ULID where the id is a UUID, `deliverability_pct` where the field is `acceptance_pct`, an `ip_address` in the click detail that is never returned, a `status` claimed absent from a webhook payload that carries it, and an import that offers to map CSV columns which are matched automatically. Each correction was checked against the handler, the query or the schema it describes.
+
+- **Two editor fixes that missed the 0.8.2 image.** The visual canvas mirroring the template's `<style>`, and the editor destroying a template when switching between the code and visual tabs, were merged after 0.8.2 was built from its tag. They are in this image.
+
 ### Security
 
 - **The source-build compose no longer starts on a published Postgres password.** `docker-compose.prod.yml` fell back to `senddock` when `POSTGRES_PASSWORD` was unset — in the app's connection string, in the database service and in the migration step — so a deployment that skipped the variable came up matching a password printed in this repository. It now refuses to start and names the variable, like the image compose already did. `.env.production.example` ships the two required values empty for the same reason: a placeholder that is copied and forgotten is a secret everyone can read, and the stack now stops instead of accepting it.
@@ -31,6 +37,9 @@ Releases are also published on [GitHub](https://github.com/arkhe-systems/senddoc
 
 - **Headers could be injected through the subject.** Subjects are built from subscriber-supplied text — their name, email and custom fields are substituted into them — and that text was written into the message headers as-is. A value containing a line break could therefore add headers of the attacker's choosing, a `Bcc` for example, to the message SendDock sent. Carriage returns and line feeds are now stripped from every value that reaches a header: the subject, the sender name, the recipient and the unsubscribe URL.
 - **Certificates are verified on outgoing SMTP.** Every connection accepted any certificate, so an attacker able to sit between the instance and the relay could read SMTP credentials and the mail itself while the connection still looked encrypted. Verification is now on for both implicit TLS and STARTTLS. A relay with a self-signed or expired certificate can be kept working per project under **Project → SMTP → Allow insecure TLS**, and the failure message names that setting so the fix is one click away.
+
+> **Upgrade note — outgoing mail and certificates.** This is the only change in this release that can stop an install from sending. Certificates are verified now; a relay serving a self-signed or expired one fails the handshake until **Allow insecure TLS** is enabled for that project under **Project → SMTP**. Every other fix here is invisible until something goes wrong.
+
 
 
 ## [0.8.2] — 2026-09-01
@@ -67,7 +76,7 @@ Production hardening. Making SendDock honest to run at scale, keep, and observe.
 
 ### Added
 
-- **Safe multi-replica operation.** The IMAP bounce poller is now **leader-elected** with a Postgres session advisory lock, so only one replica polls each mailbox at a time. The scheduled-campaign worker, broadcast queue and webhook delivery were already coordinated (atomic claim / `FOR UPDATE SKIP LOCKED`) — the poller was the last unguarded loop. Running more than one instance no longer double-processes bounces. The container entrypoint also **retries migrations** instead of dying when two replicas race `goose up` against the same database.
+- **Safe multi-replica operation.** The IMAP bounce poller is now **leader-elected** with a Postgres session advisory lock, so only one replica polls each mailbox at a time. The scheduled-campaign worker, broadcast queue and webhook delivery were already coordinated (atomic claim / `FOR UPDATE SKIP LOCKED`) — the poller was the last unguarded loop. _The claim was coordinated, but startup recovery was not: see [0.8.3](#083--2026-09-27)._ Running more than one instance no longer double-processes bounces. The container entrypoint also **retries migrations** instead of dying when two replicas race `goose up` against the same database.
 - **Observability for the send pipeline.** Logs are now **structured JSON** (`slog`), and a Prometheus **`GET /metrics`** endpoint exposes send attempts/sends/failures, SMTP errors by 4xx/5xx class, broadcast queue depth, webhook delivery outcomes, bounce/complaint ingest and poller tick duration. `/metrics` is unauthenticated by convention — scope it at the network layer. See [Monitoring](https://docs.senddock.dev/self-hosting/monitoring).
 
 ### Docs
@@ -247,7 +256,7 @@ Hotfix on top of [0.6.4](#064--2026-05-08). No new features, no DB migrations �
 
 ### Added
 
-- **Per-recipient broadcast queue with retries (#41).** Broadcasts and scheduled campaigns no longer run in a single goroutine that loses everything on restart. Each recipient is enqueued as a row in a new `broadcast_jobs` table; five worker goroutines drain it concurrently using `SELECT … FOR UPDATE SKIP LOCKED`. Transient SMTP errors (4xx, network, DNS) reschedule the job with exponential backoff (30s, 2m, 8m, 30m, 1h), capping at five attempts before the recipient is marked `failed`. SMTP 5xx bounces are not retried — they are tagged `bounced` and the recipient is added to the suppression list. A backend restart mid-broadcast resets jobs that were in `sending` to `retry` so sending resumes from where it left off, with no recipient sent to twice and none silently dropped.
+- **Per-recipient broadcast queue with retries (#41).** Broadcasts and scheduled campaigns no longer run in a single goroutine that loses everything on restart. Each recipient is enqueued as a row in a new `broadcast_jobs` table; five worker goroutines drain it concurrently using `SELECT … FOR UPDATE SKIP LOCKED`. Transient SMTP errors (4xx, network, DNS) reschedule the job with exponential backoff (30s, 2m, 8m, 30m, 1h), capping at five attempts before the recipient is marked `failed`. SMTP 5xx bounces are not retried — they are tagged `bounced` and the recipient is added to the suppression list. A backend restart mid-broadcast resets jobs that were in `sending` to `retry` so sending resumes from where it left off, with no recipient sent to twice and none silently dropped. _Ownership of a claimed job was not part of that reset until [0.8.3](#083--2026-09-27): a restart also re-queued jobs another instance was still delivering, and those recipients received the same email twice._
 - **Live progress for newsletters and broadcasts.** The Newsletters list shows `sent_count` / `failed_count` updating every five seconds while a campaign is in `sending`, instead of jumping from `0/0` to the final number at the end. Same goes for the Broadcasts tab progress bars.
 - **"Broadcasts in flight" panel on Pro Analytics (#41).** When at least one broadcast is actively sending, a card appears at the top of the Analytics dashboard with a live progress bar per broadcast, elapsed time, and per-status counters. Polls every five seconds and disappears as soon as the queue drains.
 - **Email Logs filters and CSV export (#44).** Status filter is now a row of clickable chips (Sent / Failed / Bounced / Suppressed) with status-tinted highlight. Added a Template dropdown to filter logs to a single template's sends. New `GET /api/v1/projects/{id}/logs/export.csv` endpoint and **Export CSV** button (top right of Logs) downloads every row matching the active filters — no `limit`/`offset`. Columns: id, recipient, subject, status, error, sent_at, opened_at, clicked_at, template_id, subscriber_id.
@@ -304,7 +313,7 @@ The "team launch" release. Workspaces with members and roles, a new Team plan ab
 ### Added
 
 - **Workspaces.** A workspace is a container for projects with its own member list. Authorization for project endpoints now scopes by workspace membership; existing single-user installs are migrated transparently (every user got a `My Workspace` with their projects under it). Workspace CRUD, listing your own workspaces and listing members stay free in Core.
-- **Roles & capabilities.** Four roles — `owner`, `admin`, `developer`, `viewer` — with a fixed capability matrix enforced at the handler level. Developers can `POST /send` (transactional) but not broadcast or edit templates; viewers are read-only; admins do everything except member management; owners do everything. The legacy `member` role is kept for backward compatibility (same access as `admin`).
+- **Roles & capabilities.** Four roles — `owner`, `admin`, `developer`, `viewer` — with a fixed capability matrix enforced at the handler level. Developers can `POST /send` (transactional) but not broadcast or edit templates; viewers are read-only; admins do everything except member management; owners do everything. The legacy `member` role is kept for backward compatibility (same access as `admin`). _It was removed in [0.8.3](#083--2026-09-27): the database never allowed it, so assigning it failed with a 500 after leaving an account behind._
 - **Team plan tier.** Multi-member workspaces, role management, and the new admin "Create user" endpoint (`POST /workspaces/{id}/users`) belong to a new **Team** plan above Pro. Without a Team-entitled `SENDDOCK_LICENSE_KEY` the endpoints return `402 Payment Required` and the Members page renders a paywall — the single-user flow stays free.
 - **In-app Subscribe links.** Pro and Team paywalls now drive directly to the Lemon Squeezy checkout for the right tier instead of bouncing the user back to the landing page. Pro's CTA pre-applies the `LAUNCH3FREE` launch coupon while it is active.
 - **Pro vs Team gating in the validator.** The Lemon Squeezy validator now classifies licenses by `variant_id` and returns the right tier in `Status.Tier`. `AllowsFeature(feature)` consults a feature → tier matrix so a Pro key cannot unlock Team features.
