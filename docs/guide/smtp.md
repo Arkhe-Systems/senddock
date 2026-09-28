@@ -17,6 +17,16 @@ Go to **SMTP Settings** in the project sidebar and fill in:
 | From Name | Display name for the sender (optional) | `My Newsletter` |
 | From Email | Email shown as sender (optional, defaults to username) | `noreply@mydomain.com` |
 
+## TLS certificates
+
+SendDock verifies the certificate your SMTP relay presents, on both implicit TLS (465) and STARTTLS (25, 587, 2525). If verification fails, the send — and the **Test Connection** button — stop with a message naming the relay and the reason, for example `x509: certificate has expired`.
+
+That is the point of verification: without it, anyone able to sit between your instance and the relay can read the SMTP password and the mail itself, while the connection still looks encrypted.
+
+The fix is almost always on the mail server: renew the certificate. Self-hosted relays (Poste.io, Mailcow, Mail-in-a-Box) usually renew through Let's Encrypt automatically, but the renewal can silently stop working if DNS or the ACME challenge broke.
+
+If the relay is one you control and you cannot renew the certificate right now, **Project → SMTP → Allow insecure TLS** keeps sending without verifying it. The setting is per project, so the exception stays scoped to the relay that needs it instead of weakening every project on the instance. Use it as a stopgap, not as a configuration: while it is on, an on-path attacker can read your SMTP credentials and mail. SendDock flags it in the SMTP form so it does not go unnoticed.
+
 ## Testing
 
 After saving, click **Test Connection**. SendDock will send a test email to the configured from address (or SMTP username) to verify the connection works.

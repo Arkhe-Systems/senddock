@@ -2,7 +2,7 @@
 
 Manage the per-project suppression list — addresses that `/send`, `/send/batch` and `/broadcast` will skip. See the [Suppressions guide](../guide/suppressions) for the conceptual model and how the list interacts with bounces and unsubscribes.
 
-**Cookie auth only.** Suppression management requires the `suppressions:write` capability that an API key (project-scoped, identity-less) does not carry. Use the dashboard, or call from your own UI built on the same login flow.
+**Cookie auth only.** Suppression management requires the `suppressions.write` capability that an API key (project-scoped, identity-less) does not carry. Use the dashboard, or call from your own UI built on the same login flow.
 
 The cURL examples below use `-b cookies.txt` to indicate the cookie jar from a prior `POST /api/v1/auth/login`.
 
@@ -39,7 +39,7 @@ GET /api/v1/projects/{id}/suppressions
 }
 ```
 
-`source` is optional free-text recorded at insert time (e.g. the SMTP error code that caused the bounce). `last_seen_at` is updated whenever a new send attempt to the same address bumps into the list.
+`source` is optional free-text recorded at insert time (e.g. the SMTP error code that caused the bounce). `last_seen_at` is only refreshed when the same address is added to the list again — a send that skips a suppressed address never touches it.
 
 ### Example
 
@@ -84,7 +84,7 @@ Add one or more addresses to the list. Already-suppressed entries are silently d
 
 ### Capability
 
-Requires the `suppressions:write` capability — owners and admins can call this endpoint; developers and viewers cannot. API keys cannot call it at all (see the cookie-auth note at the top).
+Requires the `suppressions.write` capability. Of the workspace roles — `owner`, `admin`, `developer`, `viewer` — only `owner` and `admin` carry it; `developer` and `viewer` get `403`. API keys cannot call it at all (see the cookie-auth note at the top).
 
 ### Example
 
@@ -109,7 +109,7 @@ Removes the entry. The next send to that address will go through normally — us
 
 ### Capability
 
-Requires `suppressions:write`.
+Requires `suppressions.write`.
 
 ### Example
 
@@ -123,8 +123,8 @@ curl -X DELETE "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/suppressions/01H
 | Status | Cause |
 |---|---|
 | `400` | `emails` array is empty / missing, invalid project id, invalid suppression id. |
-| `401` | Missing / invalid API key. |
-| `403` | The role doesn't have `suppressions:write`. |
+| `401` | Missing or invalid session cookie — these routes are cookie-only, so an API key never authenticates them. |
+| `403` | The role doesn't have `suppressions.write`. |
 | `404` | Project not found, or suppression id not part of this project. |
 
 ## Audit

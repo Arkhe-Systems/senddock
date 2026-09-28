@@ -30,7 +30,7 @@ After enabling, every subsequent login becomes a two-step flow: password first, 
 
 #### Disable 2FA
 
-Click **Disable** on the Account page. You must enter a valid TOTP code **or** a recovery code to confirm — there is no admin override and no "I lost my phone" shortcut. This is intentional: if it were easier to disable, the protection would be worthless.
+Click **Disable** on the Account page. You must enter your current password **and** a valid TOTP code (or a recovery code) to confirm — there is no admin override and no "I lost my phone" shortcut. This is intentional: if it were easier to disable, the protection would be worthless.
 
 #### Regenerate recovery codes
 
@@ -65,7 +65,7 @@ Three-field form: current password, new password, confirm. The new password is c
 - at least one digit
 - at least one special character
 
-The current password is verified server-side with bcrypt before the change applies. Changing the password does **not** sign out existing sessions on other devices — clear them by deleting the session cookies in those browsers, or wait for the JWT to expire.
+The current password is verified server-side with bcrypt before the change applies. Changing the password revokes every refresh token issued to the account, so other sessions can't renew once their access token expires (15 minutes) — in practice you sign everyone out, including the browser you changed it from.
 
 ## Billing page (`/billing`)
 
@@ -74,7 +74,7 @@ Open the avatar menu → **Billing**. What you see depends on whether you're sel
 ### Self-hosted
 
 - **Current plan** — Free, Pro or Team, from the license you've activated.
-- When a license is active: `expires_at` (when the subscription renews or lapses) and `last_check` (when the validator last reached Lemon Squeezy). The validator caches the last-good response for 24 h, so a brief network outage won't lock you out.
+- When a license is active: `expires_at` (when the subscription renews or lapses) and `checked_at` (when the validator last reached Lemon Squeezy). The validator caches the last-good response for 24 h, so a brief network outage won't lock you out.
 - When no key is set: paywall cards for Pro ($9/mo) and Team ($29/mo) linking directly to Lemon Squeezy checkout.
 - A note clarifying that SendDock charges **only** for features. BYO SMTP means you pay your SMTP provider for delivery — never SendDock.
 
@@ -92,23 +92,23 @@ Both paths skip the per-send fees other tools charge — pricing is by self-host
 
 ```
 POST /api/v1/auth/login        { email, password }
-→ 200 { needs_2fa: true, intermediate_token }
-POST /api/v1/auth/2fa          { intermediate_token, code }      # TOTP or recovery code
+→ 200 { requires_2fa: true, two_factor_token }
+POST /api/v1/auth/2fa          { two_factor_token, code }       # TOTP or recovery code
 → 200 + session cookie
 ```
 
-The intermediate token is short-lived (a few minutes) and only valid for completing the 2FA step. If you're integrating against the API rather than the dashboard, expect this two-step response shape whenever the target account has 2FA on.
+The two-factor token is short-lived (a few minutes) and only valid for completing the 2FA step. If you're integrating against the API rather than the dashboard, expect this two-step response shape whenever the target account has 2FA on.
 
 ## Related endpoints
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/v1/me/password` | Change password (current + new + confirm). |
+| `POST /api/v1/me/password` | Change password (`current_password` + `new_password`; the dashboard's confirm field is checked in the form, not by the API). |
 | `POST /api/v1/me/2fa/setup` | Generate TOTP secret + recovery codes. Returns `otpauth_url`, base32 secret, ten recovery codes. |
 | `POST /api/v1/me/2fa/verify` | Confirm setup with a 6-digit code. Enables 2FA. |
-| `POST /api/v1/me/2fa/disable` | Disable 2FA. Requires a TOTP code or a recovery code. |
+| `POST /api/v1/me/2fa/disable` | Disable 2FA. Requires `password` plus a TOTP code or a recovery code. |
 | `POST /api/v1/me/2fa/recovery-codes` | Regenerate the recovery code set. Requires a TOTP code. |
-| `POST /api/v1/auth/2fa` | Login second step. Trades `intermediate_token` + code for a session. |
-| `GET /api/v1/me` | Current user (`user_id`, `email`, `name`, `plan`, `created_at`). |
+| `POST /api/v1/auth/2fa` | Login second step. Trades `two_factor_token` + code for a session. |
+| `GET /api/v1/me` | Current user (`user_id`, `email`, `name`, `plan`, `totp_enabled`, `created_at`). |
 
 See also [Security Checklist](/self-hosting/configuration#security-checklist) for the broader hardening pass before you expose SendDock to the internet.

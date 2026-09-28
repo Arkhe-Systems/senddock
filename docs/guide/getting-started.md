@@ -41,7 +41,7 @@ In the project sidebar, open **SMTP Settings**, fill in host, port, username and
 Open **Subscribers**. Add people the way that fits you:
 
 - **+ Add Subscriber** — enter an email (and name, tags, custom fields) by hand.
-- **Import CSV** — bulk-import a list, mapping extra columns to [custom fields](./subscribers#custom-fields).
+- **Import CSV** — bulk-import a list; extra columns are matched to [custom fields](./subscribers#custom-fields) by their header.
 
 ![The subscribers table with tags and custom fields](/screenshots/subscribers-fields-tags.png)
 

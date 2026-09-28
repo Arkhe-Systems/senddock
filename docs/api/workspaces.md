@@ -117,7 +117,7 @@ Owner only.
 
 The user must already have a SendDock account on this instance. Returns `404` (`{"error":"user not found"}`) if no account uses that email — use the [Create user](#create-user) endpoint below instead.
 
-`role` defaults to `member`. Valid values: `owner`, `admin`, `developer`, `member`, `viewer`. See the [role matrix](../guide/workspaces#roles-capabilities).
+`role` is required — omitting it or sending an unknown value returns `400`. Valid values: `owner`, `admin`, `developer`, `viewer`. See the [role matrix](../guide/workspaces#roles-capabilities).
 
 **Response — 201 Created**
 
@@ -154,8 +154,8 @@ Owner only. Creates a new SendDock account and adds them to the workspace at the
 |---|---|---|
 | `email` | yes | Must be unique. Returns `409 email already registered` otherwise. |
 | `name` | yes | Display name shown in member lists and audit log. |
-| `password` | yes | Minimum 8 characters. Pass it to the user out of band; they can change it after first login. |
-| `role` | no | Defaults to `member`. Same enum as [Add member](#add-existing-member). |
+| `password` | yes | Minimum 8 characters, with at least one uppercase letter, one digit and one special character. Pass it to the user out of band; they can change it after first login. |
+| `role` | yes | Same enum as [Add member](#add-existing-member): `owner`, `admin`, `developer`, `viewer`. |
 
 **Response — 201 Created**
 
@@ -188,7 +188,7 @@ Returns `409 Conflict` (`{"error":"cannot remove the last owner"}`) if the chang
 DELETE /api/v1/workspaces/{id}/members/{userId}
 ```
 
-Owner can remove any member. A member can also remove themselves (leave the workspace). Returns `204 No Content`. Returns `409 Conflict` if removing the user would leave the workspace without an owner.
+Owner can remove any other member (Team plan — `402 Payment Required` without it). A member can also remove themselves (leave the workspace), which needs no plan. Returns `204 No Content`. Returns `409 Conflict` if removing the user would leave the workspace without an owner.
 
 The removed user's access to every project in the workspace is revoked immediately.
 
@@ -198,6 +198,7 @@ The removed user's access to every project in the workspace is revoked immediate
 |---|---|
 | `400` | Body fails validation, unknown role. |
 | `401` | Missing / wrong session cookie. |
+| `402` | Removing another member requires a Team plan. |
 | `403` | Action requires owner role, or caller is not a member of the workspace. |
 | `404` | Workspace, member or invited user not found. |
 | `409` | Last-owner guard, or workspace still has projects on delete. |

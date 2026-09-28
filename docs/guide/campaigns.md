@@ -40,7 +40,7 @@ From the **Campaigns** tab in your project, click **+ New Campaign**, then:
 Click **Create** and it appears in the list. The programmatic equivalent, including the `variables` shape, is in the [Campaigns API reference](/api/campaigns#create-campaign).
 
 ::: tip Cookie auth only
-Campaigns mutate workspace state and require role-based capabilities (`campaigns:write`). Each dashboard role maps to a set of capabilities — see [Members & roles](./members#roles--capabilities) for the matrix; only roles holding `campaigns:write` can create or edit campaigns. API keys, which are project-scoped and identity-less, can't call these endpoints — you'll get `401`. Schedule from the dashboard, or call the endpoints from your own UI built on the same cookie-session login.
+Campaigns mutate workspace state and require role-based capabilities (`campaigns.write`). Each dashboard role maps to a set of capabilities — see [Members & roles](./members#roles--capabilities) for the matrix; only roles holding `campaigns.write` can create or edit campaigns. API keys, which are project-scoped and identity-less, can't call these endpoints — you'll get `401`. Schedule from the dashboard, or call the endpoints from your own UI built on the same cookie-session login.
 :::
 
 ## List Campaigns

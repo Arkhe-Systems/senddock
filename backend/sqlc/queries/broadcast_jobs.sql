@@ -10,7 +10,9 @@ FROM jsonb_array_elements(@jobs::jsonb) AS j;
 -- name: ClaimBroadcastJob :one
 UPDATE broadcast_jobs SET
     status = 'sending',
-    attempts = attempts + 1
+    attempts = attempts + 1,
+    worker_id = @worker_id::uuid,
+    lease_expires_at = @lease_expires_at::timestamptz
 WHERE id = (
     SELECT id FROM broadcast_jobs
     WHERE status IN ('pending', 'retry')
@@ -52,7 +54,9 @@ WHERE id = @id;
 UPDATE broadcast_jobs SET
     status = 'retry',
     scheduled_at = @scheduled_at,
-    last_error = @last_error::text
+    last_error = @last_error::text,
+    worker_id = NULL,
+    lease_expires_at = NULL
 WHERE id = @id;
 
 -- name: CountBroadcastJobsRemaining :one
@@ -67,5 +71,8 @@ WHERE status IN ('pending', 'retry', 'sending');
 -- name: ResetStuckSendingJobs :execrows
 UPDATE broadcast_jobs SET
     status = 'retry',
-    scheduled_at = NOW()
-WHERE status = 'sending';
+    scheduled_at = NOW(),
+    worker_id = NULL,
+    lease_expires_at = NULL
+WHERE status = 'sending'
+  AND (lease_expires_at IS NULL OR lease_expires_at < @now::timestamptz);

@@ -20,7 +20,7 @@ import { SendDock } from '@senddock/sdk'
 const senddock = new SendDock({
   baseUrl: 'https://senddock.example.com',
   projectId: 'your-project-uuid',
-  apiKey: process.env.SENDDOCK_API_KEY,
+  apiKey: process.env.SENDDOCK_API_KEY!,
 })
 ```
 
@@ -54,7 +54,7 @@ What you get on every call:
 
 - **Full typing.** Requests are validated by the compiler — an invalid body doesn't build. Responses are typed, including the discriminated union for suppressed recipients.
 - **One error type.** Anything that goes wrong throws `SendDockError` carrying the API's own message — a failed fetch never leaks a raw `TypeError` or `SyntaxError`.
-- **Retries built in.** `429` waits for `Retry-After` (capped at 60s); `5xx` and network failures back off exponentially; `4xx` fails fast.
+- **Retries built in.** `429` waits for `Retry-After` (capped at 60s); `500`, `502`, `503` and `504`, plus network failures, back off exponentially; anything else fails fast.
 - **Timeouts.** Every request carries an abort signal, so a hung connection can't block your process.
 
 ## Sending
@@ -128,7 +128,7 @@ app.post('/webhooks/senddock', express.raw({ type: 'application/json' }), (req, 
   const valid = verifyWebhookSignature({
     payload: req.body,
     signature: req.get('X-SendDock-Signature') ?? '',
-    secret: process.env.SENDDOCK_WEBHOOK_SECRET,
+    secret: process.env.SENDDOCK_WEBHOOK_SECRET!,
   })
   if (!valid) return res.status(401).end()
   const event = JSON.parse(req.body)
@@ -136,7 +136,7 @@ app.post('/webhooks/senddock', express.raw({ type: 'application/json' }), (req, 
 })
 ```
 
-The check is timing-safe and rejects timestamps older than 5 minutes (configurable via `toleranceSeconds`). The secret is shown once, when the webhook is created. The SDK's event-type union includes `subscriber.newsletter_unsubscribed` (new in v0.8.2) alongside the core `email.*` and `subscriber.*` events.
+The check is timing-safe and rejects timestamps older than 5 minutes (configurable via `toleranceSeconds`). The secret is shown once, when the webhook is created. The SDK's event-type union includes `subscriber.newsletter_unsubscribed` (new in SDK v0.2.0) alongside the core `email.*` and `subscriber.*` events.
 
 ## Error handling
 

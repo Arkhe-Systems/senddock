@@ -18,6 +18,7 @@ type Project struct {
 	SmtpHost              *string `json:"smtp_host"`
 	SmtpPort              *int32  `json:"smtp_port"`
 	SmtpUser              *string `json:"smtp_user"`
+	SmtpAllowInsecureTls  bool    `json:"smtp_allow_insecure_tls"`
 	CreatedAt             string  `json:"created_at"`
 	UpdatedAt             string  `json:"updated_at"`
 	UnsubscribeTemplateID *string `json:"unsubscribe_template_id"`
@@ -126,6 +127,7 @@ func FromProject(p db.Project) Project {
 		SmtpHost:              nullStr(p.SmtpHost),
 		SmtpPort:              nullInt32(p.SmtpPort),
 		SmtpUser:              nullStr(p.SmtpUser),
+		SmtpAllowInsecureTls:  p.SmtpAllowInsecureTls,
 		CreatedAt:             p.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:             p.UpdatedAt.Format(time.RFC3339),
 		UnsubscribeTemplateID: nullUUIDString(p.UnsubscribeTemplateID),
@@ -178,6 +180,9 @@ type Webhook struct {
 	CreatedAt string   `json:"created_at"`
 }
 
+// FromWebhook renders a stored webhook without its signing secret. The secret is
+// handed out only by FromCreatedWebhook, on the response that creates it, so every
+// later read of a webhook leaves the field empty.
 func FromWebhook(w db.Webhook) Webhook {
 	events := w.Events
 	if events == nil {
@@ -186,11 +191,20 @@ func FromWebhook(w db.Webhook) Webhook {
 	return Webhook{
 		ID:        w.ID.String(),
 		URL:       w.Url,
-		Secret:    w.Secret,
+		Secret:    "",
 		Events:    events,
 		Active:    w.Active,
 		CreatedAt: w.CreatedAt.UTC().Format(time.RFC3339),
 	}
+}
+
+// FromCreatedWebhook renders a webhook together with its signing secret, for the
+// one response that creates it. The secret cannot be read back afterwards, so a
+// client that loses it creates a new webhook.
+func FromCreatedWebhook(w db.Webhook) Webhook {
+	hook := FromWebhook(w)
+	hook.Secret = w.Secret
+	return hook
 }
 
 func FromWebhooks(hooks []db.Webhook) []Webhook {

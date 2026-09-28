@@ -38,7 +38,7 @@ Allowed events: `email.sent`, `email.failed`, `email.bounced`, `email.opened`, `
 ```
 
 ::: warning The secret is only returned here
-The signing secret is shown **once**, on creation. SendDock never returns it again — subsequent `GET` calls return the secret field empty (or omit it). If you lose it, delete the webhook and create a new one.
+The signing secret is shown **once**, on creation. SendDock never returns it again — every later `GET` or `PATCH` returns the secret field empty, and storing the response does not leave you with a readable secret. If you lose it, delete the webhook and create a new one.
 :::
 
 ## List webhooks
@@ -82,7 +82,7 @@ Only the `active` flag can be patched today — pause or resume delivery without
 {"active": false}
 ```
 
-Returns the updated webhook.
+Returns the updated webhook. The `secret` field is empty here too — see the note on creation.
 
 A paused webhook (`active=false`) does **not** buffer events. Any deliveries that try to fire while it's paused are marked `failed` on the next dispatcher tick.
 
@@ -169,7 +169,7 @@ The `attempts` counter increments on every retry; combined with the [retry sched
 | Code | When |
 |---|---|
 | `400` | Body fails validation — invalid URL, unknown event type, missing required field. |
-| `403` | Authenticated user does not own this project, or the role lacks `webhooks:write`. |
+| `403` | Authenticated user does not own this project, or the role lacks `webhooks.write`. |
 | `404` | Project or webhook not found. |
 | `500` | Server error. |
 

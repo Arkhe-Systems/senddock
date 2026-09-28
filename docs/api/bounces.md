@@ -28,12 +28,11 @@ GET /api/v1/projects/{id}/bounce-imap
   "port": 993,
   "user": "bounces@acme.com",
   "folder": "INBOX",
-  "last_polled_at": "2026-05-06T15:30:00Z",
-  "last_error": ""
+  "password_set": true
 }
 ```
 
-The password is never returned. `last_polled_at` and `last_error` reflect the most recent poller run.
+The password is never returned; `password_set` reports whether one is stored for this mailbox.
 
 ## Update bounce IMAP config
 
@@ -83,12 +82,13 @@ GET /api/v1/projects/{id}/bounce-webhook
 
 ```json
 {
-  "url": "https://your-host.example.com/webhooks/bounces/01H...?token=01H...",
-  "rotated_at": "2026-04-30T14:22:11Z"
+  "project_id": "uuid",
+  "bounce_token": "uuid",
+  "path": "/webhooks/bounces/uuid?token=uuid"
 }
 ```
 
-`url` is the full ingest URL with the current token, ready to paste into your provider's webhook settings. The token is part of the URL — there is no separate field.
+`path` is the ingest path with the current token, relative to your SendDock origin — prepend your instance URL before pasting it into your provider's webhook settings. `bounce_token` is the token on its own.
 
 ## Rotate the bounce webhook token
 
@@ -96,14 +96,15 @@ GET /api/v1/projects/{id}/bounce-webhook
 POST /api/v1/projects/{id}/bounce-webhook/rotate
 ```
 
-Generates a new token and invalidates the old one. The `url` returned by `GET /bounce-webhook` after this call carries the new token.
+Generates a new token and invalidates the old one. The `path` returned by `GET /bounce-webhook` after this call carries the new token.
 
 ### Response
 
 ```json
 {
-  "url": "https://your-host.example.com/webhooks/bounces/01H...?token=NEW...",
-  "rotated_at": "2026-05-06T16:00:00Z"
+  "project_id": "uuid",
+  "bounce_token": "new-uuid",
+  "path": "/webhooks/bounces/uuid?token=new-uuid"
 }
 ```
 
@@ -156,8 +157,10 @@ Send the verbatim payload Mailgun POSTs for `permanent_failure` (or `failed`) ev
 | Status | Body | Meaning |
 |---|---|---|
 | `200` | `{"status":"accepted","email":"<addr>"}` | Recipient extracted and added to the suppression list. |
+| `400` | `{"error":"invalid project id"}` | The `projectId` in the path is not a UUID. |
 | `400` | `{"error":"could not find email in payload"}` | The body matched neither the generic nor the Mailgun shape. |
-| `401` | `{"error":"missing or invalid token"}` | URL token doesn't match this project. |
+| `401` | `{"error":"missing or invalid token"}` | The `token` query parameter is missing or not a UUID. |
+| `401` | `{"error":"invalid project or token"}` | Token doesn't match this project. |
 | `413` | `{"error":"payload too large"}` | Body > 64 KiB. |
 
 The endpoint is **idempotent at the suppression layer** — re-posting the same recipient is a no-op (already on the list). The rate limit is the global per-IP cap (600 req/min behind a proxy that sets `X-Forwarded-For`).

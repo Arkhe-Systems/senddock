@@ -52,12 +52,14 @@ type AuthTokens struct {
 }
 type AuthService struct {
 	queries   *db.Queries
+	conn      *sql.DB
 	jwtSecret []byte
 }
 
-func NewAuthService(queries *db.Queries, jwtSecret string) *AuthService {
+func NewAuthService(queries *db.Queries, conn *sql.DB, jwtSecret string) *AuthService {
 	return &AuthService{
 		queries:   queries,
+		conn:      conn,
 		jwtSecret: []byte(jwtSecret),
 	}
 }
@@ -77,32 +79,43 @@ func (s *AuthService) Register(ctx context.Context, email, password, name string
 		return AuthTokens{}, err
 	}
 
-	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
-		Email:        email,
-		PasswordHash: sql.NullString{String: string(hash), Valid: true},
-		Name:         name,
+	// The account, its workspace and its owner membership are one registration. Written
+	// separately, a failure after the first leaves an account nobody can see or log in
+	// with, holding an email that can no longer be registered.
+	var userID uuid.UUID
+	err = withTransaction(ctx, s.conn, s.queries, func(q *db.Queries) error {
+		user, err := q.CreateUser(ctx, db.CreateUserParams{
+			Email:        email,
+			PasswordHash: sql.NullString{String: string(hash), Valid: true},
+			Name:         name,
+		})
+		if err != nil {
+			return err
+		}
+		if err := s.bootstrapDefaultWorkspace(ctx, q, user.ID); err != nil {
+			return err
+		}
+		userID = user.ID
+		return nil
 	})
-
 	if err != nil {
 		return AuthTokens{}, err
 	}
 
-	if err := s.bootstrapDefaultWorkspace(ctx, user.ID); err != nil {
-		return AuthTokens{}, err
-	}
-
-	return s.generateTokens(ctx, user.ID)
+	return s.generateTokens(ctx, userID)
 }
 
-func (s *AuthService) bootstrapDefaultWorkspace(ctx context.Context, userID uuid.UUID) error {
-	ws, err := s.queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
+// bootstrapDefaultWorkspace runs on the queries it is handed so it joins the caller's
+// transaction: a workspace created outside it would outlive a registration that failed.
+func (s *AuthService) bootstrapDefaultWorkspace(ctx context.Context, q *db.Queries, userID uuid.UUID) error {
+	ws, err := q.CreateWorkspace(ctx, db.CreateWorkspaceParams{
 		Name:      "My Workspace",
 		CreatedBy: userID,
 	})
 	if err != nil {
 		return err
 	}
-	_, err = s.queries.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
+	_, err = q.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
 		WorkspaceID: ws.ID,
 		UserID:      userID,
 		Role:        WorkspaceRoleOwner,
@@ -123,21 +136,29 @@ func (s *AuthService) RegisterUnverified(ctx context.Context, email, password, n
 	if err != nil {
 		return "", err
 	}
-	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
-		Email:        email,
-		PasswordHash: sql.NullString{String: string(hash), Valid: true},
-		Name:         name,
+	var userID uuid.UUID
+	err = withTransaction(ctx, s.conn, s.queries, func(q *db.Queries) error {
+		user, err := q.CreateUser(ctx, db.CreateUserParams{
+			Email:        email,
+			PasswordHash: sql.NullString{String: string(hash), Valid: true},
+			Name:         name,
+		})
+		if err != nil {
+			return err
+		}
+		if err := q.SetEmailVerified(ctx, db.SetEmailVerifiedParams{ID: user.ID, EmailVerified: false}); err != nil {
+			return err
+		}
+		if err := s.bootstrapDefaultWorkspace(ctx, q, user.ID); err != nil {
+			return err
+		}
+		userID = user.ID
+		return nil
 	})
 	if err != nil {
 		return "", err
 	}
-	if err := s.queries.SetEmailVerified(ctx, db.SetEmailVerifiedParams{ID: user.ID, EmailVerified: false}); err != nil {
-		return "", err
-	}
-	if err := s.bootstrapDefaultWorkspace(ctx, user.ID); err != nil {
-		return "", err
-	}
-	return user.ID.String(), nil
+	return userID.String(), nil
 }
 
 func (s *AuthService) MarkEmailVerified(ctx context.Context, email string) (string, error) {

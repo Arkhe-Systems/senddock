@@ -1,6 +1,6 @@
 # Subscribers API
 
-All endpoints require cookie authentication. The authenticated user must own the project.
+All endpoints require cookie authentication, and access is granted by workspace membership rather than project ownership: reads need the caller to be a member of the project's workspace, writes need the `subscribers.write` capability (roles `owner` and `admin`). Two endpoints are exceptions — [Bulk Import](#bulk-import) also accepts an API key, and the [Waitlist](#waitlist-public) endpoint is public and takes no authentication.
 
 ## Add Subscriber
 
@@ -101,7 +101,7 @@ Both default to `true`. Pass `?...=false` to relax validation — useful when yo
 
 | Parameter | Default | Effect when `false` |
 |---|---|---|
-| `validate_mx` | `true` | Skip the DNS lookup. Domains with no MX still get accepted. Saves ~50 ms per unique domain. |
+| `validate_mx` | `true` | Skip the DNS lookup. Every domain passes this check. Saves ~50 ms per unique domain. |
 | `validate_disposable` | `true` | Skip the built-in disposable-domain block-list. Mailinator / 10minutemail / etc. get imported. |
 
 Syntax validation is always on — addresses without a valid `local@domain.tld` form are rejected regardless.
@@ -127,7 +127,7 @@ Syntax validation is always on — addresses without a valid `local@domain.tld` 
 | `imported` | New subscribers actually inserted. |
 | `duplicates` | Rows whose `email` was already on the project (silent skip — not an error). |
 | `syntax_invalid` | Rows that failed RFC 5322 parsing. |
-| `no_mx` | Rows whose domain has no MX record (only counted when `validate_mx=true`). |
+| `no_mx` | Rows whose domain resolves to nothing — no MX record and no A/AAAA fallback (only counted when `validate_mx=true`). |
 | `disposable` | Rows whose domain is on the disposable block-list (only counted when `validate_disposable=true`). |
 | `suppressed` | Rows whose email is on the project's [suppression list](./suppressions); skipped without insert. |
 | `rejected` | Per-row breakdown of every row that didn't make it: `{email, name, reason}`. `reason` is one of `syntax_invalid`, `no_mx`, `disposable`, `suppressed`, `duplicate`. |
@@ -160,9 +160,9 @@ Apply the same operation to many existing subscribers — the dashboard uses thi
 | `tags` | string[] | required for `add_tags` / `remove_tags` | Non-empty list of tags to add to or remove from every selected subscriber. |
 | `newsletter_id` | string | required for `add_newsletter` / `remove_newsletter` | The [newsletter](/api/newsletters) to add every selected subscriber to (clearing any opt-out) or remove them from. |
 
-Cookie auth only (the role must have `subscribers:write`). For ingesting fresh rows, use [Bulk Import](#bulk-import) — that endpoint takes raw `email`/`name` rows and accepts API keys; this one operates on already-stored subscriber ids.
+Cookie auth only (the role must have `subscribers.write`). For ingesting fresh rows, use [Bulk Import](#bulk-import) — that endpoint takes raw `email`/`name` rows and accepts API keys; this one operates on already-stored subscriber ids.
 
-**Response** `204 No Content`. Subscriber ids that don't belong to the project are silently skipped.
+**Response** `200 OK` with `{"message":"success"}`. Subscriber ids that don't belong to the project are silently skipped.
 
 ## Update Status
 

@@ -163,12 +163,12 @@ When you call `/broadcast` (or a scheduled campaign reaches its time), SendDock 
 
 1. A `broadcasts` row is created with `status=sending` and `total_recipients=N`.
 2. One row per recipient is inserted into `broadcast_jobs` with `status=pending`.
-3. Five worker goroutines pull jobs concurrently using `SELECT … FOR UPDATE SKIP LOCKED`, so jobs never get sent twice even with multiple workers (or multiple SendDock instances on the same database).
+3. Five worker goroutines pull jobs concurrently using `SELECT … FOR UPDATE SKIP LOCKED`. Each claim also stamps the row with the worker's id and a **lease**, so a job is owned by exactly one worker at a time — across goroutines and across SendDock instances sharing the same database.
 4. As each job finishes, the worker increments the broadcast's `sent_count`, `failed_count`, or `suppressed_count`. When the queue drains, the broadcast flips to `status=completed` and any linked campaign moves from `sending` to `sent` with the real counts.
 
 This design has three consequences worth knowing:
 
-- **Server restart mid-send is safe.** Jobs that were in `sending` when the process died are rescheduled to `retry` on the next startup; nothing is lost and nothing is double-sent.
+- **Server restart mid-send is safe.** On startup a worker reclaims jobs left in `sending` **whose lease has expired**, rescheduling them to `retry`. A job still inside its lease is owned by a worker that is actively delivering it, so it is left untouched: a restart never reclaims work in flight, and nothing is lost or sent twice.
 - **Per-recipient retries with exponential backoff.** Transient errors (DNS failures, network timeouts, SMTP 4xx) reschedule the job — backoff steps are 30s, 2m, 8m, 30m, 1h. After 5 attempts the job is marked `failed`. SMTP 5xx bounces are *not* retried (they are tagged `bounced` and the recipient is added to the suppression list immediately).
 - **Live progress is visible while sending.** The Campaigns list, Broadcasts tab, and the "broadcasts in flight" panel in Analytics all read counts from the live broadcast row, refreshing every 5 seconds while at least one broadcast is in flight. You see `42/213 → 87/213 → 213/213`, not a sudden jump at the end.
 
@@ -204,7 +204,7 @@ See the [Campaigns guide](/guide/campaigns) for details on creating and managing
     <g transform="translate(0,80)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">1</text><text x="80" y="0" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">rewrite &lt;a href&gt;, inject pixel</text><path d="M 80 16 C 80 30 80 30 80 40" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" fill="none"/><circle cx="80" cy="16" r="3" fill="currentColor" fill-opacity="0.7"/><circle cx="80" cy="40" r="3" fill="currentColor" fill-opacity="0.7"/></g>
     <g transform="translate(0,140)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">2</text><line x1="80" y1="0" x2="270" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="180" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">deliver</text></g>
     <g transform="translate(0,190)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">3</text><line x1="280" y1="0" x2="470" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="380" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">email lands in inbox</text></g>
-    <g transform="translate(0,242)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">4</text><line x1="480" y1="0" x2="670" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="580" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">GET /t/{logId}</text><text x="580" y="14" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">→ opened_at = NOW()</text></g>
+    <g transform="translate(0,242)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">4</text><line x1="480" y1="0" x2="670" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="580" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">GET /t/{logId}.gif</text><text x="580" y="14" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">→ opened_at = NOW()</text></g>
     <g transform="translate(0,302)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">5</text><line x1="480" y1="0" x2="670" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="580" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">GET /c/{logId}/{...}</text><text x="580" y="14" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.6">→ clicked_at + email_clicks</text></g>
     <g transform="translate(0,344)"><text x="20" y="0" font-size="10" font-weight="600" fill="currentColor" fill-opacity="0.5">6</text><line x1="670" y1="0" x2="490" y2="0" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#tf-a)"/><text x="580" y="-8" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">302 → original URL</text></g>
   </g>
@@ -216,7 +216,7 @@ Tracking is on by default for every send. The two touch points — the open pixe
 
 SendDock automatically injects a 1x1 transparent tracking pixel into **every** outgoing email — subscriber sends, broadcasts, and transactional sends to a raw address (`/send`, `/send/batch`). When the recipient opens the email and their email client loads the pixel, SendDock records the open.
 
-- The tracking pixel URL is `GET /t/{logId}` (public, no auth — the response body is the 1×1 GIF, no file extension on the path)
+- The tracking pixel URL is `GET /t/{logId}.gif` — the exact URL SendDock writes into the email (public, no auth; the response body is the 1×1 GIF)
 - Only the first open is recorded (`opened_at` timestamp on the email log)
 - The stats endpoint includes the `opened` count alongside `sent` and `failed`
 
@@ -291,6 +291,7 @@ Pagination defaults to **50 rows per page** and accepts up to **100** via the `l
 
 | Status | When it lands |
 |---|---|
+| `pending` | The attempt was recorded and its outcome is not known yet — the process stopped before the relay answered. Not counted as sent. |
 | `sent` | SMTP relay accepted the message. |
 | `failed` | Soft failure (4xx) or unexpected error during the send. |
 | `bounced` | Hard failure (5xx) detected by [bounce ingestion](./bounces). The recipient is also added to the [suppression list](./suppressions). |

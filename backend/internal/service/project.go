@@ -125,7 +125,7 @@ func (s *ProjectService) GetByID(ctx context.Context, projectID, userID string) 
 	})
 }
 
-func (s *ProjectService) UpdateSMTP(ctx context.Context, projectID, userID, smtpHost string, smtpPort int32, smtpUser, smtpPassword, fromName, fromEmail string) (db.Project, error) {
+func (s *ProjectService) UpdateSMTP(ctx context.Context, projectID, userID, smtpHost string, smtpPort int32, smtpUser, smtpPassword, fromName, fromEmail string, allowInsecureTLS bool) (db.Project, error) {
 	pid, err := uuid.Parse(projectID)
 	if err != nil {
 		return db.Project{}, errors.New("invalid project id")
@@ -154,6 +154,7 @@ func (s *ProjectService) UpdateSMTP(ctx context.Context, projectID, userID, smtp
 		SmtpPasswordEncrypted: sql.NullString{String: encryptedPass, Valid: encryptedPass != ""},
 		FromName:              sql.NullString{String: fromName, Valid: fromName != ""},
 		FromEmail:             sql.NullString{String: fromEmail, Valid: fromEmail != ""},
+		SmtpAllowInsecureTls:  allowInsecureTLS,
 	})
 }
 
@@ -253,7 +254,7 @@ func (s *ProjectService) UpdateBounceIMAP(ctx context.Context, projectID, userID
 		UserID:                      uid,
 		BounceImapHost:              hostNS,
 		BounceImapPort:              portNS,
-		BounceImapUser:               userNS,
+		BounceImapUser:              userNS,
 		BounceImapPasswordEncrypted: encrypted,
 		BounceImapFolder:            folder,
 		BounceImapEnabled:           enabled,

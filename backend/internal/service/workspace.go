@@ -10,12 +10,12 @@ import (
 	"github.com/arkhe-systems/senddock/internal/db"
 	"github.com/arkhe-systems/senddock/pkg/license"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	WorkspaceRoleOwner  = "owner"
-	WorkspaceRoleMember = "member"
+	WorkspaceRoleOwner = "owner"
 )
 
 var (
@@ -32,12 +32,13 @@ var (
 
 type WorkspaceService struct {
 	queries *db.Queries
+	conn    *sql.DB
 	gate    atomic.Value
 	quota   QuotaGate
 }
 
-func NewWorkspaceService(queries *db.Queries) *WorkspaceService {
-	s := &WorkspaceService{queries: queries}
+func NewWorkspaceService(queries *db.Queries, conn *sql.DB) *WorkspaceService {
+	s := &WorkspaceService{queries: queries, conn: conn}
 	s.gate.Store(licenseGateHolder{license.DenyAll()})
 	return s
 }
@@ -70,19 +71,29 @@ func (s *WorkspaceService) Create(ctx context.Context, userID uuid.UUID, name st
 	if name == "" {
 		return db.Workspace{}, errors.New("name is required")
 	}
-	ws, err := s.queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
-		Name:      name,
-		CreatedBy: userID,
+	// A workspace whose owner row never landed is invisible to everyone: no screen lists
+	// it and no screen can delete it. Both writes go in together.
+	var ws db.Workspace
+	err := withTransaction(ctx, s.conn, s.queries, func(q *db.Queries) error {
+		created, err := q.CreateWorkspace(ctx, db.CreateWorkspaceParams{
+			Name:      name,
+			CreatedBy: userID,
+		})
+		if err != nil {
+			return err
+		}
+		if _, err := q.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
+			WorkspaceID: created.ID,
+			UserID:      userID,
+			Role:        WorkspaceRoleOwner,
+			InvitedBy:   uuid.NullUUID{UUID: userID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		ws = created
+		return nil
 	})
 	if err != nil {
-		return db.Workspace{}, err
-	}
-	if _, err := s.queries.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
-		WorkspaceID: ws.ID,
-		UserID:      userID,
-		Role:        WorkspaceRoleOwner,
-		InvitedBy:   uuid.NullUUID{UUID: userID, Valid: true},
-	}); err != nil {
 		return db.Workspace{}, err
 	}
 	return ws, nil
@@ -236,30 +247,42 @@ func (s *WorkspaceService) CreateUserAndAddMember(ctx context.Context, workspace
 		return CreatedUser{}, err
 	}
 
-	user, err := s.queries.CreateUser(ctx, db.CreateUserParams{
-		Email:        email,
-		PasswordHash: sql.NullString{String: string(hash), Valid: true},
-		Name:         name,
+	// An account that never joins the workspace is a half-created account: the owner who
+	// created it cannot see it, but its email is taken for good.
+	var created CreatedUser
+	err = withTransaction(ctx, s.conn, s.queries, func(q *db.Queries) error {
+		user, err := q.CreateUser(ctx, db.CreateUserParams{
+			Email:        email,
+			PasswordHash: sql.NullString{String: string(hash), Valid: true},
+			Name:         name,
+		})
+		if err != nil {
+			if isUniqueViolation(err) {
+				return ErrEmailTaken
+			}
+			return err
+		}
+		if _, err := q.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
+			WorkspaceID: workspaceID,
+			UserID:      user.ID,
+			Role:        role,
+			InvitedBy:   uuid.NullUUID{UUID: actorID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		created = CreatedUser{
+			UserID: user.ID,
+			Email:  user.Email,
+			Name:   user.Name,
+			Role:   role,
+		}
+		return nil
 	})
 	if err != nil {
 		return CreatedUser{}, err
 	}
 
-	if _, err := s.queries.AddWorkspaceMember(ctx, db.AddWorkspaceMemberParams{
-		WorkspaceID: workspaceID,
-		UserID:      user.ID,
-		Role:        role,
-		InvitedBy:   uuid.NullUUID{UUID: actorID, Valid: true},
-	}); err != nil {
-		return CreatedUser{}, err
-	}
-
-	return CreatedUser{
-		UserID: user.ID,
-		Email:  user.Email,
-		Name:   user.Name,
-		Role:   role,
-	}, nil
+	return created, nil
 }
 
 func (s *WorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, actorID, targetID uuid.UUID, role string) error {
@@ -273,7 +296,7 @@ func (s *WorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, ac
 	if err := s.requireOwner(ctx, workspaceID, actorID); err != nil {
 		return err
 	}
-	if role == WorkspaceRoleMember {
+	if demotionNeedsOwnerGuard(role) {
 		if err := s.guardLastOwner(ctx, workspaceID, targetID); err != nil {
 			return err
 		}
@@ -283,7 +306,43 @@ func (s *WorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, ac
 		UserID:      targetID,
 		Role:        role,
 	})
-	return err
+	if err != nil {
+		// The database rejects a role it does not know. That is a bad request, not a
+		// server failure, so do not let the constraint error surface as a 500.
+		if isCheckConstraintViolation(err) {
+			return ErrInvalidRole
+		}
+		return err
+	}
+	return nil
+}
+
+// demotionNeedsOwnerGuard reports whether moving a member to role can strip the last owner
+// from the workspace. Only a target of owner leaves ownership intact; every other role
+// needs the guard, which is why it cannot be tied to one specific role.
+func demotionNeedsOwnerGuard(role string) bool {
+	return role != WorkspaceRoleOwner
+}
+
+// isCheckConstraintViolation reports whether the database rejected the value itself rather
+// than failing to execute the statement.
+func isCheckConstraintViolation(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "23514"
+	}
+	return false
+}
+
+// isUniqueViolation reports whether the error is a unique constraint rejection. The email
+// lookups that guard account creation are a courtesy to the caller: the constraint is what
+// actually holds, and losing that race is a taken email, not an internal failure.
+func isUniqueViolation(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "23505"
+	}
+	return false
 }
 
 func (s *WorkspaceService) RemoveMember(ctx context.Context, workspaceID, actorID, targetID uuid.UUID) error {
@@ -373,12 +432,9 @@ func normalizeRole(role string) string {
 		return WorkspaceRoleDeveloper
 	case WorkspaceRoleViewer:
 		return WorkspaceRoleViewer
-	case WorkspaceRoleMember:
-		return WorkspaceRoleMember
 	default:
-		// Empty or unrecognized roles fall through to "" so callers reject them
-		// with ErrInvalidRole, instead of silently defaulting to the
-		// near-admin "member" role.
+		// Empty or unrecognized roles fall through to "" so callers reject them with
+		// ErrInvalidRole instead of quietly picking a role for the caller.
 		return ""
 	}
 }

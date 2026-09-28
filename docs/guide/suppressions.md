@@ -37,7 +37,7 @@ In the project's **Suppressions** tab you can:
 
 ## API
 
-The suppression list is managed from the dashboard (Project → **Suppressions** tab) and from the same endpoints under **cookie auth** — the ordinary logged-in session, which carries the user's identity and role. These endpoints require the `suppressions:write` capability (a per-action permission granted through a dashboard user's role — see [Members & roles](./members#roles--capabilities)) and are not callable with a project-scoped API key, which carries no identity.
+The suppression list is managed from the dashboard (Project → **Suppressions** tab) and from the same endpoints under **cookie auth** — the ordinary logged-in session, which carries the user's identity and role. These endpoints require the `suppressions.write` capability (a per-action permission granted through a dashboard user's role — see [Members & roles](./members#roles--capabilities)) and are not callable with a project-scoped API key, which carries no identity.
 
 The full request and response shape for `GET / POST / DELETE /api/v1/projects/{id}/suppressions` lives in the [Suppressions API reference](/api/suppressions). The bounce sources documented in [Bounces](./bounces) write to the same list automatically — you usually only call these endpoints by hand for one-off corrections (a typo'd address that bounced once but should still receive sends, an explicit blocklist you imported from another tool).
 

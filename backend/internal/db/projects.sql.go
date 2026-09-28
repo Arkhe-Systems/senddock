@@ -28,7 +28,7 @@ func (q *Queries) CountProjectsByUserID(ctx context.Context, userID uuid.UUID) (
 const createProject = `-- name: CreateProject :one
 INSERT INTO projects (workspace_id, user_id, name, description, from_name, from_email)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls
 `
 
 type CreateProjectParams struct {
@@ -75,6 +75,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }
@@ -96,7 +97,7 @@ func (q *Queries) DeleteProject(ctx context.Context, arg DeleteProjectParams) er
 }
 
 const getProjectByBounceToken = `-- name: GetProjectByBounceToken :one
-SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id FROM projects WHERE id = $1 AND bounce_token = $2
+SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls FROM projects WHERE id = $1 AND bounce_token = $2
 `
 
 type GetProjectByBounceTokenParams struct {
@@ -132,12 +133,13 @@ func (q *Queries) GetProjectByBounceToken(ctx context.Context, arg GetProjectByB
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }
 
 const getProjectByID = `-- name: GetProjectByID :one
-SELECT p.id, p.user_id, p.name, p.from_name, p.from_email, p.smtp_host, p.smtp_port, p.smtp_user, p.smtp_password_encrypted, p.webhook_url, p.webhook_secret, p.tracking_enabled, p.created_at, p.updated_at, p.description, p.bounce_token, p.bounce_imap_host, p.bounce_imap_port, p.bounce_imap_user, p.bounce_imap_password_encrypted, p.bounce_imap_folder, p.bounce_imap_enabled, p.workspace_id, p.unsubscribe_template_id FROM projects p
+SELECT p.id, p.user_id, p.name, p.from_name, p.from_email, p.smtp_host, p.smtp_port, p.smtp_user, p.smtp_password_encrypted, p.webhook_url, p.webhook_secret, p.tracking_enabled, p.created_at, p.updated_at, p.description, p.bounce_token, p.bounce_imap_host, p.bounce_imap_port, p.bounce_imap_user, p.bounce_imap_password_encrypted, p.bounce_imap_folder, p.bounce_imap_enabled, p.workspace_id, p.unsubscribe_template_id, p.smtp_allow_insecure_tls FROM projects p
 JOIN workspace_members m ON m.workspace_id = p.workspace_id
 WHERE p.id = $1 AND m.user_id = $2
 `
@@ -175,12 +177,13 @@ func (q *Queries) GetProjectByID(ctx context.Context, arg GetProjectByIDParams) 
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }
 
 const getProjectByIDOnly = `-- name: GetProjectByIDOnly :one
-SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id FROM projects WHERE id = $1
+SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls FROM projects WHERE id = $1
 `
 
 func (q *Queries) GetProjectByIDOnly(ctx context.Context, id uuid.UUID) (Project, error) {
@@ -211,6 +214,7 @@ func (q *Queries) GetProjectByIDOnly(ctx context.Context, id uuid.UUID) (Project
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }
@@ -234,7 +238,7 @@ func (q *Queries) GetProjectMemberRole(ctx context.Context, arg GetProjectMember
 }
 
 const getProjectsByUserID = `-- name: GetProjectsByUserID :many
-SELECT p.id, p.user_id, p.name, p.from_name, p.from_email, p.smtp_host, p.smtp_port, p.smtp_user, p.smtp_password_encrypted, p.webhook_url, p.webhook_secret, p.tracking_enabled, p.created_at, p.updated_at, p.description, p.bounce_token, p.bounce_imap_host, p.bounce_imap_port, p.bounce_imap_user, p.bounce_imap_password_encrypted, p.bounce_imap_folder, p.bounce_imap_enabled, p.workspace_id, p.unsubscribe_template_id FROM projects p
+SELECT p.id, p.user_id, p.name, p.from_name, p.from_email, p.smtp_host, p.smtp_port, p.smtp_user, p.smtp_password_encrypted, p.webhook_url, p.webhook_secret, p.tracking_enabled, p.created_at, p.updated_at, p.description, p.bounce_token, p.bounce_imap_host, p.bounce_imap_port, p.bounce_imap_user, p.bounce_imap_password_encrypted, p.bounce_imap_folder, p.bounce_imap_enabled, p.workspace_id, p.unsubscribe_template_id, p.smtp_allow_insecure_tls FROM projects p
 JOIN workspace_members m ON m.workspace_id = p.workspace_id
 WHERE m.user_id = $1
 ORDER BY p.created_at DESC
@@ -274,6 +278,7 @@ func (q *Queries) GetProjectsByUserID(ctx context.Context, userID uuid.UUID) ([]
 			&i.BounceImapEnabled,
 			&i.WorkspaceID,
 			&i.UnsubscribeTemplateID,
+			&i.SmtpAllowInsecureTls,
 		); err != nil {
 			return nil, err
 		}
@@ -289,7 +294,7 @@ func (q *Queries) GetProjectsByUserID(ctx context.Context, userID uuid.UUID) ([]
 }
 
 const getProjectsByWorkspaceForUser = `-- name: GetProjectsByWorkspaceForUser :many
-SELECT p.id, p.user_id, p.name, p.from_name, p.from_email, p.smtp_host, p.smtp_port, p.smtp_user, p.smtp_password_encrypted, p.webhook_url, p.webhook_secret, p.tracking_enabled, p.created_at, p.updated_at, p.description, p.bounce_token, p.bounce_imap_host, p.bounce_imap_port, p.bounce_imap_user, p.bounce_imap_password_encrypted, p.bounce_imap_folder, p.bounce_imap_enabled, p.workspace_id, p.unsubscribe_template_id FROM projects p
+SELECT p.id, p.user_id, p.name, p.from_name, p.from_email, p.smtp_host, p.smtp_port, p.smtp_user, p.smtp_password_encrypted, p.webhook_url, p.webhook_secret, p.tracking_enabled, p.created_at, p.updated_at, p.description, p.bounce_token, p.bounce_imap_host, p.bounce_imap_port, p.bounce_imap_user, p.bounce_imap_password_encrypted, p.bounce_imap_folder, p.bounce_imap_enabled, p.workspace_id, p.unsubscribe_template_id, p.smtp_allow_insecure_tls FROM projects p
 JOIN workspace_members m ON m.workspace_id = p.workspace_id
 WHERE p.workspace_id = $1 AND m.user_id = $2
 ORDER BY p.created_at DESC
@@ -334,6 +339,7 @@ func (q *Queries) GetProjectsByWorkspaceForUser(ctx context.Context, arg GetProj
 			&i.BounceImapEnabled,
 			&i.WorkspaceID,
 			&i.UnsubscribeTemplateID,
+			&i.SmtpAllowInsecureTls,
 		); err != nil {
 			return nil, err
 		}
@@ -349,7 +355,7 @@ func (q *Queries) GetProjectsByWorkspaceForUser(ctx context.Context, arg GetProj
 }
 
 const listProjectsWithBounceIMAP = `-- name: ListProjectsWithBounceIMAP :many
-SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id FROM projects
+SELECT id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls FROM projects
 WHERE bounce_imap_enabled = TRUE
   AND bounce_imap_host IS NOT NULL
   AND bounce_imap_user IS NOT NULL
@@ -390,6 +396,7 @@ func (q *Queries) ListProjectsWithBounceIMAP(ctx context.Context) ([]Project, er
 			&i.BounceImapEnabled,
 			&i.WorkspaceID,
 			&i.UnsubscribeTemplateID,
+			&i.SmtpAllowInsecureTls,
 		); err != nil {
 			return nil, err
 		}
@@ -408,7 +415,7 @@ const rotateBounceToken = `-- name: RotateBounceToken :one
 UPDATE projects SET bounce_token = gen_random_uuid(), updated_at = NOW()
 WHERE id = $1
   AND workspace_id IN (SELECT wm.workspace_id FROM workspace_members wm WHERE wm.user_id = $2)
-RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls
 `
 
 type RotateBounceTokenParams struct {
@@ -444,6 +451,7 @@ func (q *Queries) RotateBounceToken(ctx context.Context, arg RotateBounceTokenPa
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }
@@ -459,7 +467,7 @@ UPDATE projects SET
     updated_at = NOW()
 WHERE id = $1
   AND workspace_id IN (SELECT wm.workspace_id FROM workspace_members wm WHERE wm.user_id = $2)
-RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls
 `
 
 type UpdateBounceIMAPParams struct {
@@ -510,6 +518,7 @@ func (q *Queries) UpdateBounceIMAP(ctx context.Context, arg UpdateBounceIMAPPara
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }
@@ -521,7 +530,7 @@ UPDATE projects SET
     updated_at = NOW()
 WHERE id = $1
   AND workspace_id IN (SELECT wm.workspace_id FROM workspace_members wm WHERE wm.user_id = $2)
-RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls
 `
 
 type UpdateProjectParams struct {
@@ -564,6 +573,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }
@@ -576,10 +586,11 @@ UPDATE projects SET
     smtp_password_encrypted = $6,
     from_name = $7,
     from_email = $8,
+    smtp_allow_insecure_tls = $9,
     updated_at = NOW()
 WHERE id = $1
   AND workspace_id IN (SELECT wm.workspace_id FROM workspace_members wm WHERE wm.user_id = $2)
-RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls
 `
 
 type UpdateProjectSMTPParams struct {
@@ -591,6 +602,7 @@ type UpdateProjectSMTPParams struct {
 	SmtpPasswordEncrypted sql.NullString
 	FromName              sql.NullString
 	FromEmail             sql.NullString
+	SmtpAllowInsecureTls  bool
 }
 
 func (q *Queries) UpdateProjectSMTP(ctx context.Context, arg UpdateProjectSMTPParams) (Project, error) {
@@ -603,6 +615,7 @@ func (q *Queries) UpdateProjectSMTP(ctx context.Context, arg UpdateProjectSMTPPa
 		arg.SmtpPasswordEncrypted,
 		arg.FromName,
 		arg.FromEmail,
+		arg.SmtpAllowInsecureTls,
 	)
 	var i Project
 	err := row.Scan(
@@ -630,6 +643,7 @@ func (q *Queries) UpdateProjectSMTP(ctx context.Context, arg UpdateProjectSMTPPa
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }
@@ -640,7 +654,7 @@ UPDATE projects SET
     updated_at = NOW()
 WHERE id = $1
   AND workspace_id IN (SELECT wm.workspace_id FROM workspace_members wm WHERE wm.user_id = $2)
-RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id
+RETURNING id, user_id, name, from_name, from_email, smtp_host, smtp_port, smtp_user, smtp_password_encrypted, webhook_url, webhook_secret, tracking_enabled, created_at, updated_at, description, bounce_token, bounce_imap_host, bounce_imap_port, bounce_imap_user, bounce_imap_password_encrypted, bounce_imap_folder, bounce_imap_enabled, workspace_id, unsubscribe_template_id, smtp_allow_insecure_tls
 `
 
 type UpdateProjectUnsubscribeTemplateParams struct {
@@ -677,6 +691,7 @@ func (q *Queries) UpdateProjectUnsubscribeTemplate(ctx context.Context, arg Upda
 		&i.BounceImapEnabled,
 		&i.WorkspaceID,
 		&i.UnsubscribeTemplateID,
+		&i.SmtpAllowInsecureTls,
 	)
 	return i, err
 }

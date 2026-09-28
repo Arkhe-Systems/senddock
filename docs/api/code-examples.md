@@ -14,7 +14,7 @@ Every example uses three placeholders — replace them once and the rest works:
 | `YOUR_API_KEY` | A project-scoped API key (`sk_…`). Create one in **Settings → API Keys**, see the [API Keys API](./api-keys). |
 | `YOUR_PROJECT_ID` | The project UUID. It's the segment after `/projects/` in the dashboard URL. |
 
-The API root is always `${YOUR_BASE_URL}/api/v1`. Authentication is `Authorization: Bearer ${YOUR_API_KEY}` for every endpoint that supports API keys (sending, broadcast, batch, subscribers/import). Cookie-only endpoints are noted on each reference page — full list at [Authentication → Endpoints that accept API keys](./authentication#endpoints-that-accept-api-keys).
+The API root is always `${YOUR_BASE_URL}/api/v1`. Authentication is `Authorization: Bearer ${YOUR_API_KEY}` for every endpoint that supports API keys (sending, broadcast, batch, subscribers/import, stats). Cookie-only endpoints are noted on each reference page — full list at [Authentication → Endpoints that accept API keys](./authentication#endpoints-that-accept-api-keys).
 
 All request and response bodies are `application/json` unless stated otherwise.
 
@@ -348,7 +348,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(["template_id" => "YOUR_TEMPLAT
 
 :::
 
-Returns `{"sent": N, "broadcast_id": "uuid"}` once the send has been enqueued for every active subscriber — `sent` is the number enqueued, not yet delivered; poll `GET /broadcasts` for the final sent/failed/suppressed tallies as the queue drains. Broadcast is rate-limited to **5 calls per hour per project** to prevent runaway sends.
+Returns `{"sent": N, "broadcast_id": "uuid"}` once the send has been enqueued for every active subscriber — `sent` is the number enqueued, not yet delivered. The `failed` and `suppressed` fields of the same object are omitted here because the enqueue targets active subscribers only. `broadcast_id` is the handle on the broadcast after that: the dashboard's **Broadcasts** tab (`GET /projects/{id}/broadcasts`) reads its `sent_count`, `failed_count` and `suppressed_count` as the worker drains the queue — that endpoint is cookie-only, so it is not callable with an API key. Broadcast is rate-limited to **5 calls per hour per project** to prevent runaway sends.
 
 ## Add a subscriber
 
@@ -432,7 +432,7 @@ Returns `200` with `{imported, duplicates, syntax_invalid, no_mx, disposable, su
 ## List subscribers (paginated)
 
 ::: warning Cookie auth only
-`GET /subscribers` is cookie-only — a project API key cannot list subscribers (see [Authentication → Endpoints that accept API keys](./authentication#endpoints-that-accept-api-keys)). Log in first, then send the session cookie instead of `Authorization: Bearer`. The cURL example uses `-b cookies.txt`; in the other languages, drop the `Authorization` header and attach the session cookie you received at login.
+`GET /subscribers` is cookie-only — a project API key cannot list subscribers (see [Authentication → Endpoints that accept API keys](./authentication#endpoints-that-accept-api-keys)). Log in first, then send the session cookie instead of `Authorization: Bearer`. The cURL example uses `-b cookies.txt`; the other examples send the `access_token` cookie you received at login.
 :::
 
 ::: code-group
@@ -445,13 +445,15 @@ curl -G "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/subscribers" \
 ```
 
 ```js [JavaScript]
+const accessToken = 'YOUR_ACCESS_TOKEN'
+
 async function* paginate() {
   const limit = 100
   let offset = 0
   while (true) {
     const res = await fetch(
       `${YOUR_BASE_URL}/api/v1/projects/${YOUR_PROJECT_ID}/subscribers?limit=${limit}&offset=${offset}`,
-      { headers: { Authorization: `Bearer ${YOUR_API_KEY}` } }
+      { headers: { Cookie: `access_token=${accessToken}` } }
     )
     const { subscribers, total } = await res.json()
     yield* subscribers
@@ -466,12 +468,14 @@ for await (const sub of paginate()) {
 ```
 
 ```python [Python]
+ACCESS_TOKEN = "YOUR_ACCESS_TOKEN"
+
 def all_subscribers():
     limit, offset = 100, 0
     while True:
         res = requests.get(
             f"{YOUR_BASE_URL}/api/v1/projects/{YOUR_PROJECT_ID}/subscribers",
-            headers={"Authorization": f"Bearer {YOUR_API_KEY}"},
+            cookies={"access_token": ACCESS_TOKEN},
             params={"limit": limit, "offset": offset},
         )
         res.raise_for_status()
@@ -493,13 +497,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 var mapper = new ObjectMapper();
 var http = HttpClient.newHttpClient();
+String accessToken = "YOUR_ACCESS_TOKEN";
 int limit = 100, offset = 0;
 
 while (true) {
     var req = HttpRequest.newBuilder()
         .uri(URI.create(YOUR_BASE_URL + "/api/v1/projects/" + YOUR_PROJECT_ID
                         + "/subscribers?limit=" + limit + "&offset=" + offset))
-        .header("Authorization", "Bearer " + YOUR_API_KEY)
+        .header("Cookie", "access_token=" + accessToken)
         .build();
     var res = http.send(req, HttpResponse.BodyHandlers.ofString());
     JsonNode page = mapper.readTree(res.body());
@@ -513,26 +518,35 @@ while (true) {
 ```
 
 ```csharp [.NET / C#]
+var accessToken = "YOUR_ACCESS_TOKEN";
 int limit = 100, offset = 0;
 while (true) {
-    var page = await http.GetFromJsonAsync<JsonElement>(
+    using var req = new HttpRequestMessage(
+        HttpMethod.Get,
         $"projects/{YOUR_PROJECT_ID}/subscribers?limit={limit}&offset={offset}"
     );
-    var subs = page.GetProperty("subscribers");
+    req.Headers.Add("Cookie", $"access_token={accessToken}");
+    var res = await http.SendAsync(req);
+    res.EnsureSuccessStatusCode();
+    using var page = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+    var root = page.RootElement;
+    var subs = root.GetProperty("subscribers");
     foreach (var sub in subs.EnumerateArray()) {
         Console.WriteLine(sub.GetProperty("email").GetString());
     }
     offset += subs.GetArrayLength();
-    if (offset >= page.GetProperty("total").GetInt32() || subs.GetArrayLength() == 0) break;
+    if (offset >= root.GetProperty("total").GetInt32() || subs.GetArrayLength() == 0) break;
 }
 ```
 
 ```php [PHP]
+$accessToken = "YOUR_ACCESS_TOKEN";
 $limit = 100; $offset = 0;
 while (true) {
     curl_setopt($ch, CURLOPT_URL,
         "$YOUR_BASE_URL/api/v1/projects/$YOUR_PROJECT_ID/subscribers?limit=$limit&offset=$offset");
     curl_setopt($ch, CURLOPT_HTTPGET, true);
+    curl_setopt($ch, CURLOPT_COOKIE, "access_token=$accessToken");
     $page = json_decode(curl_exec($ch), true);
     foreach ($page["subscribers"] as $sub) {
         echo $sub["email"] . "\n";
@@ -668,7 +682,7 @@ function verify(string $rawBody, string $header, string $secret, int $maxSkew = 
 :::
 
 ::: warning Read the raw body, not the parsed JSON
-Most frameworks parse JSON automatically and lose insignificant whitespace, which breaks the HMAC. Capture the bytes **before** any parser touches them — `request.body()` in Express, `request.body` in FastAPI's raw form, `Request.InputStream` in ASP.NET, `php://input` in PHP.
+Most frameworks parse JSON automatically and lose insignificant whitespace, which breaks the HMAC. Capture the bytes **before** any parser touches them — `express.raw({ type: 'application/json' })` in Express, `await request.body()` in FastAPI, `Request.Body` (with `Request.EnableBuffering()` for repeated reads) in ASP.NET Core, `php://input` in PHP.
 :::
 
 ## Errors
@@ -684,9 +698,9 @@ All errors return JSON of the shape `{"error": "human-readable message"}` with t
 | `404` | Project / template / subscriber not found. |
 | `409` | Duplicate (e.g. subscriber email already exists). |
 | `429` | Rate limited. Honor `Retry-After` (in seconds). |
+| `5xx` | Server error. Retry with backoff. |
 
 A suppressed recipient is **not** an error: `/send` answers `200` with `{"message": "suppressed", "suppressed": 1}`, and batch/broadcast count those recipients in the `suppressed` field. The send is logged with status `suppressed` and no SMTP attempt happens.
-| `5xx` | Server error. Retry with backoff. |
 
 ## What's next
 

@@ -19,7 +19,7 @@ All configuration is done via environment variables. For self-hosting deployment
 | `PUBLIC_URL` | On self-hosted this is **deprecated** — set it from the dashboard under Instance instead; a value left here is imported on first boot and stops being read in v0.9. On the hosted product it stays the source of truth, since there is no Instance screen there. | _stored in the database_ |
 | `CLOUD` | Switches the binary to cloud mode. Truthy values `true` / `1` / `yes` (case-insensitive) select cloud; anything else — including unset — stays self-hosted. The legacy `DEPLOYMENT_MODE` is still read until v0.9 but only ever accepted one value (`cloud`); it's checked only when `CLOUD` isn't truthy, so a truthy `CLOUD` always wins. | _unset_ |
 | `SENDDOCK_LICENSE_KEY` | Pro / Team license key. On self-hosted this is **deprecated** — activate it from the dashboard under **Instance → License** instead ([Instance settings](/guide/instance-settings#pro-license)); a value left here is imported once on first boot and stops being read in v0.9. On the hosted product the environment stays the source of truth. Empty leaves the deployment on the free tier (Core only). | — |
-| `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the **global** rate limiter (rolling 60s fixed window, applied to every HTTP endpoint except `/health`). Independent from the hard-coded per-project sending limits on `/send`, `/send/batch`, `/broadcast` (those are not configurable). Lower this on small deployments behind a single egress IP; raise it for high-traffic apps. Only enforced when `REDIS_URL` is set. | `600` |
+| `RATE_LIMIT_PER_MINUTE` | Per-IP request cap for the **global** rate limiter (rolling 60s fixed window, applied to every HTTP endpoint except `/health` and `/metrics`). Independent from the hard-coded per-project sending limits on `/send`, `/send/batch`, `/broadcast` (those are not configurable). Lower this on small deployments behind a single egress IP; raise it for high-traffic apps. Only enforced when `REDIS_URL` is set. | `600` |
 | `SENDDOCK_WATCHTOWER_URL` | URL of the [Watchtower](https://containrrr.dev/watchtower/) HTTP API (typically `http://watchtower:8080` on the Docker network). When set and reachable, the dashboard's update modal shows an "Update now" button that triggers a Watchtower scan + image refresh. When unset, the modal falls back to the manual `docker compose pull && up -d` command. See [Updating → One-click updates](/self-hosting/updating#one-click-updates-from-the-dashboard-watchtower). | — |
 | `SENDDOCK_WATCHTOWER_TOKEN` | Bearer token expected by Watchtower's HTTP API (set as `WATCHTOWER_HTTP_API_TOKEN` on the Watchtower container). Required when `SENDDOCK_WATCHTOWER_URL` is set. | — |
 | `TEMPLATE_LIBRARY_URL` | Manifest URL for the starter library shown by the **★ Browse library** modal on the Templates page. Override to point at a private fork or a curated internal gallery — the schema is documented in the [public repo](https://github.com/Arkhe-Systems/senddock-templates). The backend caches the manifest in Redis for one hour, so changes take up to an hour to propagate. Empty disables the library button. | `https://raw.githubusercontent.com/Arkhe-Systems/senddock-templates/main/index.json` |
@@ -30,7 +30,7 @@ These are consumed by the bundled `docker-compose.image.yml` / `docker-compose.p
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `POSTGRES_PASSWORD` | Password for the bundled Postgres service. Required — the compose fails fast if it's unset. Generate with `openssl rand -base64 32`. | — |
+| `POSTGRES_PASSWORD` | Password for the bundled Postgres service. Required — both production composes refuse to start while it is unset or empty, which is why `.env.production.example` ships it empty. Generate with `openssl rand -base64 32`. | — |
 | `SENDDOCK_PORT` | Host port the SendDock container is exposed on. Mapped to `8080` inside the container (which is what `PORT` controls). Set to e.g. `9090` to reach SendDock at `http://host:9090`. | `8080` |
 
 ## Advanced overrides
@@ -39,9 +39,9 @@ You almost never need these — they're escape hatches for non-default deploymen
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SENDDOCK_LICENSE_ENDPOINT` | Override the Lemon Squeezy API root the license validator calls — for a self-hosted Lemon Squeezy instance or a proxy in front of the licensing API. Test mode uses the same URL but a different key, so you do **not** need to set this for test mode. | `https://api.lemonsqueezy.com/v1` |
+| `SENDDOCK_LICENSE_ENDPOINT` | Override the Lemon Squeezy API root the license validator calls — for a self-hosted Lemon Squeezy instance or a proxy in front of the licensing API. Only read by binaries built with the `licensedev` build tag, so it has **no effect on official images** or on any other build. Test mode uses the same URL but a different key, so you do **not** need to set this for test mode. | `https://api.lemonsqueezy.com/v1` |
 | `FRONTEND_DIST_PATH` | Filesystem path to the built frontend SPA (`index.html` and assets). The official Docker image sets this to `/app/frontend/dist`. Override only if you serve the SPA from a custom location. | `./frontend/dist` |
-| `DISPOSABLE_DOMAINS_FILE` | Path to a newline-separated list of disposable email domains used by the import validator. Built-in list ships with the binary; setting this replaces it (does not extend). | _built-in_ |
+| `DISPOSABLE_DOMAINS_FILE` | Path to a newline-separated list of disposable email domains used by the import validator. Built-in list ships with the binary; domains in the file are **added** to it (it does not replace the built-in list). | _built-in_ |
 
 ::: tip Where is the public URL now?
 Outgoing emails contain links like the unsubscribe URL and the open-tracking pixel. SendDock cannot guess what URL recipients will see — it has to be told.

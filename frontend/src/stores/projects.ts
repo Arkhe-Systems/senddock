@@ -11,6 +11,7 @@ export interface Project {
     smtp_host: string | null
     smtp_port: number | null
     smtp_user: string | null
+    smtp_allow_insecure_tls: boolean
     created_at: string
     updated_at: string
 }

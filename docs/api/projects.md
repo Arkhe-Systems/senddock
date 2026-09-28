@@ -44,7 +44,7 @@ POST /api/v1/projects
 GET /api/v1/projects
 ```
 
-Returns an array of projects owned by the authenticated user.
+Returns an array of the projects in every workspace the authenticated user is a member of.
 
 ## Get Project
 
@@ -107,6 +107,6 @@ PUT /api/v1/projects/{id}/unsubscribe-template
 {"template_id": "uuid"}
 ```
 
-Sets the [page template](/api/templates#template-types) rendered on the public unsubscribe pages (both the confirmation and the done page). The template must belong to the project and have `type: "page"` — anything else returns `400`. Send `{"template_id": ""}` to clear the setting and fall back to the built-in page. Requires the `project:settings` capability. Deleting the template clears the setting automatically.
+Sets the [page template](/api/templates#template-types) rendered on the public unsubscribe pages (both the confirmation and the done page). The template must belong to the project and have `type: "page"` — anything else returns `400`. Send `{"template_id": ""}` to clear the setting and fall back to the built-in page. Requires the `project.settings` capability. Deleting the template clears the setting automatically.
 
 Invalid or tampered unsubscribe links always render the built-in error page, never the branded template.

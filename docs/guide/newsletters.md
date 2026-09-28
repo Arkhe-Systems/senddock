@@ -16,7 +16,7 @@ So one subscriber can be `active` project-wide, a member of three newsletters, o
 - Unsubscribing from a newsletter only marks that membership; the subscriber stays `active` and keeps receiving your other newsletters and transactional email.
 - The [suppression list](/guide/suppressions) still gates every send, always.
 
-> Example: María is in **Dev Tips** and **Product updates**. She unsubscribes from **Dev Tips**. Her project status stays `active`, she keeps receiving **Product updates**, and transactional email is untouched. Re-adding her to **Dev Tips** later clears that opt-out.
+> Example: Mary is in **Dev Tips** and **Product updates**. She unsubscribes from **Dev Tips**. Her project status stays `active`, she keeps receiving **Product updates**, and transactional email is untouched. Re-adding her to **Dev Tips** later clears that opt-out.
 
 ## Creating and managing
 

@@ -105,7 +105,7 @@ A rich value is **not** escaped — instead it runs through a strict HTML **sani
 
 See [Email Sending → Rich-text variables](/guide/sending#rich-text-variables) for the full workflow.
 
-The subject line is **not** escaped (subject is plain text, not HTML), but it is also not allowed to introduce headers — newlines are stripped to prevent SMTP header injection.
+The subject line is **not** escaped (subject is plain text, not HTML), but it cannot introduce headers: carriage returns and line feeds are stripped from every value that reaches a header — the subject, the sender name, the recipient and the unsubscribe URL — so a crafted value cannot inject one.
 
 ## Page templates
 
@@ -128,7 +128,7 @@ Page templates support these placeholders:
 A few rules keep the page safe and predictable:
 
 - The HTML is sanitized before rendering: scripts, iframes, forms, and event-handler attributes are stripped. Placeholder values are escaped, so they can't inject markup.
-- Style with **inline `style` attributes** or a `<style>` block — both are preserved and inlined when the page renders. Images and tables work normally.
+- Style with **inline `style` attributes** or a `<style>` block — both are preserved as written, and the page is not run through a CSS inliner (that only happens on an email send). Images and tables work normally.
 - An invalid or tampered unsubscribe link always shows the built-in error page, never your branded one.
 - Page templates never appear in the broadcast or campaign template pickers, and email templates can't be assigned as pages.
 

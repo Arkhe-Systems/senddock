@@ -1,6 +1,6 @@
 # Campaigns API
 
-Cookie auth only. Campaigns mutate workspace state and require role-based capabilities (`campaigns:write` for create / update / delete) that an API key does not carry — the role is bound to the user identity.
+Cookie auth only. Campaigns mutate workspace state and require role-based capabilities (`campaigns.write` for create / update / delete) that an API key does not carry — the role is bound to the user identity.
 
 A campaign is a **scheduled broadcast** — delivered by the same worker as `POST /broadcast`; use `/broadcast` for immediate sends. Unlike `/broadcast`, campaigns accept `newsletter_id` but have no `segment_id` field.
 
@@ -99,7 +99,7 @@ Reschedules or replaces a `scheduled` campaign. Same body shape as Create:
 
 `name`, `template_id` and `scheduled_at` are required (full replacement, not partial update). `scheduled_at` must be RFC 3339. `variables` and `newsletter_id` are optional and replace the previous values — omitting `newsletter_id` reverts the campaign to all active subscribers.
 
-Only campaigns in `scheduled` status can be patched — once a campaign moves to `sending`, `sent` or `failed`, it's immutable. Cookie auth only; the role must have `campaigns:write` (owners, admins and developers, not viewers).
+Only campaigns in `scheduled` status can be patched — once a campaign moves to `sending`, `sent` or `failed`, it's immutable. Cookie auth only; the role must have `campaigns.write` (owners, admins and developers, not viewers).
 
 **Response** the updated campaign object.
 

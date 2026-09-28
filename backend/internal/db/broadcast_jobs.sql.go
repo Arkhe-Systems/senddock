@@ -37,7 +37,9 @@ func (q *Queries) BulkInsertBroadcastJobs(ctx context.Context, arg BulkInsertBro
 const claimBroadcastJob = `-- name: ClaimBroadcastJob :one
 UPDATE broadcast_jobs SET
     status = 'sending',
-    attempts = attempts + 1
+    attempts = attempts + 1,
+    worker_id = $1::uuid,
+    lease_expires_at = $2::timestamptz
 WHERE id = (
     SELECT id FROM broadcast_jobs
     WHERE status IN ('pending', 'retry')
@@ -46,11 +48,16 @@ WHERE id = (
     FOR UPDATE SKIP LOCKED
     LIMIT 1
 )
-RETURNING id, broadcast_id, project_id, subscriber_id, recipient_email, status, attempts, last_error, scheduled_at, completed_at, created_at
+RETURNING id, broadcast_id, project_id, subscriber_id, recipient_email, status, attempts, last_error, scheduled_at, completed_at, created_at, worker_id, lease_expires_at
 `
 
-func (q *Queries) ClaimBroadcastJob(ctx context.Context) (BroadcastJob, error) {
-	row := q.db.QueryRowContext(ctx, claimBroadcastJob)
+type ClaimBroadcastJobParams struct {
+	WorkerID       uuid.UUID
+	LeaseExpiresAt time.Time
+}
+
+func (q *Queries) ClaimBroadcastJob(ctx context.Context, arg ClaimBroadcastJobParams) (BroadcastJob, error) {
+	row := q.db.QueryRowContext(ctx, claimBroadcastJob, arg.WorkerID, arg.LeaseExpiresAt)
 	var i BroadcastJob
 	err := row.Scan(
 		&i.ID,
@@ -64,6 +71,8 @@ func (q *Queries) ClaimBroadcastJob(ctx context.Context) (BroadcastJob, error) {
 		&i.ScheduledAt,
 		&i.CompletedAt,
 		&i.CreatedAt,
+		&i.WorkerID,
+		&i.LeaseExpiresAt,
 	)
 	return i, err
 }
@@ -157,12 +166,15 @@ func (q *Queries) MarkBroadcastJobSuppressed(ctx context.Context, id uuid.UUID) 
 const resetStuckSendingJobs = `-- name: ResetStuckSendingJobs :execrows
 UPDATE broadcast_jobs SET
     status = 'retry',
-    scheduled_at = NOW()
+    scheduled_at = NOW(),
+    worker_id = NULL,
+    lease_expires_at = NULL
 WHERE status = 'sending'
+  AND (lease_expires_at IS NULL OR lease_expires_at < $1::timestamptz)
 `
 
-func (q *Queries) ResetStuckSendingJobs(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, resetStuckSendingJobs)
+func (q *Queries) ResetStuckSendingJobs(ctx context.Context, now time.Time) (int64, error) {
+	result, err := q.db.ExecContext(ctx, resetStuckSendingJobs, now)
 	if err != nil {
 		return 0, err
 	}
@@ -173,7 +185,9 @@ const scheduleBroadcastJobRetry = `-- name: ScheduleBroadcastJobRetry :exec
 UPDATE broadcast_jobs SET
     status = 'retry',
     scheduled_at = $1,
-    last_error = $2::text
+    last_error = $2::text,
+    worker_id = NULL,
+    lease_expires_at = NULL
 WHERE id = $3
 `
 

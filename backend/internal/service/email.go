@@ -761,13 +761,17 @@ func (s *EmailService) GetStats(ctx context.Context, projectID string) (map[stri
 }
 
 func (s *EmailService) logPending(ctx context.Context, projectID uuid.UUID, subscriberID, templateID uuid.NullUUID, toEmail, subject string, broadcastID, newsletterID uuid.NullUUID) uuid.UUID {
+	// The row has to exist before the send so the tracking pixel and the click links have a
+	// log id to point at, but until the relay answers the outcome is unknown. Recording it as
+	// sent up front counted attempts that never left the instance, and a crash left them
+	// counted as delivered forever.
 	logEntry, _ := s.queries.CreateEmailLog(ctx, db.CreateEmailLogParams{
 		ProjectID:    projectID,
 		SubscriberID: subscriberID,
 		TemplateID:   templateID,
 		ToEmail:      toEmail,
 		Subject:      subject,
-		Status:       "sent",
+		Status:       "pending",
 		BroadcastID:  broadcastID,
 		NewsletterID: newsletterID,
 	})
@@ -830,6 +834,7 @@ func (s *EmailService) trackAndSend(ctx context.Context, project db.Project, pro
 		s.dispatchEmail(ctx, "email.failed", projectID, logID, to, subject, sendErr.Error())
 	} else {
 		metrics.EmailSent()
+		s.markLogStatus(ctx, projectID, logID, "sent", nil)
 		s.dispatchEmail(ctx, "email.sent", projectID, logID, to, subject, "")
 	}
 	return sendErr
@@ -1151,18 +1156,57 @@ func (s *EmailService) sendSMTPWithTimeouts(project db.Project, to, subject, htm
 		from = fmt.Sprintf("%s <%s>", project.FromName.String, fromEmail)
 	}
 
-	inlinedBody := inlineCSS(htmlBody)
-
-	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n",
-		from, to, subject)
-	if unsubscribeURL != "" {
-		headers += fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", unsubscribeURL)
-	}
-	msg := headers + "\r\n" + inlinedBody
+	msg := buildMIME(from, to, subject, unsubscribeURL, inlineCSS(htmlBody))
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	return deliverSMTP(host, addr, user, pass, fromEmail, to, []byte(msg), port == 465, connectTimeout, sessionTimeout)
+	return deliverSMTP(host, addr, user, pass, fromEmail, to, msg, port == 465, connectTimeout, sessionTimeout, project.SmtpAllowInsecureTls)
+}
+
+// smtpTLSConfig builds the TLS settings for outgoing mail. Certificates are verified
+// unless the project opted out, which exists for relays serving a self-signed or expired
+// certificate.
+func smtpTLSConfig(host string, allowInsecureTLS bool) *tls.Config {
+	config := &tls.Config{ServerName: host}
+	if allowInsecureTLS {
+		config.InsecureSkipVerify = true
+	}
+	return config
+}
+
+func isCertificateError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "x509:") || strings.Contains(msg, "failed to verify certificate")
+}
+
+// certificateError turns a failed handshake into something an operator can act on.
+// Verification is on by default now, so a self-signed relay fails with a message naming
+// the project setting that resolves it instead of a bare handshake error.
+func certificateError(host string, allowInsecureTLS bool, err error) error {
+	if allowInsecureTLS {
+		return fmt.Errorf("TLS handshake with %s failed: %w", host, err)
+	}
+	return fmt.Errorf("TLS certificate verification failed for %s: %w. Renew the certificate, or enable \"Allow insecure TLS\" for this project under Project -> SMTP if the relay uses a self-signed or expired one", host, err)
+}
+
+// headerSafe strips CR and LF so a value cannot end its header line early. Subjects
+// carry subscriber-supplied text — their name, email and custom fields are substituted
+// into them — so without this a crafted value could inject arbitrary headers into the
+// message, a Bcc for example.
+func headerSafe(value string) string {
+	return strings.NewReplacer("\r", "", "\n", "").Replace(value)
+}
+
+// buildMIME assembles the message that goes on the wire: headers, a blank line, then the
+// rendered body. Every interpolated header value is stripped of line breaks here, at the
+// single point where headers are built, so no caller can bypass it.
+func buildMIME(from, to, subject, unsubscribeURL, body string) []byte {
+	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n",
+		headerSafe(from), headerSafe(to), headerSafe(subject))
+	if unsubscribeURL != "" {
+		headers += fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", headerSafe(unsubscribeURL))
+	}
+	return []byte(headers + "\r\n" + body)
 }
 
 const (
@@ -1190,8 +1234,8 @@ func wrapDialError(addr string, connectTimeout time.Duration, err error) error {
 	return fmt.Errorf("smtp connection failed: %w", err)
 }
 
-func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool, connectTimeout, sessionTimeout time.Duration) error {
-	tlsConfig := &tls.Config{ServerName: host, InsecureSkipVerify: true}
+func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTLS bool, connectTimeout, sessionTimeout time.Duration, allowInsecureTLS bool) error {
+	tlsConfig := smtpTLSConfig(host, allowInsecureTLS)
 	dialer := &net.Dialer{Timeout: connectTimeout}
 
 	var conn net.Conn
@@ -1202,6 +1246,9 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 		conn, err = dialer.Dial("tcp", addr)
 	}
 	if err != nil {
+		if isCertificateError(err) {
+			return certificateError(host, allowInsecureTLS, err)
+		}
 		return wrapDialError(addr, connectTimeout, err)
 	}
 	defer conn.Close()
@@ -1219,6 +1266,9 @@ func deliverSMTP(host, addr, user, pass, from, to string, msg []byte, implicitTL
 	if !implicitTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
 			if err = client.StartTLS(tlsConfig); err != nil {
+				if isCertificateError(err) {
+					return certificateError(host, allowInsecureTLS, err)
+				}
 				return fmt.Errorf("smtp starttls failed: %w", err)
 			}
 		}

@@ -27,17 +27,19 @@ Keys are project-scoped — the key identifies the project, so the URL `{id}` se
 | `POST /api/v1/projects/{id}/send` | Single transactional send (template or raw HTML). |
 | `POST /api/v1/projects/{id}/send/batch` | Same template, many recipients with per-recipient `data`. |
 | `POST /api/v1/projects/{id}/broadcast` | Send to every active subscriber. |
-| `POST /api/v1/projects/{id}/subscribers/import` | CSV / JSON import with email validation. |
+| `POST /api/v1/projects/{id}/subscribers/import` | JSON array import with email validation. |
 | `GET /api/v1/projects/{id}/stats` | Read-only summary counts (`total`, `sent`, `failed`, `bounced`, `suppressed`, `opened`). |
 
-Every other endpoint requires cookie auth — see the next section. As a rule of thumb: **anything that mutates project, workspace, template, subscriber, webhook or audit-log state is cookie-only**, because role-based capabilities key off the user identity that an API key doesn't carry.
+Every other endpoint requires cookie auth — see the next section. As a rule of thumb: **anything that mutates project, workspace, template, subscriber, webhook or audit-log state is cookie-only**, because role-based capabilities key off the user identity that an API key doesn't carry. A key can exercise only a fixed allowlist of capabilities — `send.transactional`, `broadcast` and `subscribers.write` — so a capability outside it is refused even on an endpoint mounted for both auth schemes.
 
 ### Errors
 
 | Status | Body | Meaning |
 |---|---|---|
-| `401` | `{"error":"missing or invalid api key"}` | Header missing, malformed, or key revoked. |
-| `403` | `{"error":"forbidden"}` | Key valid but capability denied. (API keys carry full project access today, so 403 only happens on cookie auth.) |
+| `401` | `{"error":"missing or invalid api key"}` | Header missing or malformed, or a key that doesn't match one in the database. |
+| `401` | `{"error":"invalid api key"}` | Key revoked. |
+| `403` | `{"error":"this action is not permitted with an API key"}` | The endpoint requires a capability outside the API key allowlist. |
+| `403` | `{"error":"your role does not allow this action"}` | Cookie auth, and your role lacks the capability for this endpoint. |
 
 ## Cookie session (dashboard SPA)
 
@@ -56,7 +58,7 @@ POST /api/v1/auth/login
 }
 ```
 
-Sets an `access_token` (15 min lifetime) and `refresh_token` (7 days) cookie, both `HttpOnly`, `Secure` and `SameSite=Lax`.
+Sets an `access_token` (15 min lifetime) and `refresh_token` (2 hours) cookie, both `HttpOnly` and `SameSite=Lax`. `Secure` is set when the deployment's origin is `https`.
 
 ### Refresh
 
@@ -107,7 +109,7 @@ POST /api/v1/me/password
 
 Verifies `current_password` with bcrypt, then validates `new_password` against the registration rules: min 8 chars, at least one uppercase, one digit, one special character. Returns `200` on success, `400` on weak new password, `401` on bad current password.
 
-Changing the password does **not** invalidate existing sessions on other devices — sign out from those manually if needed.
+Changing the password revokes every outstanding refresh token, so all other sessions are logged out and their refresh attempts fail. The current access token keeps working until it expires (up to 15 minutes).
 
 ## Two-factor authentication
 
@@ -129,7 +131,7 @@ No body. Response:
 }
 ```
 
-Recovery codes are returned **only here** and only this once. Persist them client-side immediately or you lose them.
+Recovery codes are returned here and on [Regenerate recovery codes](#regenerate-recovery-codes) — the dashboard stores them client-side, so persist them yourself or regenerate a fresh set later.
 
 ### Confirm setup
 
@@ -150,10 +152,10 @@ POST /api/v1/me/2fa/disable
 ```
 
 ```json
-{ "code": "123456" }
+{ "password": "...", "code": "123456" }
 ```
 
-`code` is either a valid TOTP code or a single-use recovery code. No code, no disable — there is no admin override.
+`code` is either a valid TOTP code or a single-use recovery code. Both fields are required — no password, no code, no disable, and there is no admin override.
 
 ### Regenerate recovery codes
 
@@ -173,10 +175,10 @@ Requires a valid TOTP code. Invalidates the existing set and returns ten fresh o
 
 ### Login second step
 
-When `/api/v1/auth/login` succeeds against an account with 2FA enabled, it returns `200` with `needs_2fa: true` and an intermediate token instead of setting session cookies:
+When `/api/v1/auth/login` succeeds against an account with 2FA enabled, it returns `200` with `requires_2fa: true` and a two-factor token instead of setting session cookies:
 
 ```json
-{ "needs_2fa": true, "intermediate_token": "..." }
+{ "requires_2fa": true, "two_factor_token": "..." }
 ```
 
 Complete the login by posting to:
@@ -186,10 +188,10 @@ POST /api/v1/auth/2fa
 ```
 
 ```json
-{ "intermediate_token": "...", "code": "123456" }
+{ "two_factor_token": "...", "code": "123456" }
 ```
 
-`code` is a TOTP code or a recovery code. On success, session cookies are set the same way as a regular login. The intermediate token is short-lived (a few minutes) and only valid for this exchange.
+`code` is a TOTP code or a recovery code. On success, session cookies are set the same way as a regular login. The two-factor token is short-lived (5 minutes) and only valid for this exchange.
 
 ## Email-verified signup (Cloud)
 
@@ -263,7 +265,7 @@ Completes the login **on the device that started it** — login cookies are set 
 
 ## First-boot setup
 
-These two endpoints exist only until the first user is created — after that they return errors. Self-hosted instances run them via the **Setup** screen the first time you open the dashboard; you almost never need to call them by hand.
+These two endpoints exist only until the first user is created — after that `POST /api/v1/setup` fails while `GET /api/v1/setup/status` keeps answering. Self-hosted instances run them via the **Setup** screen the first time you open the dashboard; you almost never need to call them by hand.
 
 ### Status
 
@@ -291,4 +293,4 @@ POST /api/v1/setup
 }
 ```
 
-Returns `200 OK` with the new user's `user_id` and sets login cookies in the same response. Calling this when users already exist returns `409 Conflict`.
+Returns `201 Created` with `{"message":"setup complete"}` and sets login cookies in the same response. Calling this when users already exist returns `403 Forbidden` with `{"error":"setup already completed"}`.

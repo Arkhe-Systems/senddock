@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/arkhe-systems/senddock/pkg/auth"
 	"github.com/arkhe-systems/senddock/internal/response"
 	"github.com/arkhe-systems/senddock/internal/service"
+	"github.com/arkhe-systems/senddock/pkg/auth"
 )
 
 type ProjectHandler struct {
@@ -142,12 +142,13 @@ func (h *ProjectHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateSMTPRequest struct {
-	SmtpHost     string `json:"smtp_host"`
-	SmtpPort     int32  `json:"smtp_port"`
-	SmtpUser     string `json:"smtp_user"`
-	SmtpPassword string `json:"smtp_password"`
-	FromName     string `json:"from_name"`
-	FromEmail    string `json:"from_email"`
+	SmtpHost             string `json:"smtp_host"`
+	SmtpPort             int32  `json:"smtp_port"`
+	SmtpUser             string `json:"smtp_user"`
+	SmtpPassword         string `json:"smtp_password"`
+	SmtpAllowInsecureTls bool   `json:"smtp_allow_insecure_tls"`
+	FromName             string `json:"from_name"`
+	FromEmail            string `json:"from_email"`
 }
 
 type updateUnsubscribeTemplateRequest struct {
@@ -205,7 +206,7 @@ func (h *ProjectHandler) UpdateSMTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project, err := h.projectService.UpdateSMTP(r.Context(), projectID, userID, req.SmtpHost, req.SmtpPort, req.SmtpUser, req.SmtpPassword, req.FromName, req.FromEmail)
+	project, err := h.projectService.UpdateSMTP(r.Context(), projectID, userID, req.SmtpHost, req.SmtpPort, req.SmtpUser, req.SmtpPassword, req.FromName, req.FromEmail, req.SmtpAllowInsecureTls)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)

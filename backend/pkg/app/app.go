@@ -203,15 +203,15 @@ func (a *App) Audit() *service.AuditService { return a.audit }
 func (a *App) Projects() *service.ProjectService { return a.projects }
 
 func (a *App) RegisterUnverified(ctx context.Context, email, password, name string) (string, error) {
-	return service.NewAuthService(a.queries, a.cfg.JWTSecret).RegisterUnverified(ctx, email, password, name)
+	return service.NewAuthService(a.queries, a.conn, a.cfg.JWTSecret).RegisterUnverified(ctx, email, password, name)
 }
 
 func (a *App) MarkEmailVerified(ctx context.Context, email string) (string, error) {
-	return service.NewAuthService(a.queries, a.cfg.JWTSecret).MarkEmailVerified(ctx, email)
+	return service.NewAuthService(a.queries, a.conn, a.cfg.JWTSecret).MarkEmailVerified(ctx, email)
 }
 
 func (a *App) IsUnverifiedUser(ctx context.Context, email string) (bool, error) {
-	return service.NewAuthService(a.queries, a.cfg.JWTSecret).IsUnverifiedUser(ctx, email)
+	return service.NewAuthService(a.queries, a.conn, a.cfg.JWTSecret).IsUnverifiedUser(ctx, email)
 }
 
 func (a *App) SetDeviceGate(g handler.DeviceGate) {
@@ -248,7 +248,7 @@ func (a *App) IssueSession(ctx context.Context, w http.ResponseWriter, userID st
 	if err != nil {
 		return err
 	}
-	tokens, err := service.NewAuthService(a.queries, a.cfg.JWTSecret).IssueTokens(ctx, uid)
+	tokens, err := service.NewAuthService(a.queries, a.conn, a.cfg.JWTSecret).IssueTokens(ctx, uid)
 	if err != nil {
 		return err
 	}
@@ -377,7 +377,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	cfg := a.cfg
 	queries := a.queries
 
-	authService := service.NewAuthService(queries, cfg.JWTSecret)
+	authService := service.NewAuthService(queries, a.conn, cfg.JWTSecret)
 	authHandler := handler.NewAuthHandler(authService)
 	if a.cache != nil {
 		authHandler.SetLoginLimiter(a.cache)
@@ -388,7 +388,7 @@ func (a *App) registerCoreRoutes(emailService *service.EmailService) {
 	a.projects = projectService
 	projectHandler := handler.NewProjectHandler(projectService)
 
-	workspaceService := service.NewWorkspaceService(queries)
+	workspaceService := service.NewWorkspaceService(queries, a.conn)
 	a.workspaces = workspaceService
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, projectService)
 

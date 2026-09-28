@@ -5,6 +5,7 @@ import { useToastStore } from '@/stores/toast'
 import type { Project } from '@/stores/projects'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 
 const props = defineProps<{ project: Project }>()
 const emit = defineEmits<{ updated: [] }>()
@@ -19,6 +20,7 @@ const smtpUser = ref('')
 const smtpPassword = ref('')
 const fromName = ref('')
 const fromEmail = ref('')
+const smtpAllowInsecureTls = ref(false)
 
 const hasSmtpConfig = computed(() => !!props.project.smtp_host)
 
@@ -28,6 +30,7 @@ onMounted(() => {
     smtpUser.value = props.project.smtp_user ?? ''
     fromName.value = props.project.from_name ?? ''
     fromEmail.value = props.project.from_email ?? ''
+    smtpAllowInsecureTls.value = props.project.smtp_allow_insecure_tls ?? false
 })
 
 async function handleSave() {
@@ -47,6 +50,7 @@ async function handleSave() {
                 smtp_password: smtpPassword.value,
                 from_name: fromName.value,
                 from_email: fromEmail.value,
+                smtp_allow_insecure_tls: smtpAllowInsecureTls.value,
             },
         })
         toast.success('SMTP settings saved')
@@ -92,6 +96,18 @@ async function handleTest() {
 
                 <AppInput v-model="smtpUser" label="Username" placeholder="you@gmail.com" required />
                 <AppInput v-model="smtpPassword" label="Password" type="password" placeholder="App password or SMTP key" required />
+
+                <label class="flex items-start gap-3 pt-2">
+                    <AppCheckbox v-model="smtpAllowInsecureTls" class="mt-0.5" />
+                    <span>
+                        <span class="text-sm text-zinc-300">Allow insecure TLS</span>
+                        <span class="block text-xs text-zinc-400 mt-0.5">
+                            Keeps sending to a relay whose certificate is self-signed or expired, without verifying it.
+                            Anyone able to intercept the connection can then read your SMTP credentials and mail.
+                            Renew the certificate instead — only enable this if the relay is one you control.
+                        </span>
+                    </span>
+                </label>
             </div>
 
             <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-4">
